@@ -11,7 +11,7 @@ const STAGES = [
   { id: 2, label: 'Pelapukan',           path: '/journey/tahap-2' },
   { id: 3, label: 'Kontaminasi Pangan',  path: '/journey/tahap-3' },
   { id: 4, label: 'Organ Pencernaan',    path: '/journey/tahap-4' },
-  { id: 5, label: 'E-LKPD',             path: '/journey/tahap-5' },
+  { id: 5, label: 'Papan Bukti',        path: '/journey/tahap-5' },
   { id: 6, label: 'Komitmen',            path: '/journey/tahap-6' },
 ];
 

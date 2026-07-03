@@ -6,10 +6,10 @@ import { useJourneyStore } from '@/lib/journeyStore';
 const STAGES = [
   { id: 1, title: 'Scanner AI',         icon: 'qr_code_scanner', path: '/journey/tahap-1', desc: 'Pindai plastik nyata untuk mengetahui jenis dan potensinya menjadi mikroplastik.' },
   { id: 2, title: 'Proses Pelapukan',   icon: 'wb_sunny',        path: '/journey/tahap-2', desc: 'Simulasi interaktif melihat botol utuh hancur karena UV dan ombak laut.' },
-  { id: 3, title: 'Kontaminasi Pangan', icon: 'set_meal',        path: '/journey/tahap-3', desc: 'Lacak bagaimana mikroplastik masuk ke rantai makanan, mulai dari plankton hingga ikan.' },
-  { id: 4, title: 'Organ Pencernaan',   icon: 'accessibility_new', path: '/journey/tahap-4', desc: 'Saksikan dampak mikroplastik yang masuk dan menumpuk di organ pencernaan manusia.' },
-  { id: 5, title: 'E-LKPD Interaktif',  icon: 'assignment',      path: '/journey/tahap-5', desc: 'Evaluasi pemahamanmu melalui kuis dan lembar kerja yang menantang.' },
-  { id: 6, title: 'Sumpah Komitmen',    icon: 'workspace_premium', path: '/journey/tahap-6', desc: 'Ucapkan komitmenmu menjaga laut dan raih Sertifikat Penjaga Samudra.' },
+  { id: 3, title: 'Kontaminasi Pangan', icon: 'set_meal',        path: '/journey/tahap-3', desc: 'Scan makanan sehari-hari untuk mendeteksi kandungan partikel asing.' },
+  { id: 4, title: 'Organ Pencernaan',   icon: 'pulmonology',     path: '/journey/tahap-4', desc: 'Jelajahi anatomi tubuh untuk melihat titik penumpukan mikroplastik.' },
+  { id: 5, title: 'Papan Bukti',        icon: 'hub',             path: '/journey/tahap-5', desc: 'Susun benang merah kasus polusi plastik seperti seorang detektif.' },
+  { id: 6, title: 'Sumpah Komitmen',    icon: 'contract',        path: '/journey/tahap-6', desc: 'Ikrar penjaga samudra dan sertifikat resmi pelindung bumi.' },
 ];
 
 export default function JourneyDashboard() {
