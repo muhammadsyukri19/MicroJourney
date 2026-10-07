@@ -250,6 +250,15 @@ export default function Tahap6() {
   return (
     <div className="min-h-[calc(100vh-88px)] bg-[#f7f9fb] flex flex-col">
       <div className="max-w-2xl mx-auto px-4 py-8 w-full">
+        <div className="mb-5 flex items-center justify-between">
+          <button
+            onClick={() => router.push('/journey/tahap-5')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#bec8d2] text-[#006591] font-bold text-xs hover:bg-[#e4f1f9] transition-colors shadow-sm"
+          >
+            <span className="material-symbols-outlined text-base">arrow_back</span>
+            <span>Kembali ke Tahap 5 (Papan Bukti)</span>
+          </button>
+        </div>
         
         {!gameDone && (
           <MatchingGame onComplete={() => setGameDone(true)} />
@@ -336,7 +345,7 @@ export default function Tahap6() {
             </div>
 
             <button
-              onClick={() => router.push('/journey/summary')}
+              onClick={() => router.push('/summary')}
               className="w-full py-4 px-6 rounded-2xl text-base font-extrabold text-[#3b2313] flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-lg border-2 border-[#8e4912]"
               style={{
                 fontFamily: 'var(--font-outfit)',

@@ -149,6 +149,14 @@ export default function Tahap4() {
       {phase === 'bridge' && (
         <div className="flex-grow flex items-center justify-center px-4 py-8 z-10">
           <div className="max-w-lg w-full">
+            <button
+              onClick={() => router.push('/journey/tahap-3')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 mb-6 rounded-xl bg-white border border-[#bec8d2] text-[#006591] font-bold text-xs hover:bg-[#e4f1f9] transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-base">arrow_back</span>
+              <span>Kembali ke Tahap 3 (Kontaminasi Pangan)</span>
+            </button>
+
             <div className="text-center mb-8">
               <div className="w-16 h-16 rounded-full bg-[#ffdad6] border-2 border-[#ba1a1a]/30 flex items-center justify-center mx-auto mb-4 floating">
                 <span className="material-symbols-outlined text-[#ba1a1a] text-3xl">biotech</span>
@@ -168,7 +176,7 @@ export default function Tahap4() {
                 <div className="text-sm font-bold text-[#006e2f] mb-2">Gelas A</div>
                 <div className="text-[#3e4850] text-xs mb-3">Cuka + daun/kerupuk</div>
                 <div className="bg-[#6bff8f]/20 border border-[#006e2f]/20 rounded-lg p-2">
-                  <p className="text-[#006e2f] text-xs font-bold">✓ Melunak & hancur</p>
+                  <p className="text-[#006e2f] text-xs font-bold">✓ Melunak &amp; hancur</p>
                   <p className="text-[#3e4850] text-[10px] mt-1">Organik = bisa dicerna</p>
                 </div>
               </div>
@@ -203,6 +211,15 @@ export default function Tahap4() {
       {/* ── Organ interactive ── */}
       {phase === 'organs' && (
         <div className="flex-grow flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full px-4 py-6 gap-6 z-10">
+          <div className="w-full lg:col-span-full mb-1 flex items-center justify-between">
+            <button
+              onClick={() => setPhase('bridge')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#bec8d2] text-[#006591] font-bold text-xs hover:bg-[#e4f1f9] transition-colors shadow-sm"
+            >
+              <span className="material-symbols-outlined text-base">arrow_back</span>
+              <span>Kembali ke Pengantar</span>
+            </button>
+          </div>
 
           {/* Column 1: Left Organ selector (Buttons) */}
           <div className="lg:w-72 flex-shrink-0 flex flex-col">
@@ -356,6 +373,13 @@ export default function Tahap4() {
       {/* ── LKPD 3 ── */}
       {phase === 'lkpd' && (
         <div className="flex-grow max-w-xl mx-auto w-full px-4 py-8 z-10">
+          <button
+            onClick={() => setPhase('organs')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 mb-5 rounded-xl bg-white border border-[#bec8d2] text-[#006591] font-bold text-xs hover:bg-[#e4f1f9] transition-colors shadow-sm"
+          >
+            <span className="material-symbols-outlined text-base">arrow_back</span>
+            <span>Kembali ke Anatomi Organ</span>
+          </button>
           <div className="bg-white border border-[#bec8d2] rounded-2xl p-6 mb-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <span className="bg-[#ba1a1a] text-white text-xs font-bold px-2 py-0.5 rounded font-[family-name:var(--font-mono)]">LKPD 3</span>

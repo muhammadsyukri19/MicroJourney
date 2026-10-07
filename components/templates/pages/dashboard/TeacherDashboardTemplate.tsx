@@ -72,18 +72,16 @@ export default function TeacherDashboardTemplate() {
 
   useEffect(() => {
     fetchSubmissions();
+    fetchSettings();
+    fetchStudents();
 
-    // Load saved settings & classes
-    const savedClasses = localStorage.getItem('mj_class_list');
-    if (savedClasses) {
-      try { setClassList(JSON.parse(savedClasses)); } catch { }
-    }
-    const savedLocks = localStorage.getItem('mj_stage_locks');
-    if (savedLocks) {
-      try { setStageLocks(JSON.parse(savedLocks)); } catch { }
-    }
-    const savedAnn = localStorage.getItem('mj_class_announcement');
-    if (savedAnn) setAnnouncement(savedAnn);
+    // Auto-refresh polling every 6 seconds for real-time submission & student updates from FE
+    const interval = setInterval(() => {
+      fetchSubmissions();
+      fetchStudents();
+    }, 6000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -99,11 +97,59 @@ export default function TeacherDashboardTemplate() {
   const adminUser = currentUser;
 
   function fetchSubmissions() {
-    setLoading(true);
     fetch('/api/lkpd')
       .then(r => r.json())
-      .then(d => { setData(d.data || []); setLoading(false); })
+      .then(d => {
+        if (d.ok && d.data) setData(d.data);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
+  }
+
+  function fetchSettings() {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok && res.data) {
+          if (res.data.classList) setClassList(res.data.classList);
+          if (res.data.stageLocks) setStageLocks(res.data.stageLocks);
+          if (res.data.announcement) setAnnouncement(res.data.announcement);
+        }
+      })
+      .catch(() => {});
+  }
+
+  function fetchStudents() {
+    fetch('/api/users/students')
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok && Array.isArray(res.data)) {
+          // Merge API students into authStore
+          res.data.forEach((st: AppUser) => {
+            useAuthStore.getState().registerStudent({
+              name: st.name,
+              email: st.email,
+              password: st.password || `${st.email.split('@')[0]}123`,
+              className: st.className || '-',
+              createdBy: adminUser.email,
+            });
+          });
+        }
+      })
+      .catch(() => {});
+  }
+
+  function saveSettingsToDb(updatedConfig: { classList?: ClassItem[]; stageLocks?: Record<number, boolean>; announcement?: string }) {
+    const payload = {
+      classList: updatedConfig.classList ?? classList,
+      stageLocks: updatedConfig.stageLocks ?? stageLocks,
+      announcement: updatedConfig.announcement ?? announcement,
+    };
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(err => console.error('Failed to sync settings to DB:', err));
   }
 
   // Handle Class Creation
@@ -116,6 +162,7 @@ export default function TeacherDashboardTemplate() {
     const nextList = [...classList, newClass];
     setClassList(nextList);
     localStorage.setItem('mj_class_list', JSON.stringify(nextList));
+    saveSettingsToDb({ classList: nextList });
   }
 
   function handleDeleteClass(classId: string) {
@@ -124,6 +171,28 @@ export default function TeacherDashboardTemplate() {
     localStorage.setItem('mj_class_list', JSON.stringify(nextList));
     if (selectedClassName && !nextList.some(c => c.name.toLowerCase() === selectedClassName.toLowerCase())) {
       setSelectedClassName('');
+    }
+    saveSettingsToDb({ classList: nextList });
+  }
+
+  function handleRegisterStudentDb(studentData: { name: string; email: string; password: string; className: string }) {
+    registerStudent({ ...studentData, createdBy: adminUser.email });
+    fetch('/api/users/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...studentData, createdBy: adminUser.email }),
+    })
+      .then(() => fetchStudents())
+      .catch(() => {});
+  }
+
+  function handleDeleteStudentDb(studentId: string) {
+    const targetStudent = users.find(u => u.id === studentId);
+    deleteStudent(studentId);
+    if (targetStudent) {
+      fetch(`/api/users/students?email=${encodeURIComponent(targetStudent.email)}`, { method: 'DELETE' })
+        .then(() => fetchStudents())
+        .catch(() => {});
     }
   }
 
@@ -192,10 +261,12 @@ export default function TeacherDashboardTemplate() {
     const updated = { ...stageLocks, [stageId]: !stageLocks[stageId] };
     setStageLocks(updated);
     localStorage.setItem('mj_stage_locks', JSON.stringify(updated));
+    saveSettingsToDb({ stageLocks: updated });
   }
 
   function handleSaveAnnouncement() {
     localStorage.setItem('mj_class_announcement', announcement);
+    saveSettingsToDb({ announcement });
     setAnnouncementSaved(true);
     setTimeout(() => setAnnouncementSaved(false), 2000);
   }
@@ -564,10 +635,8 @@ export default function TeacherDashboardTemplate() {
               onCreateClass={handleCreateClass}
               onDeleteClass={handleDeleteClass}
               students={registeredStudents}
-              onRegisterStudent={({ name, email, password, className }) => {
-                registerStudent({ name, email, password, className, createdBy: adminUser.email });
-              }}
-              onDeleteStudent={deleteStudent}
+              onRegisterStudent={handleRegisterStudentDb}
+              onDeleteStudent={handleDeleteStudentDb}
               onOpenImportModal={() => setShowImportModal(true)}
               selectedClassName={selectedClassName}
               onSelectClass={(cls) => {

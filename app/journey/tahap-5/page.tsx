@@ -72,7 +72,15 @@ export default function Tahap5() {
   return (
     <div className="min-h-[calc(100vh-88px)] bg-[#f7f9fb]">
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Header removed as requested by user */}
+        <div className="mb-5 flex items-center justify-between">
+          <button
+            onClick={() => router.push('/journey/tahap-4')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#bec8d2] text-[#006591] font-bold text-xs hover:bg-[#e4f1f9] transition-colors shadow-sm"
+          >
+            <span className="material-symbols-outlined text-base">arrow_back</span>
+            <span>Kembali ke Tahap 4 (Organ Pencernaan)</span>
+          </button>
+        </div>
 
         {/* Data Injection: Clues Area */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

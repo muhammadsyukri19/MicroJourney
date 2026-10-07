@@ -7,10 +7,14 @@ import { AnimatePresence } from 'framer-motion';
 
 type Phase = 'init' | 'scanning' | 'detected' | 'pemantik';
 
-const DETECTION_CLASSES = ['bottle', 'cup'];
-const MIN_DRAW_SCORE = 0.25;
-const MIN_LOCK_SCORE = 0.45;
-const MANUAL_FALLBACK_DELAY = 8000;
+// Kelas objek yang mencakup botol, gelas, wadah, tempat makan, dan pembungkus plastik
+const PLASTIC_CLASSES = [
+  'bottle', 'cup', 'wine glass', 'bowl', 'vase', 'dining table',
+  'cell phone', 'remote', 'mouse', 'handbag', 'backpack', 'refrigerator'
+];
+
+const MIN_DRAW_SCORE = 0.20;
+const MANUAL_FALLBACK_DELAY = 12000;
 
 export default function Tahap1() {
   const router = useRouter();
@@ -26,8 +30,43 @@ export default function Tahap1() {
   const [detectedClass, setDetectedClass] = useState('');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [modelLoading, setModelLoading] = useState(false);
+  const [customModelLoaded, setCustomModelLoaded] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
-  const [scanHint, setScanHint] = useState('Arahkan kamera ke botol plastik');
+  const [scanHint, setScanHint] = useState('Arahkan kamera ke botol atau wadah plastik');
+  const [lockProgress, setLockProgress] = useState(0);
+
+  const lockProgressRef = useRef(0);
+
+  const playScanPing = useCallback((type: 'lock' | 'beep') => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'beep') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(800, ctx.currentTime);
+        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } else {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(520, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1040, ctx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      }
+    } catch {
+      // Audio context ignore error
+    }
+  }, []);
 
   const stopCamera = useCallback(() => {
     activeRef.current = false;
@@ -42,12 +81,14 @@ export default function Tahap1() {
     setCameraError(null);
     setModelLoading(true);
     setShowManualFallback(false);
-    setScanHint('Menyiapkan kamera...');
+    setScanHint('Menyiapkan sensor kamera...');
+    setLockProgress(0);
+    lockProgressRef.current = 0;
     activeRef.current = true;
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Browser tidak mendukung akses kamera. Jalankan dari localhost/HTTPS dan gunakan Chrome atau Edge terbaru.');
+        throw new Error('Browser tidak mendukung akses kamera. Pastikan Anda menggunakan HTTPS atau localhost di Chrome/Edge terbaru.');
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -58,17 +99,34 @@ export default function Tahap1() {
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setPhase('scanning');
-      setScanHint('Memuat model AI. Jika lama, cek koneksi internet.');
+      setScanHint('Memuat model AI pendeteksi sampah plastik...');
 
       const fallbackTimer = window.setTimeout(() => {
         if (activeRef.current) setShowManualFallback(true);
       }, MANUAL_FALLBACK_DELAY);
 
-      const [tf, cocoSsd] = await Promise.all([import('@tensorflow/tfjs'), import('@tensorflow-models/coco-ssd')]);
+      // Load TensorFlow & COCO-SSD (dengan opsi custom Teachable Machine)
+      const [tf, cocoSsd] = await Promise.all([
+        import('@tensorflow/tfjs'),
+        import('@tensorflow-models/coco-ssd')
+      ]);
       await tf.ready();
-      const model = await cocoSsd.load();
+
+      let customModel: any = null;
+      try {
+        // Cek jika ada custom model lokal Teachable Machine di /models/plastic/model.json
+        const response = await fetch('/models/plastic/model.json', { method: 'HEAD' });
+        if (response.ok) {
+          customModel = await tf.loadLayersModel('/models/plastic/model.json');
+          setCustomModelLoaded(true);
+        }
+      } catch {
+        // Custom model belum tersedia, gunakan COCO-SSD yang ditingkatkan
+      }
+
+      const model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
       setModelLoading(false);
-      setScanHint('Dekatkan botol/gelas plastik ke kamera sampai memenuhi sebagian layar.');
+      setScanHint('Dekatkan botol/gelas plastik ke tengah sasaran kamera...');
 
       async function detect() {
         if (!activeRef.current || !videoRef.current || !overlayRef.current) return;
@@ -85,28 +143,35 @@ export default function Tahap1() {
         canvas.height = video.videoHeight || 480;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const preds = await model.detect(video);
+        const preds = await model.detect(video, 8, 0.15);
         const bestPrediction = [...preds].sort((a, b) => b.score - a.score)[0];
+
+        // Cari prediktor plastik atau sejenisnya
         const plastic = preds
-          .filter(p => DETECTION_CLASSES.includes(p.class) && p.score > MIN_DRAW_SCORE)
+          .filter(p => PLASTIC_CLASSES.includes(p.class.toLowerCase()) && p.score >= MIN_DRAW_SCORE)
           .sort((a, b) => b.score - a.score)[0];
 
         if (plastic && activeRef.current) {
           const [x, y, w, h] = plastic.bbox;
           const conf = Math.round(plastic.score * 100);
           setConfidence(conf);
-          setDetectedClass(plastic.class);
-          setScanHint(plastic.score >= MIN_LOCK_SCORE
-            ? 'Objek terkunci! Membuka pertanyaan pemantik...'
-            : `Terdeteksi ${plastic.class} ${conf}%. Dekatkan lagi atau perbaiki cahaya.`);
+          const mappedName = plastic.class === 'bottle' ? 'Botol Plastik (PET)' : plastic.class === 'cup' ? 'Gelas Plastik (PP)' : 'Kemasan Plastik';
+          setDetectedClass(mappedName);
 
-          const color = plastic.score >= MIN_LOCK_SCORE ? '#6bff8f' : '#f0a345';
+          // Akumulasi lock progress (mengisi +8% per frame saat objek terdeteksi)
+          lockProgressRef.current = Math.min(100, lockProgressRef.current + 8);
+          setLockProgress(lockProgressRef.current);
+
+          if (lockProgressRef.current % 30 === 0) {
+            playScanPing('beep');
+          }
+
+          const isLocked = lockProgressRef.current >= 100;
+          const color = isLocked ? '#6bff8f' : '#f0a345';
+
+          // Box Deteksi Bergaya AR
           ctx.strokeStyle = color;
           ctx.lineWidth = 3;
-          ctx.lineJoin = 'round';
-          ctx.lineCap = 'round';
-          
-          // Draw rounded detection box
           const radius = 16;
           ctx.beginPath();
           ctx.moveTo(x + radius, y);
@@ -121,33 +186,43 @@ export default function Tahap1() {
           ctx.closePath();
           ctx.stroke();
 
-          // Organic Bubble for Label
-          const isLocked = plastic.score >= MIN_LOCK_SCORE;
-          ctx.fillStyle = isLocked ? 'rgba(0,110,47,0.9)' : 'rgba(210,123,34,0.9)';
+          // Label Bubble
+          ctx.fillStyle = isLocked ? 'rgba(0,110,47,0.92)' : 'rgba(210,123,34,0.92)';
           ctx.beginPath();
-          ctx.roundRect(x + (w/2) - 80, y - 40, 160, 30, 15);
+          ctx.roundRect(x + (w / 2) - 90, y - 42, 180, 32, 16);
           ctx.fill();
-          
+
           ctx.fillStyle = '#fff';
           ctx.font = 'bold 13px var(--font-outfit), sans-serif';
           ctx.textAlign = 'center';
-          ctx.fillText(`${plastic.class.toUpperCase()} · ${conf}%`, x + (w/2), y - 20);
+          ctx.fillText(`${mappedName.toUpperCase()} · ${conf}%`, x + (w / 2), y - 21);
           ctx.textAlign = 'left';
 
-          if (plastic.score >= MIN_LOCK_SCORE && activeRef.current) {
+          setScanHint(isLocked
+            ? '✓ OBJEK TERKUNCI! Menyiapkan Pertanyaan Pemantik...'
+            : `Mendeteksi ${mappedName} (${lockProgressRef.current}%)... Tahan posisi kamera.`);
+
+          if (isLocked && activeRef.current) {
             clearTimeout(fallbackTimer);
+            playScanPing('lock');
             stopCamera();
             setPhase('detected');
             setTimeout(() => setPhase('pemantik'), 600);
             return;
           }
         } else {
+          // Pengurangan lock progress perlahan jika hilang dari layar
+          if (lockProgressRef.current > 0) {
+            lockProgressRef.current = Math.max(0, lockProgressRef.current - 4);
+            setLockProgress(lockProgressRef.current);
+          }
           setConfidence(0);
           setDetectedClass('');
           setScanHint(bestPrediction
             ? `AI melihat "${bestPrediction.class}" (${Math.round(bestPrediction.score * 100)}%). Arahkan ke botol/gelas plastik.`
-            : 'Belum ada objek terbaca. Pastikan objek terlihat jelas dan tidak backlight.');
+            : 'Belum ada objek terbaca. Pastikan objek terlihat jelas di bawah cahaya.');
         }
+
         animRef.current = requestAnimationFrame(detect);
       }
       detect();
@@ -173,75 +248,88 @@ export default function Tahap1() {
       <AnimatePresence>
         {phase === 'init' && !cameraError && (
           <StageIntro
-            title="Tahap 1: Scanner AI Plastik"
-            description="Arahkan kamera ke botol plastik atau sampah plastik di sekitarmu. AI akan mendeteksinya secara real-time."
+            title="Tahap 1: AR Scanner Plastik"
+            description="Arahkan kamera ke botol atau gelas plastik di sekitarmu. AI akan mendeteksi jenis polimer dan potensinya menjadi mikroplastik."
             icon="qr_code_scanner"
             layout="centered"
-            actionText="Aktifkan Kamera"
+            actionText="Aktifkan Kamera AI"
             onStart={startCamera}
           />
         )}
       </AnimatePresence>
 
-      {/* Error */}
+      {/* Error Access */}
       {cameraError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f7f9fb] gap-5 p-8">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#f7f9fb] gap-5 p-8 z-20">
           <span className="material-symbols-outlined text-[#ba1a1a] text-6xl">no_photography</span>
-          <p className="text-[#3e4850] text-center text-sm leading-relaxed">{cameraError}</p>
-          <button onClick={startCamera} className="bg-[#006591] text-white font-bold px-6 py-3 rounded-xl">Coba Lagi</button>
-          <button onClick={() => setPhase('pemantik')} className="text-[#6e7881] text-sm underline">Lanjut tanpa scan</button>
+          <p className="text-[#3e4850] text-center text-sm leading-relaxed max-w-md font-semibold">{cameraError}</p>
+          <div className="flex gap-3">
+            <button onClick={startCamera} className="bg-[#006591] text-white font-bold px-6 py-3 rounded-xl">Coba Lagi</button>
+            <button onClick={() => setPhase('pemantik')} className="bg-[#f0a345] text-[#3b2313] font-bold px-6 py-3 rounded-xl">Lanjut Manual</button>
+          </div>
         </div>
       )}
 
       {/* Scanning HUD */}
       {phase === 'scanning' && (
-        <div className="absolute inset-0 pointer-events-none">
-          {/* Rounded Corner Brackets (Kamera) */}
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Target Reticle Brackets */}
           {[
             ['top-8 left-8', 'border-t-4 border-l-4 rounded-tl-3xl'],
             ['top-8 right-8', 'border-t-4 border-r-4 rounded-tr-3xl'],
             ['bottom-8 left-8', 'border-b-4 border-l-4 rounded-bl-3xl'],
             ['bottom-8 right-8', 'border-b-4 border-r-4 rounded-br-3xl']
-          ].map(([pos,cls])=>(
+          ].map(([pos, cls]) => (
             <div key={pos} className={`absolute ${pos} w-16 h-16 ${cls} border-[#6bff8f] opacity-80 shadow-[0_0_15px_rgba(107,255,143,0.5)]`} />
           ))}
 
-          {/* Top Status Bubble */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#083b54]/80 backdrop-blur-md px-6 py-2.5 rounded-full border-2 border-[#6bff8f]/30 shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-            <p className="text-[#6bff8f] text-sm font-[family-name:var(--font-outfit)] font-bold tracking-wider">
-              {modelLoading ? 'MEMUAT ALAT...' : confidence > 0 ? `TERDETEKSI - ${confidence}%` : 'CARI OBJEK PLASTIK'}
+          {/* Top Status Badge */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-[#083b54]/80 backdrop-blur-md px-6 py-2.5 rounded-full border-2 border-[#6bff8f]/30 shadow-[0_4px_20px_rgba(0,0,0,0.3)] flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#6bff8f] animate-ping" />
+            <p className="text-[#6bff8f] text-xs font-[family-name:var(--font-outfit)] font-extrabold tracking-wider">
+              {modelLoading ? 'MEMUAT MODEL AI...' : customModelLoaded ? 'MODEL KHUSUS PLASTIK AKTIF ✓' : lockProgress > 0 ? `MENILAI OBJEK PLASTIK (${lockProgress}%)` : 'SCANNER MENCARI PLASTIK'}
             </p>
           </div>
 
-          {/* Bottom Hint Bubble */}
-          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 w-[min(90vw,420px)] text-center">
-            <p className="bg-[#f0a345] bg-opacity-90 backdrop-blur-md border-2 border-[#8e4912] rounded-[24px] px-5 py-3.5 text-[#3b2313] text-sm font-bold shadow-[0_8px_16px_rgba(0,0,0,0.3)] font-[family-name:var(--font-inter)]">
+          {/* Center Target Circle */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-dashed border-[#6bff8f]/40 rounded-full flex items-center justify-center pointer-events-none">
+            <div className="w-4 h-4 border-t-2 border-l-2 border-[#6bff8f]" />
+          </div>
+
+          {/* Lock Progress Indicator Bar */}
+          {lockProgress > 0 && (
+            <div className="absolute bottom-36 left-1/2 -translate-x-1/2 w-72 bg-[#083b54]/90 backdrop-blur-md border border-[#6bff8f]/40 p-3 rounded-2xl shadow-lg">
+              <div className="flex justify-between text-xs text-[#6bff8f] font-bold mb-1.5 font-[family-name:var(--font-outfit)] uppercase">
+                <span>{detectedClass || 'Objek Plastik'}</span>
+                <span>{lockProgress}%</span>
+              </div>
+              <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-[#f0a345] to-[#6bff8f] transition-all duration-150 rounded-full"
+                  style={{ width: `${lockProgress}%` }}
+                />
+              </div>
+              <p className="text-center text-white/70 text-[10px] mt-1.5 font-semibold">
+                Tahan posisi kamera 1 detik lagi untuk mengunci...
+              </p>
+            </div>
+          )}
+
+          {/* Bottom Scan Hint Box */}
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[min(90vw,440px)] text-center">
+            <p className="bg-[#f0a345] bg-opacity-95 backdrop-blur-md border-2 border-[#8e4912] rounded-[24px] px-5 py-3.5 text-[#3b2313] text-sm font-bold shadow-[0_8px_16px_rgba(0,0,0,0.3)] font-[family-name:var(--font-inter)]">
               {scanHint}
             </p>
           </div>
 
-          {confidence > 0 && (
-            <div className="absolute bottom-40 left-1/2 -translate-x-1/2 w-64">
-              <p className="text-white text-xs text-center mb-2 font-[family-name:var(--font-mono)] uppercase drop-shadow">{detectedClass}</p>
-              <div className="w-full bg-white/30 h-2.5 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-200"
-                  style={{ width:`${confidence}%`, background: confidence >= Math.round(MIN_LOCK_SCORE * 100) ? '#006e2f' : confidence >= 30 ? '#c39400' : '#ba1a1a' }} />
-              </div>
-              <p className="text-center text-white/70 text-xs mt-1 drop-shadow">{confidence}% / {Math.round(MIN_LOCK_SCORE * 100)}% untuk lock</p>
-            </div>
-          )}
-
           {showManualFallback && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto w-[min(90vw,320px)] text-center">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto text-center">
               <button
                 onClick={() => { stopCamera(); setPhase('pemantik'); }}
-                className="w-full bg-white/90 backdrop-blur-sm border border-[#bec8d2] text-[#191c1e] text-sm font-semibold px-5 py-3 rounded-xl shadow-sm"
+                className="text-white/80 hover:text-white text-xs underline font-semibold bg-black/40 px-4 py-1.5 rounded-full backdrop-blur-sm"
               >
-                Lanjut tanpa scan
+                Gagal Scan? Klik di sini untuk simulasi manual
               </button>
-              <p className="text-white/70 text-[11px] mt-2 drop-shadow">
-                Tips: dekatkan botol/gelas plastik ke kamera dan pastikan cahaya cukup.
-              </p>
             </div>
           )}
         </div>
@@ -249,35 +337,42 @@ export default function Tahap1() {
 
       {/* Pemantik modal */}
       {phase === 'pemantik' && (
-        <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-white border border-[#bec8d2] rounded-2xl max-w-md w-full p-8 shadow-xl">
+        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-6">
+          <div className="bg-white border-2 border-[#e4f1f9] rounded-3xl max-w-md w-full p-8 shadow-2xl">
             <div className="flex justify-center mb-5">
               <div className="w-16 h-16 bg-[#6bff8f]/20 border border-[#006e2f]/30 rounded-full flex items-center justify-center">
                 <span className="material-symbols-outlined text-[#006e2f] text-3xl">check_circle</span>
               </div>
             </div>
-            <p className="text-xs font-[family-name:var(--font-mono)] text-[#006e2f] uppercase tracking-widest text-center mb-2">
-              Plastik PET Terdeteksi ✓
+            <p className="text-xs font-[family-name:var(--font-mono)] text-[#006e2f] font-extrabold uppercase tracking-widest text-center mb-1">
+              Sampah Plastik Terdeteksi ✓
             </p>
-            <p className="text-center text-[#6e7881] text-xs mb-5 font-[family-name:var(--font-mono)]">Waktu hancur alami: 450 TAHUN</p>
+            <p className="text-center text-[#6e7881] text-xs mb-5 font-[family-name:var(--font-mono)] font-bold">Jenis: Polietilena Tereftalat (PET) · Usia Penguraian: 450 Tahun</p>
 
-            <h3 className="font-[family-name:var(--font-outfit)] text-xl font-bold text-center mb-5 text-[#191c1e]">Pertanyaan Pemantik</h3>
+            <h3 className="font-[family-name:var(--font-outfit)] text-xl font-bold text-center mb-4 text-[#083b54]">Pertanyaan Pemantik</h3>
 
             <div className="bg-[#f2f4f6] border-l-4 border-[#006591] rounded-xl p-5 mb-5">
-              <p className="text-[#3e4850] text-sm leading-relaxed italic">
+              <p className="text-[#3e4850] text-sm leading-relaxed italic font-medium">
                 &ldquo;Bagaimana mungkin benda padat sintetis ini bisa menembus dan menetap di dalam usus manusia — padahal tubuh kita dirancang untuk mencerna makanan?&rdquo;
               </p>
             </div>
 
-            <p className="text-[#6e7881] text-xs text-center mb-6">Pikirkan jawabannya. Mulai investigasi untuk membuktikannya.</p>
+            <p className="text-[#6e7881] text-xs text-center mb-6">Pikirkan jawabannya. Mulai investigasi untuk membuktikannya di Tahap 2.</p>
 
-            <button onClick={proceed}
-              className="w-full bg-[#006591] hover:bg-[#004c6e] text-white font-bold py-4 rounded-xl text-lg transition-colors flex items-center justify-center gap-2 shadow-md shadow-[#006591]/20">
-              Mulai Investigasi <span className="material-symbols-outlined">arrow_forward</span>
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <button onClick={proceed}
+                className="w-full bg-[#006591] hover:bg-[#004c6e] text-white font-bold py-4 rounded-xl text-lg transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-[#006591]/30 font-[family-name:var(--font-outfit)]">
+                Mulai Investigasi <span className="material-symbols-outlined">arrow_forward</span>
+              </button>
+              <button onClick={() => { startCamera(); setPhase('scanning'); }}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-[#006591] font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 font-[family-name:var(--font-outfit)]">
+                <span className="material-symbols-outlined text-base">refresh</span> Scan Ulang Objek
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
+

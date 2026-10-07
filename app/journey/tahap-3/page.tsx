@@ -67,11 +67,12 @@ function GhostBtn({ onClick, children }: { onClick: () => void; children: React.
 
 // The reveal content is extracted as its own component so useEffect fires AFTER mount
 function RevealScreen({
-  total, breakdown, onNext,
+  total, breakdown, onNext, onBack,
 }: {
   total: number;
   breakdown: { id: string; name: string; particles: number }[];
   onNext: () => void;
+  onBack: () => void;
 }) {
   const count = useMotionValue(0);
   const displayCount = useTransform(count, (latest) => Math.round(latest).toLocaleString('id-ID'));
@@ -169,12 +170,18 @@ function RevealScreen({
           })}
         </div>
 
-        <WoodBtn onClick={onNext}>
-          Lihat Dampak ke Organ Tubuh
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M3 8 H13 M9 4 L13 8 L9 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </WoodBtn>
+        <div className="flex flex-wrap justify-center gap-3">
+          <GhostBtn onClick={onBack}>
+            <span className="material-symbols-outlined text-base">arrow_back</span>
+            <span>Ubah Pilihan Makanan</span>
+          </GhostBtn>
+          <WoodBtn onClick={onNext}>
+            Lihat Dampak ke Organ Tubuh
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8 H13 M9 4 L13 8 L9 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </WoodBtn>
+        </div>
       </div>
     </div>
   );
@@ -252,6 +259,7 @@ export default function Tahap3() {
         total={confirmedTotal}
         breakdown={confirmedBreakdown}
         onNext={() => setPhase('summary')}
+        onBack={() => setPhase('select')}
       />
     );
   }
@@ -266,8 +274,15 @@ export default function Tahap3() {
         <div className="relative z-10 flex-1 flex flex-col items-center px-4 pt-4 pb-6">
           <div className="w-full max-w-4xl flex flex-col gap-5 flex-1">
 
-            {/* Header */}
-            <div className="text-center">
+            {/* Header with Back Button */}
+            <div className="relative text-center">
+              <button
+                onClick={() => setPhase('materi')}
+                className="absolute left-0 top-0 inline-flex items-center gap-1 text-xs text-blue-200 hover:text-white bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-sm transition-colors"
+              >
+                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                <span className="hidden sm:inline">Materi</span>
+              </button>
               <p className="text-[#6bff8f] text-xs font-bold uppercase tracking-widest mb-1">Uji Makanan Hari Ini</p>
               <h2 className="text-2xl md:text-3xl font-extrabold text-white font-[family-name:var(--font-outfit)]">
                 Apa yang Kamu Makan?
