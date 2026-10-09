@@ -16,6 +16,7 @@
 
 import type { LkpdSubmitPayload, LkpdSubmission } from '@/lib/api/types';
 import { MOCK_LKPD, MOCK_PROGRESS } from '@/lib/api/mock';
+import { authApi } from '@/lib/api/auth.api';
 
 // ── Kontrol mock vs real ──────────────────────────────────────────────────────
 // Set env var NEXT_PUBLIC_USE_MOCK=false saat backend siap

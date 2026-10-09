@@ -52,6 +52,7 @@ export default function HeroPanel() {
           alt="MicroJourney Logo"
           width={224}
           height={224}
+          style={{ width: 'auto', height: 'auto' }}
           className="mx-auto mb-6 drop-shadow-[0_16px_32px_rgba(0,101,145,0.25)]"
           priority
         />

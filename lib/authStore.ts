@@ -9,6 +9,8 @@ export interface AppUser {
   email: string;
   password?: string;
   role: UserRole;
+  school?: string;
+  phoneNumber?: string;
   className?: string;
   createdBy?: string;
 }

@@ -29,7 +29,7 @@ export default function LandingPage() {
         {/* Hero Section — full-bleed beach scene (navbar mengambang di atasnya) */}
         <section className="relative w-full overflow-hidden min-h-[540px] h-[99vh] max-h-[820px] -mt-14 md:-mt-[112px]">
           {/* Background scene */}
-          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/hero-bg.png)" }} />
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url(/hero-bg.webp)" }} />
           {/* Soften vividness + lift text contrast */}
           <div className="absolute inset-0 bg-white/15" />
           <div className="absolute inset-x-0 top-0 h-1/3 md:h-2/5 bg-gradient-to-b from-white to-transparent pointer-events-none" />
@@ -121,7 +121,7 @@ export default function LandingPage() {
           </div>
 
           {/* Mika in scene */}
-          <img src="/mika.png" alt="Mika, maskot pemandu" draggable={false} className="absolute bottom-[5%] md:bottom-0 right-0 sm:right-[4%] lg:right-[6%] z-30 mika-float pointer-events-none select-none h-[50%] sm:h-[46%] lg:h-[60%]" />
+          <img src="/mika.webp" alt="Mika, maskot pemandu" draggable={false} className="absolute bottom-[5%] md:bottom-0 right-0 sm:right-[4%] lg:right-[6%] z-30 mika-float pointer-events-none select-none h-[50%] sm:h-[46%] lg:h-[60%]" />
         </section>
 
         {/* Misi Penyelidikan — 3 kartu */}

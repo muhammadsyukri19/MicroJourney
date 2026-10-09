@@ -26,7 +26,7 @@ type MikaMascotProps = {
 export default function MikaMascot({ message, size = 120, flip = false, bubbleSide = "right", pop = false, className = "" }: MikaMascotProps) {
   const img = (
     <img
-      src="/mika.png"
+      src="/mika.webp"
       alt="Mika, maskot pemandu MicroJourney AR"
       width={size}
       height={Math.round(size * (1485 / 680))}

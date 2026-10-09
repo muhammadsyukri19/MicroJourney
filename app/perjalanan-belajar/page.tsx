@@ -27,7 +27,7 @@ const LABEL_POS: ("above" | "below")[] = ["below", "above", "below", "below", "a
 const PATH_D =
   "M92 572.501C92 572.501 109.32 583.344 118.5 592.501C125.776 599.758 127.623 605.845 135 613.001C143.017 620.777 148.057 624.913 158 630.001C170.608 636.452 179.068 636.956 193 639.501C208.043 642.248 216.714 643.405 232 643.001C254.7 642.4 267.373 638.424 289 631.501C307.827 625.474 318.878 622.2 335.5 611.501C349.355 602.582 355.339 595.119 367.5 584.001C385.231 567.79 391.105 553.968 411 540.501C426.26 530.171 435.952 525.625 453.5 520.001C475.274 513.022 488.636 511.861 511.5 512.001C533.398 512.134 547.378 510.28 567 520.001C578.863 525.877 584.811 530.97 594 540.501C604.45 551.339 603.823 562.997 615.5 572.501C622.752 578.403 627.799 580.577 636.5 584.001C651.047 589.726 660.372 590.099 676 590.501C694.523 590.976 705.925 591.196 723 584.001C736.827 578.174 744.847 573.488 754.5 562.001C763.827 550.901 765.811 542.219 770.5 528.501C774.775 515.995 772.91 507.697 778 495.501C783.59 482.106 787.901 474.416 798.5 464.501C808.723 454.937 816.376 451.374 829.5 446.501C844.878 440.79 854.596 440.116 871 440.001C888.176 439.88 898.32 440.736 914.5 446.501C928.167 451.37 937.696 453.368 947 464.501C953.385 472.141 954.749 478.09 958 487.501C961.202 496.769 961.167 502.476 963.5 512.001C964.987 518.073 965.11 521.724 967.5 527.501C969.741 532.917 971.756 535.619 975 540.501C978.545 545.835 980.346 549.1 985 553.501C989.486 557.743 992.688 559.353 998 562.501C1005.59 566.999 1010.22 568.946 1018.5 572.001C1041.59 580.518 1056.39 580.081 1081 580.001C1104.23 579.925 1117.98 579.888 1140 572.501C1155.07 567.446 1165.41 565.887 1176.5 554.501C1184.68 546.103 1188.92 539.735 1193.5 528.501C1198.3 516.726 1195.05 508.413 1199.5 496.501C1201.45 491.262 1201.61 488.314 1204 483.501C1209.83 471.748 1216.55 466.728 1227.5 459.501C1240.74 450.757 1250.41 449.478 1266 446.501C1279.27 443.966 1286.99 444.135 1300.5 444.001C1316.15 443.845 1325.19 443.272 1340.5 446.501C1355.13 449.584 1363.25 452.575 1376.5 459.501C1387.35 465.172 1393.12 469.14 1402.5 477.001C1413.73 486.407 1415.89 496.262 1428 504.501C1435.22 509.413 1439.87 511.306 1448 514.501C1456.51 517.847 1461.67 518.626 1470.5 521.001C1482.53 524.235 1489.14 526.99 1501.5 528.501C1514.49 530.088 1535 528.501 1535 528.501";
 
-// ── MOBILE: titik di jejak background potret (map-bg-mobile.png, viewBox 941x1672) ──
+// ── MOBILE: titik di jejak background potret (map-bg-mobile.webp, viewBox 941x1672) ──
 const TRAIL_M = [
   { x: 29.3, y: 76.2 },
   { x: 50.7, y: 67.8 },
@@ -160,7 +160,7 @@ export default function PerjalananBelajarPage() {
             </p>
           </div>
 
-          <img src="/mika.png" alt="Mika" draggable={false} className="absolute z-20 pointer-events-none" style={{ right: "3%", bottom: "0%", height: "40%", animation: "float 4s ease-in-out infinite" }} />
+          <img src="/mika.webp" alt="Mika" draggable={false} className="absolute z-20 pointer-events-none" style={{ right: "3%", bottom: "0%", height: "40%", animation: "float 4s ease-in-out infinite" }} />
 
           {/* Progress + pesan Mika (bawah) */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2">
@@ -184,7 +184,7 @@ export default function PerjalananBelajarPage() {
         ══════════════════════════════════════ */}
         <section className="lg:hidden relative w-full overflow-hidden select-none h-[100dvh] -mt-14 md:-mt-[112px] bg-[#bfe6f5]">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ aspectRatio: "941 / 1672", minWidth: "100%", minHeight: "100%" }}>
-            <img src="/map-bg-mobile.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+            <img src="/map-bg-mobile.webp" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
 
             <svg viewBox="0 0 941 1672" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
               <path d={PATH_D_M} pathLength={1000} fill="none" stroke="#caffe1" strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" opacity={0.35} />
@@ -230,9 +230,8 @@ export default function PerjalananBelajarPage() {
                         </div>
                       ) : (
                         <div
-                          className={`rounded-lg shadow-md border px-2.5 py-1 w-28 ${side === "left" ? "text-right" : ""} ${
-                            status === "completed" ? "bg-white/90 backdrop-blur-sm border-white/70" : "bg-white/60 backdrop-blur-sm border-white/50"
-                          }`}
+                          className={`rounded-lg shadow-md border px-2.5 py-1 w-28 ${side === "left" ? "text-right" : ""} ${status === "completed" ? "bg-white/90 backdrop-blur-sm border-white/70" : "bg-white/60 backdrop-blur-sm border-white/50"
+                            }`}
                         >
                           <p className={`text-[11px] font-bold leading-tight ${status === "completed" ? "text-[#191c1e]" : "text-[#5a6b75]"}`}>{stage.title}</p>
                         </div>

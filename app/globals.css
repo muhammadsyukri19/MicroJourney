@@ -117,6 +117,12 @@ body {
 }
 .floating { animation: float 3s ease-in-out infinite; }
 
+/* ─── Bounce Right (Horizontal bounce for arrows) ─── */
+@keyframes bounceRight {
+  0%, 100% { transform: translateX(0); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); }
+  50% { transform: translateX(25%); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); }
+}
+
 /* ─── Mika mascot (gentle bob + slight sway) ─── */
 @keyframes mikaFloat {
   0%, 100% { transform: translateY(0) rotate(0deg); }

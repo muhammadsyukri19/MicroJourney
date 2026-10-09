@@ -1,14 +1,7 @@
-// PAGE: Login
-// Template halaman login — hanya komposisi organism HeroPanel + LoginForm.
-// Semua logika dan UI sudah terdelegasi ke component masing-masing.
-import HeroPanel from '@/components/login/HeroPanel';
-import LoginForm from '@/components/login/LoginForm';
+// APP ROUTE: /login
+// App Route Page mengimpor dan merender LoginTemplate (Atomic Design).
+import LoginTemplate from '@/components/templates/pages/login/LoginTemplate';
 
 export default function LoginPage() {
-  return (
-    <div className="min-h-screen flex" style={{ fontFamily: 'var(--font-inter)' }}>
-      <HeroPanel />
-      <LoginForm />
-    </div>
-  );
+  return <LoginTemplate />;
 }

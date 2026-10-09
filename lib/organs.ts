@@ -3,6 +3,7 @@ export interface Organ {
   name: string;
   healthPct: number;
   healthColor: string;
+  statusText: string;
   impact: string;
   sciNote: string;
   particles: number;
@@ -15,45 +16,52 @@ export const ORGANS: Organ[] = [
     name: 'Mulut & Kerongkongan',
     healthPct: 80,
     healthColor: '#22C55E',
+    statusText: 'Sehat (Fase Awal Saluran Cerna)',
     particles: 100,
-    impact: 'Partikel mikroplastik masuk bersama makanan. Partikel terkecil (<1μm) dapat menembus lapisan mukosa mulut. Tidak ada enzim air liur yang mampu memecah rantai polimer plastik.',
-    sciNote: 'Polimer plastik memiliki ikatan C-C sintetis yang sangat kuat. Enzim manusia hanya bisa memecah ikatan biologis seperti protein dan karbohidrat.',
+    impact: 'Saat makanan dikunyah, partikel makroplastik atau serpihan mikro berukuran besar biasanya masih tertahan atau disingkirkan. Namun, serpihan yang sangat halus lolos begitu saja karena air liur manusia tidak memiliki enzim khusus untuk menguraikan polimer sintetik. Akibatnya, partikel plastik meluncur mulus ke saluran pencernaan bagian bawah.',
+    sciNote: 'Sistem biologis manusia tidak memiliki enzim pemecah ikatan karbon polimer plastik (Leslie et al., 2022; Environment International).',
   },
   {
     id: 'stomach',
     name: 'Lambung',
     healthPct: 55,
     healthColor: '#F59E0B',
+    statusText: 'Dalam Tekanan / Terancam',
     particles: 350,
     isKeyOrgan: true,
-    impact: 'INI JAWABANNYA: Asam lambung (HCl, pH 1–2) GAGAL mendegradasi plastik — persis seperti yang kamu lihat di Gelas B tadi. Partikel plastik bertahan utuh. Gesekan partikel tajam dengan dinding lambung menyebabkan iritasi dan peradangan kronis.',
-    sciNote: 'Cuka di eksperimen (pH ≈3) lebih lemah dari HCl lambung (pH 1–2), namun keduanya sama-sama tidak bisa memecah ikatan polimer sintetik plastik.',
+    impact: 'Meskipun lambung kita menghasilkan cairan asam yang sangat kuat (pH 1–2) untuk menghancurkan makanan, cairan tersebut tetap gagal melarutkan plastik karena ikatan kimia polimernya jauh lebih tangguh. Akibatnya, partikel plastik yang bersifat indigestible (tidak dapat dicerna) terus diaduk bersama makanan dan mulai menggesek dinding lambung.',
+    sciNote: 'Polimer sintetis seperti PET dan Polystyrene resisten terhadap cairan asam pencernaan (Gastroenterology & Lancet Planetary Health).',
   },
   {
     id: 'smallIntestine',
     name: 'Usus Halus',
     healthPct: 35,
     healthColor: '#EF4444',
+    statusText: 'Kritis (Risiko Gangguan Penyerapan)',
     particles: 520,
-    impact: 'ZONA KRITIS: Partikel <10μm dapat diserap melewati dinding usus dan masuk ke peredaran darah. Partikel yang menumpuk memblokir permukaan vili usus (tonjolan penyerap nutrisi), menghambat penyerapan sari makanan.',
-    sciNote: 'Usus halus memiliki 70–80% sel imun tubuh. Gangguan di sini berdampak langsung pada daya tahan tubuh.',
+    impact: 'Ini adalah titik krusial penyerapan nutrisi. Partikel mikroplastik yang menumpuk di usus halus dapat menempel dan mengganggu integritas lapisan usus (intestinal barrier). Partikel berukuran sangat kecil (di bawah 10 mikron) bahkan berpotensi menyusup melewati dinding usus dan masuk ke dalam sirkulasi darah.',
+    sciNote: 'Akumulasi mikroplastik berpotensi memicu stres oksidatif dan mengganggu fungsi vili usus halus (Wright & Kelly, 2017; Environ. Sci. Technol).',
   },
   {
     id: 'largeIntestine',
     name: 'Usus Besar',
     healthPct: 50,
     healthColor: '#F59E0B',
+    statusText: 'Terancam Penumpukan Residu',
     particles: 280,
-    impact: 'Sebagian besar mikroplastik yang tidak terserap terkumpul di sini. WHO (2023) menemukan rata-rata 10 partikel/gram feses manusia. Akumulasi memicu peradangan usus kronis.',
-    sciNote: 'Penelitian Cornell University 2024: Indonesia #1 dunia konsumsi mikroplastik — 15 gram/bulan per kapita.',
+    impact: 'Sisa partikel mikroplastik yang tidak dapat diserap tubuh akan terakumulasi di usus besar sebelum dibuang. Berdasarkan estimasi riset global, paparan harian dari makanan dan minuman membuat akumulasi residu plastik ini terus masuk ke dalam tubuh manusia setiap bulannya.',
+    sciNote: 'Studi global mengenai estimasi paparan ingestif harian mikroplastik pada manusia (WWF International & UNEP Report).',
   },
   {
     id: 'blood',
-    name: 'Darah & Organ Lain',
+    name: 'Darah & Organ Vital',
     healthPct: 45,
     healthColor: '#EF4444',
+    statusText: 'Waspada (Sirkulasi Sistemik)',
     particles: 150,
-    impact: 'Partikel yang berhasil diserap usus halus beredar ke seluruh tubuh melalui darah. Telah ditemukan di hati, ginjal, paru-paru, bahkan plasenta ibu hamil dan ASI.',
-    sciNote: 'Akumulasi jangka panjang dan efek karsinogenik mikroplastik masih diteliti. Yang pasti: partikel ini seharusnya tidak ada di dalam tubuh.',
+    impact: 'Begitu berhasil menembus dinding usus, partikel mikroplastik dapat masuk ke aliran darah dan beredar ke seluruh tubuh, termasuk organ vital seperti hati, paru-paru, hingga jaringan limfatik. Kehadiran benda asing ini memicu respons pertahanan tubuh secara terus-menerus.',
+    sciNote: 'Deteksi nyata partikel polimer plastik (seperti PET) di dalam aliran darah manusia (Leslie et al., 2022, Environment International).',
   },
 ];
+
+

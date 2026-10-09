@@ -8,6 +8,11 @@ export interface LkpdAnswers {
   lkpd3q2: string; // Tahap 4: organ paling berbahaya
   lkpd4: string;   // Tahap 5: HOTS synthesis
   commitment: string;
+  driveLink?: string;   // Link Google Drive PR siswa
+  sosmedLink?: string;  // Link Video Kampanye Sosmed (TikTok/Reels/Shorts)
+  actionNote?: string;  // Catatan aksi nyata siswa di lingkungan
+  rating?: number;      // Rating 1-5 bintang evaluasi aplikasi
+  feedback?: string;    // Kesan & pesan umpan balik siswa
 }
 
 export interface SelectedFood {
@@ -34,7 +39,7 @@ interface JourneyState {
   fetchProgress: (studentId: string) => Promise<void>;
   addFood: (food: SelectedFood) => void;
   setTotalParticles: (n: number) => void;
-  setLkpdAnswer: (key: keyof LkpdAnswers, value: string) => void;
+  setLkpdAnswer: (key: keyof LkpdAnswers, value: string | number) => void;
   setMostDangerousOrgan: (organ: string) => void;
   addOrganInteraction: (id: string) => void;
   incrementCorrect: () => void;
@@ -44,6 +49,7 @@ interface JourneyState {
 
 const INITIAL_LKPD: LkpdAnswers = {
   lkpd1: '', lkpd2: '', lkpd3q1: '', lkpd3q2: '', lkpd4: '', commitment: '',
+  driveLink: '', sosmedLink: '', actionNote: '', rating: 5, feedback: '',
 };
 
 export const useJourneyStore = create<JourneyState>()(

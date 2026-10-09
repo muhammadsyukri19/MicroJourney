@@ -1,9 +1,6 @@
-'use client';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { AppUser, useAuthStore } from '@/lib/authStore';
-import ImportCsvModal from '@/components/dashboard/ImportCsvModal';
+// APP ROUTE: /dashboard
+// App Route Page mengimpor dan merender TeacherDashboardTemplate (Atomic Design).
+import TeacherDashboardTemplate from '@/components/templates/pages/dashboard/TeacherDashboardTemplate';
 
 interface Submission {
   _id: string;
