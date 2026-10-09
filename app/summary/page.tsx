@@ -196,7 +196,22 @@ export default function StandaloneSummaryPage() {
     doc.setFont('helvetica', 'normal');
     doc.text('IPA SMP Kurikulum Merdeka', 220, 186, { align: 'center' });
 
-    doc.save(`Sertifikat-Duta-Lingkungan-${studentName || 'Siswa'}.pdf`);
+    const filename = `Sertifikat-Duta-Lingkungan-${(studentName || 'Siswa').replace(/\s+/g, '_')}.pdf`;
+
+    try {
+      doc.save(filename);
+    } catch {
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    }
+
     setCertGenerated(true);
   }
 
@@ -405,7 +420,7 @@ export default function StandaloneSummaryPage() {
               }}
             >
               <span className="material-symbols-outlined text-2xl">workspace_premium</span>
-              <span>{certGenerated ? 'Unduh PDF Sertifikat Lagi' : 'Cetak Sertifikat Duta PDF'}</span>
+              <span>{certGenerated ? 'Unduh Ulang Sertifikat' : 'Cetak Sertifikat Duta Ekologi'}</span>
             </motion.button>
           </motion.div>
 
@@ -538,7 +553,7 @@ export default function StandaloneSummaryPage() {
               }`}
             >
               <span className="material-symbols-outlined text-lg">cloud_upload</span>
-              <span>Upload Cloudinary / PR</span>
+              <span>Dokumentasi Aksi / PR</span>
             </button>
             <button
               onClick={() => setActiveTab('feedback')}
@@ -718,10 +733,10 @@ export default function StandaloneSummaryPage() {
                   className="text-2xl font-extrabold text-[#006e2f]"
                   style={{ fontFamily: 'var(--font-outfit)' }}
                 >
-                  Seluruh Berkas PR Cloudinary & Data Terkirim!
+                  Seluruh Berkas Bukti Aksi & Data Terkirim!
                 </h3>
                 <p className="text-xs sm:text-sm text-[#083b54] max-w-lg mx-auto leading-relaxed">
-                  Jawaban LKPD, berkas Cloudinary, tautan media sosial, serta umpan balikmu telah tersimpan dengan aman di server database guru.
+                  Jawaban LKPD, berkas dokumentasi aksi, tautan media sosial, serta umpan balikmu telah tersimpan dengan aman di server database guru.
                 </p>
                 <div className="pt-3 flex flex-wrap justify-center gap-4">
                   <button
@@ -740,7 +755,7 @@ export default function StandaloneSummaryPage() {
                     className="bg-[#006e2f] hover:bg-[#004f20] text-white font-extrabold px-8 py-3.5 rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shadow-lg active:scale-95 flex items-center gap-2"
                   >
                     <span className="material-symbols-outlined text-lg">workspace_premium</span>
-                    <span>Cetak PDF Sertifikat</span>
+                    <span>Cetak Sertifikat Duta Ekologi</span>
                   </button>
                 </div>
               </motion.div>
@@ -761,12 +776,12 @@ export default function StandaloneSummaryPage() {
                 {submitting ? (
                   <>
                     <span className="material-symbols-outlined text-2xl animate-spin">progress_activity</span>
-                    <span>Mengirimkan Berkas PR Cloudinary & Data Ekspedisi...</span>
+                    <span>Mengirimkan Berkas Aksi & Data Ekspedisi...</span>
                   </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-2xl">send</span>
-                    <span>Kirim Berkas PR Cloudinary & Simpan Rangkuman Akhir</span>
+                    <span>Kirim Berkas Bukti Aksi & Simpan Rangkuman Akhir</span>
                   </>
                 )}
               </motion.button>

@@ -9,12 +9,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 
 const STAGES = [
-  { id: 1, label: 'Scanner AI',         path: '/journey/tahap-1' },
-  { id: 2, label: 'Pelapukan',           path: '/journey/tahap-2' },
-  { id: 3, label: 'Kontaminasi Pangan',  path: '/journey/tahap-3' },
-  { id: 4, label: 'Organ Pencernaan',    path: '/journey/tahap-4' },
-  { id: 5, label: 'Papan Bukti',        path: '/journey/tahap-5' },
-  { id: 6, label: 'Komitmen',            path: '/journey/tahap-6' },
+  { id: 1, label: 'Scanner AI', path: '/journey/tahap-1' },
+  { id: 2, label: 'Pelapukan', path: '/journey/tahap-2' },
+  { id: 3, label: 'Kontaminasi Pangan', path: '/journey/tahap-3' },
+  { id: 4, label: 'Organ Pencernaan', path: '/journey/tahap-4' },
+  { id: 5, label: 'Papan Bukti', path: '/journey/tahap-5' },
+  { id: 6, label: 'Komitmen', path: '/journey/tahap-6' },
 ];
 
 export default function JourneyLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +23,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
   const { completedStages } = useJourneyStore();
   const currentUser = useAuthStore(state => state.currentUser);
   const [hoveredStage, setHoveredStage] = useState<number | null>(null);
-  
+
   const isDashboard = pathname === '/journey';
   const currentId = isDashboard ? 0 : (STAGES.find(s => pathname.startsWith(s.path))?.id ?? 1);
   const isGuest = !currentUser;
@@ -41,23 +41,23 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
       <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
         {/* Latar Belakang Gradient Gelap di atas agar garis nyala terlihat */}
         <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#083b54]/60 to-transparent pointer-events-none mix-blend-multiply" />
-        
+
         <div className="relative max-w-5xl mx-auto px-4 h-28 flex items-center justify-between pointer-events-auto">
-          
+
           {/* Back & Map Navigation Buttons - Wooden Theme */}
           <div className="flex items-center gap-2 z-20">
             {isDashboard ? (
               <button
                 onClick={() => router.push('/')}
                 title="Kembali ke Beranda Utama"
-                className="relative flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
+                className="relative flex items-center gap-1.5 px-2.5 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
                 style={{
                   background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                   boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3)'
                 }}
               >
                 <span className="material-symbols-outlined text-xl">home</span>
-                <span>Beranda</span>
+                <span className="hidden sm:inline">Beranda</span>
               </button>
             ) : (
               <>
@@ -69,27 +69,27 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                       router.push(prevPath);
                     }}
                     title={`Kembali ke Tahap ${currentId - 1}`}
-                    className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
+                    className="relative flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
                     style={{
                       background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                       boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3)'
                     }}
                   >
                     <span className="material-symbols-outlined text-lg">arrow_back</span>
-                    <span>Tahap {currentId - 1}</span>
+                    <span className="hidden sm:inline">Tahap {currentId - 1}</span>
                   </button>
                 ) : (
                   <button
                     onClick={() => router.push('/journey')}
                     title="Kembali ke Peta Ekspedisi"
-                    className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
+                    className="relative flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
                     style={{
                       background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                       boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3)'
                     }}
                   >
                     <span className="material-symbols-outlined text-lg">arrow_back</span>
-                    <span>Peta</span>
+                    <span className="hidden sm:inline">Peta</span>
                   </button>
                 )}
 
@@ -110,10 +110,10 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
           </div>
 
           {/* Game Map Path - Glowing Trail */}
-          <div className="flex-1 flex justify-center items-center relative mx-4 sm:mx-8 h-full">
+          <div className="flex-1 flex justify-center items-center relative mx-1.5 sm:mx-8 h-full min-w-0">
             {/* Garis Jejak Menyala (Glowing Trail) */}
-            <div 
-              className="absolute top-1/2 left-0 right-0 h-0 border-t-[4px] border-dashed z-0 opacity-80"
+            <div
+              className="absolute top-1/2 left-2 right-2 sm:left-0 sm:right-0 h-0 border-t-[3px] sm:border-t-[4px] border-dashed z-0 opacity-80"
               style={{
                 borderColor: '#6bff8f',
                 boxShadow: '0 0 10px #6bff8f, 0 0 20px #6bff8f',
@@ -121,20 +121,20 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                 animation: 'trailPulse 2s infinite alternate'
               }}
             />
-            
+
             <div className="flex justify-between items-center w-full max-w-2xl relative z-10">
               {STAGES.map((s, index) => {
                 const done = completedStages.includes(s.id) || (currentId > 0 && s.id < currentId);
                 const active = s.id === currentId;
                 const isHovered = hoveredStage === s.id;
                 const isLockedForGuest = isGuest && s.id > 2;
-                
+
                 // Memberikan variasi vertikal agar jejak tidak lurus membosankan
-                const offsetY = index % 2 === 0 ? -10 : 10;
-                
+                const offsetY = index % 2 === 0 ? -5 : 5;
+
                 return (
-                  <div 
-                    key={s.id} 
+                  <div
+                    key={s.id}
                     className="relative flex flex-col items-center justify-center"
                     style={{ transform: `translateY(${offsetY}px)` }}
                     onMouseEnter={() => setHoveredStage(s.id)}
@@ -143,22 +143,21 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                     {/* Level Node (Bentuk Organik / Pulau) */}
                     <motion.div
                       onClick={() => {
-                         if (!isLockedForGuest && (done || active)) router.push(s.path);
+                        if (!isLockedForGuest && (done || active)) router.push(s.path);
                       }}
-                      className={`relative flex items-center justify-center z-10 transition-colors shadow-sm cursor-pointer ${
-                        isLockedForGuest ? 'w-10 h-10 bg-[#f0a345]/30 text-[#f0a345] border-2 border-[#f0a345] cursor-pointer' :
-                        active ? 'w-14 h-14 bg-[#6bff8f] text-[#083b54] shadow-[0_0_20px_#6bff8f]' : 
-                        done ? 'w-12 h-12 bg-[#006e2f] text-white shadow-md' : 
-                        'w-10 h-10 bg-[#083b54]/80 text-[#6bff8f]/50 border-2 border-[#006591] cursor-not-allowed backdrop-blur-sm'
-                      }`}
+                      className={`relative flex items-center justify-center z-10 transition-colors shadow-sm cursor-pointer ${isLockedForGuest ? 'w-7 h-7 sm:w-10 sm:h-10 bg-[#f0a345]/30 text-[#f0a345] border-2 border-[#f0a345] cursor-pointer' :
+                          active ? 'w-9 h-9 sm:w-14 sm:h-14 bg-[#6bff8f] text-[#083b54] shadow-[0_0_15px_#6bff8f]' :
+                            done ? 'w-7.5 h-7.5 sm:w-12 sm:h-12 bg-[#006e2f] text-white shadow-md' :
+                              'w-7 h-7 sm:w-10 sm:h-10 bg-[#083b54]/80 text-[#6bff8f]/50 border-2 border-[#006591] cursor-not-allowed backdrop-blur-sm'
+                        }`}
                       style={{
-                        borderRadius: active 
+                        borderRadius: active
                           ? '40% 60% 70% 30% / 40% 50% 60% 50%'
                           : done ? '50% 50% 40% 60% / 60% 40% 50% 50%'
-                          : '50%'
+                            : '50%'
                       }}
-                      animate={active ? { 
-                        y: [0, -8, 0],
+                      animate={active ? {
+                        y: [0, -4, 0],
                         borderRadius: ['40% 60% 70% 30% / 40% 50% 60% 50%', '60% 40% 50% 50% / 50% 60% 40% 60%', '40% 60% 70% 30% / 40% 50% 60% 50%']
                       } : { y: 0 }}
                       transition={active ? { duration: 3, repeat: Infinity, ease: 'easeInOut' } : {}}
@@ -166,11 +165,11 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                       whileTap={(!active && (done || isLockedForGuest)) ? { scale: 0.9 } : {}}
                     >
                       {isLockedForGuest ? (
-                        <span className="material-symbols-outlined text-[18px]">lock</span>
+                        <span className="material-symbols-outlined text-[14px] sm:text-[18px]">lock</span>
                       ) : done && !active ? (
-                        <span className="material-symbols-outlined text-[24px] font-bold">check</span>
+                        <span className="material-symbols-outlined text-[16px] sm:text-[24px] font-bold">check</span>
                       ) : (
-                        <span className="font-extrabold font-[family-name:var(--font-outfit)] text-lg">{s.id}</span>
+                        <span className="font-extrabold font-[family-name:var(--font-outfit)] text-xs sm:text-lg">{s.id}</span>
                       )}
 
                       {/* Ripple effect for active node */}
@@ -187,12 +186,13 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                     {/* Balon Kata Papan Kayu */}
                     <AnimatePresence>
                       {(isHovered || active) && (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, y: 15, scale: 0.8 }}
                           animate={{ opacity: 1, y: 35, scale: 1 }}
                           exit={{ opacity: 0, y: 15, scale: 0.8 }}
                           transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                          className="absolute top-full whitespace-nowrap text-[12px] font-extrabold px-4 py-2 rounded-lg shadow-lg pointer-events-none z-50 font-[family-name:var(--font-outfit)] text-[#3b2313] mt-2"
+                          className={`absolute top-full whitespace-nowrap text-[12px] font-extrabold px-4 py-2 rounded-lg shadow-lg pointer-events-none z-50 font-[family-name:var(--font-outfit)] text-[#3b2313] mt-2 ${isHovered ? 'block' : 'hidden sm:block'
+                            }`}
                           style={{
                             background: isLockedForGuest
                               ? 'linear-gradient(to bottom, #fff8ec, #f0a345)'
@@ -216,9 +216,6 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
         </div>
       </header>
 
-      {/* Spacer for floating header */}
-      <div className="h-28" />
-
       {/* Content */}
       <main className="flex-grow">
         {isGuestBlockedPath ? null : children}
@@ -226,9 +223,10 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
 
       {/* Mobile bottom nav */}
       <BottomNav />
-      
+
       {/* Global Style for pulsing trail */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes trailPulse {
           0% { box-shadow: 0 0 5px #6bff8f, 0 0 10px #6bff8f; }
           100% { box-shadow: 0 0 15px #6bff8f, 0 0 30px #6bff8f; }

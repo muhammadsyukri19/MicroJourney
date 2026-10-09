@@ -1,3 +1,4 @@
+import dns from 'dns';
 import mongoose from 'mongoose';
 
 declare global {

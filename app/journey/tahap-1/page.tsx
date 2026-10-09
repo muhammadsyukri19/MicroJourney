@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import StageIntro from '@/components/stages/StageIntro';
+import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { AnimatePresence } from 'framer-motion';
 
 type Phase = 'init' | 'scanning' | 'detected' | 'pemantik';
@@ -233,13 +234,15 @@ export default function Tahap1() {
     }
   }
 
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+
   function proceed() {
     completeStage(1);
-    router.push('/journey/tahap-2');
+    setShowCompletionModal(true);
   }
 
   return (
-    <div className="relative w-full overflow-hidden min-h-[540px] h-[100vh] max-h-[820px] -mt-14 md:-mt-[112px]">
+    <div className="relative w-full overflow-hidden min-h-screen h-[100vh] bg-[#083b54]">
       <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" muted playsInline />
       <canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       {phase === 'scanning' && <div className="ar-scanline" />}
@@ -372,6 +375,15 @@ export default function Tahap1() {
           </div>
         </div>
       )}
+
+      <StageCompletionModal
+        isOpen={showCompletionModal}
+        stageNumber={1}
+        stageTitle="AR Scanner Kode Plastik"
+        xpEarned={100}
+        nextStagePath="/journey/tahap-2"
+        onClose={() => setShowCompletionModal(false)}
+      />
     </div>
   );
 }

@@ -59,7 +59,7 @@ export default function JourneyDashboard() {
   };
 
   return (
-    <div className="max-w-[1000px] mx-auto px-5 pb-16 font-[family-name:var(--font-inter)]">
+    <div className="max-w-[1000px] mx-auto px-5 pt-28 md:pt-32 pb-16 font-[family-name:var(--font-inter)]">
       <GuestLimitModal
         isOpen={guestModalOpen}
         onClose={() => setGuestModalOpen(false)}
