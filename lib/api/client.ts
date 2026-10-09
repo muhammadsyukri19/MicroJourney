@@ -97,36 +97,91 @@ const progress = {
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
-// API: USERS (Manajemen akun — sementara disimpan di Zustand/localStorage)
-// TODO: Endpoint nyata belum dibuat. Perlu dibuat di backend:
-//   POST /api/users/students  → daftarkan siswa
-//   GET  /api/users/students  → ambil daftar siswa (per guru)
-//   DELETE /api/users/:id     → hapus akun
+// API: USERS & AUTH (Manajemen akun terhubung MongoDB)
 // ═════════════════════════════════════════════════════════════════════════════
-const users = {
-  /** [TODO] Daftarkan satu siswa ke backend */
-  registerStudent: async (_payload: {
-    name: string; email: string; password: string;
-    className: string; createdBy: string;
-  }): Promise<{ ok: boolean; id: string }> => {
+const auth = {
+  login: async (email: string, password: string): Promise<{ ok: boolean; user?: any; error?: string }> => {
     if (USE_MOCK) {
       await delay(300);
-      console.info('[MOCK] users.registerStudent', _payload);
-      return { ok: true, id: `mock-student-${Date.now()}` };
+      return { ok: true, user: { email, role: email.includes('guru') ? 'teacher' : 'student' } };
     }
-    // TODO: ganti dengan endpoint nyata
-    throw new Error('Backend endpoint users belum tersedia.');
+    return apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+};
+
+const users = {
+  /** Daftarkan satu pengguna (siswa / guru) ke backend */
+  register: async (payload: {
+    name: string; email: string; password: string;
+    role?: string; className?: string; createdBy?: string;
+  }): Promise<{ ok: boolean; user: any; message?: string }> => {
+    if (USE_MOCK) {
+      await delay(300);
+      return { ok: true, user: { id: `mock-${Date.now()}`, ...payload } };
+    }
+    return apiFetch('/api/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 
-  /** [TODO] Ambil daftar siswa milik guru tertentu */
-  getStudentsByTeacher: async (_teacherEmail: string): Promise<unknown[]> => {
+  /** Daftarkan siswa massal (batch import CSV) */
+  registerBatch: async (students: Array<{
+    name: string; email: string; password: string; className: string;
+  }>, createdBy: string): Promise<{ ok: boolean; count: number; users: any[]; failed?: string[] }> => {
+    if (USE_MOCK) {
+      await delay(400);
+      return { ok: true, count: students.length, users: students };
+    }
+    return apiFetch('/api/users/batch', {
+      method: 'POST',
+      body: JSON.stringify({ students, createdBy }),
+    });
+  },
+
+  /** Ambil daftar pengguna berdasarkan filter */
+  getAll: async (filter?: { role?: string; teacher?: string; className?: string }): Promise<any[]> => {
     if (USE_MOCK) {
       await delay();
       return [];
     }
-    throw new Error('Backend endpoint users belum tersedia.');
+    const params = new URLSearchParams();
+    if (filter?.role) params.set('role', filter.role);
+    if (filter?.teacher) params.set('createdBy', filter.teacher);
+    if (filter?.className) params.set('className', filter.className);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await apiFetch<{ ok: boolean; data: any[] }>(`/api/users${query}`);
+    return res.data;
+  },
+
+  /** Update pengguna */
+  update: async (id: string, payload: { name?: string; email?: string; password?: string; className?: string }): Promise<{ ok: boolean; user: any }> => {
+    if (USE_MOCK) {
+      await delay(200);
+      return { ok: true, user: payload };
+    }
+    return apiFetch(`/api/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  /** Hapus pengguna */
+  delete: async (id: string): Promise<{ ok: boolean }> => {
+    if (USE_MOCK) {
+      await delay(200);
+      return { ok: true };
+    }
+    return apiFetch(`/api/users/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
 
 // ── Ekspor terpusat ───────────────────────────────────────────────────────────
-export const api = { lkpd, progress, users };
+export const api = { lkpd, progress, users, auth };
+

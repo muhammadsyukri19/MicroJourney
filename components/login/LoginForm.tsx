@@ -34,28 +34,31 @@ export default function LoginForm() {
     setError('');
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const user = login(email, password);
+    try {
+      const res = await login(email, password);
       setLoading(false);
 
-      if (!user) {
-        setError('Email atau password salah. Coba periksa kembali.');
+      if (!res.success || !res.user) {
+        setError(res.error || 'Email atau password salah. Coba periksa kembali.');
         return;
       }
 
-      const roleError = validateRoleForMode(mode, user.role);
+      const roleError = validateRoleForMode(mode, res.user.role);
       if (roleError) {
         setError(roleError);
         return;
       }
 
-      router.push(getRedirectPath(user.role));
-    }, 500);
+      router.push(getRedirectPath(res.user.role));
+    } catch {
+      setLoading(false);
+      setError('Terjadi kendala koneksi ke server database. Silakan coba lagi.');
+    }
   }
 
   return (

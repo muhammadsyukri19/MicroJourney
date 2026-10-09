@@ -31,6 +31,7 @@ interface JourneyState {
 
   setStudent: (name: string, cls: string) => void;
   completeStage: (stageId: number) => void;
+  fetchProgress: (studentId: string) => Promise<void>;
   addFood: (food: SelectedFood) => void;
   setTotalParticles: (n: number) => void;
   setLkpdAnswer: (key: keyof LkpdAnswers, value: string) => void;
@@ -47,7 +48,7 @@ const INITIAL_LKPD: LkpdAnswers = {
 
 export const useJourneyStore = create<JourneyState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       studentName: '',
       studentClass: '',
       sessionId: '',
@@ -66,11 +67,50 @@ export const useJourneyStore = create<JourneyState>()(
         sessionId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       }),
 
-      completeStage: (id) => set(s => ({
-        completedStages: s.completedStages.includes(id)
-          ? s.completedStages
-          : [...s.completedStages, id].sort((a, b) => a - b),
-      })),
+      completeStage: (id) => {
+        set(s => ({
+          completedStages: s.completedStages.includes(id)
+            ? s.completedStages
+            : [...s.completedStages, id].sort((a, b) => a - b),
+        }));
+
+        // Background sync to MongoDB progress collection
+        try {
+          if (typeof window !== 'undefined') {
+            const authRaw = localStorage.getItem('microjourney-auth');
+            const authObj = authRaw ? JSON.parse(authRaw) : null;
+            const user = authObj?.state?.currentUser;
+            const studentId = user?.email || user?.id || get().sessionId || 'guest_student';
+
+            fetch('/api/progress', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                studentId,
+                completedStage: id,
+                xpEarned: 100,
+              }),
+            }).catch(e => console.warn('[PROGRESS] MongoDB sync error:', e));
+          }
+        } catch {
+          // ignore
+        }
+      },
+
+      fetchProgress: async (studentId: string) => {
+        if (!studentId) return;
+        try {
+          const res = await fetch(`/api/progress?studentId=${encodeURIComponent(studentId)}`);
+          const data = await res.json();
+          if (data && Array.isArray(data.completedStages) && data.completedStages.length > 0) {
+            set(s => ({
+              completedStages: Array.from(new Set([...s.completedStages, ...data.completedStages])).sort((a, b) => a - b),
+            }));
+          }
+        } catch (e) {
+          console.warn('[PROGRESS] Fetch progress error:', e);
+        }
+      },
 
       addFood: (food) => set(s => ({
         selectedFoods: s.selectedFoods.some(f => f.id === food.id)

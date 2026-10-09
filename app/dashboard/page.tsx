@@ -40,7 +40,7 @@ function parseOrganLabel(raw: string): string {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { currentUser, users, logout, registerStudent, deleteStudent } = useAuthStore();
+  const { currentUser, users, logout, registerStudent, deleteStudent, fetchUsers } = useAuthStore();
   const [data, setData] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Submission | null>(null);
@@ -55,7 +55,9 @@ export default function Dashboard() {
       .then(r => r.json())
       .then(d => { setData(d.data || []); setLoading(false); })
       .catch(() => setLoading(false));
-  }, []);
+
+    fetchUsers('student');
+  }, [fetchUsers]);
 
   useEffect(() => {
     if (!currentUser) {
@@ -85,17 +87,22 @@ export default function Dashboard() {
   function refreshSubmissions() {
     setLoading(true);
     fetch('/api/lkpd').then(r => r.json()).then(d => { setData(d.data || []); setLoading(false); }).catch(() => setLoading(false));
+    fetchUsers('student');
   }
 
-  function handleRegisterStudent(e: React.FormEvent) {
+  async function handleRegisterStudent(e: React.FormEvent) {
     e.preventDefault();
     if (!studentForm.name.trim() || !studentForm.email.trim() || !studentForm.password || !studentForm.className.trim()) {
       setStudentMessage('Semua kolom wajib diisi.');
       return;
     }
-    const student = registerStudent({ ...studentForm, createdBy: adminUser.email });
-    setStudentMessage(`Berhasil mendaftarkan ${student.name}.`);
-    setStudentForm({ name: '', email: '', password: '', className: '' });
+    const res = await registerStudent({ ...studentForm, createdBy: adminUser.email });
+    if (res.success && res.user) {
+      setStudentMessage(`Berhasil mendaftarkan ${res.user.name} ke database.`);
+      setStudentForm({ name: '', email: '', password: '', className: '' });
+    } else {
+      setStudentMessage(res.error || 'Gagal mendaftarkan siswa.');
+    }
   }
 
   return (

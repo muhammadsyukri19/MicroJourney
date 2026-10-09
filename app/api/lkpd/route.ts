@@ -7,24 +7,32 @@ export async function POST(req: NextRequest) {
     await connectDB();
     const body = await req.json();
 
-    const submission = await LkpdSubmission.create({
-      studentName:        body.studentName || 'Anonim',
-      studentClass:       body.studentClass || '-',
-      sessionId:          body.sessionId || `manual-${Date.now()}`,
-      lkpd1:              body.lkpd1 || '',
-      lkpd2:              body.lkpd2 || '',
-      lkpd3q1:            body.lkpd3q1 || '',
-      lkpd3q2:            body.lkpd3q2 || '',
-      lkpd4:              body.lkpd4 || '',
-      commitment:         body.commitment || '',
-      totalParticles:     body.totalParticles || 0,
-      mostDangerousOrgan: body.mostDangerousOrgan || '',
-      selectedFoods:      body.selectedFoods || [],
-      studentAccountEmail:body.studentAccountEmail || '',
-      assessmentEligible: Boolean(body.assessmentEligible),
-      quizCorrect:        Number(body.quizCorrect) || 0,
-      quizWrong:          Number(body.quizWrong) || 0,
-    });
+    const sessionId = body.sessionId || `manual-${Date.now()}`;
+
+    const updatePayload: Record<string, unknown> = {
+      ...(body.studentName !== undefined && { studentName: body.studentName }),
+      ...(body.studentClass !== undefined && { studentClass: body.studentClass }),
+      sessionId,
+      ...(body.lkpd1 !== undefined && { lkpd1: body.lkpd1 }),
+      ...(body.lkpd2 !== undefined && { lkpd2: body.lkpd2 }),
+      ...(body.lkpd3q1 !== undefined && { lkpd3q1: body.lkpd3q1 }),
+      ...(body.lkpd3q2 !== undefined && { lkpd3q2: body.lkpd3q2 }),
+      ...(body.lkpd4 !== undefined && { lkpd4: body.lkpd4 }),
+      ...(body.commitment !== undefined && { commitment: body.commitment }),
+      ...(body.totalParticles !== undefined && { totalParticles: Number(body.totalParticles) }),
+      ...(body.mostDangerousOrgan !== undefined && { mostDangerousOrgan: body.mostDangerousOrgan }),
+      ...(body.selectedFoods !== undefined && { selectedFoods: body.selectedFoods }),
+      ...(body.studentAccountEmail !== undefined && { studentAccountEmail: body.studentAccountEmail }),
+      ...(body.assessmentEligible !== undefined && { assessmentEligible: Boolean(body.assessmentEligible) }),
+      ...(body.quizCorrect !== undefined && { quizCorrect: Number(body.quizCorrect) }),
+      ...(body.quizWrong !== undefined && { quizWrong: Number(body.quizWrong) }),
+    };
+
+    const submission = await LkpdSubmission.findOneAndUpdate(
+      { sessionId },
+      { $set: updatePayload },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     return NextResponse.json({ ok: true, id: submission._id }, { status: 201 });
   } catch (err) {
@@ -33,12 +41,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
-    const data = await LkpdSubmission.find({})
+    const { searchParams } = new URL(req.url);
+    const className = searchParams.get('class') || searchParams.get('className');
+
+    const filter: Record<string, unknown> = {};
+    if (className) {
+      filter.studentClass = className;
+    }
+
+    const data = await LkpdSubmission.find(filter)
       .sort({ createdAt: -1 })
-      .limit(100)
+      .limit(200)
       .lean();
     return NextResponse.json({ ok: true, data });
   } catch (err) {

@@ -22,7 +22,7 @@ const FOOD_ACCENT: Record<string, string> = {
   kerang:     '#38bdf8',
   air_mineral:'#7dd3fc',
   cilok:      '#fb923c',
-  es_teh:     '#a78bfa',
+  es_teh:     '#a78bfa',  
 };
 
 // Background decorators — shared across all phases

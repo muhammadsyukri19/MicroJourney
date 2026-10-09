@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
+import { useAuthStore } from '@/lib/authStore';
 import MikaMascot from '@/components/MikaMascot';
 
 const QUICK_PLEDGES = [
@@ -13,7 +14,8 @@ const QUICK_PLEDGES = [
 
 export default function Tahap6() {
   const router = useRouter();
-  const { completeStage, setLkpdAnswer, lkpdAnswers, studentName, studentClass } = useJourneyStore();
+  const { completeStage, setLkpdAnswer, lkpdAnswers, studentName, studentClass, sessionId } = useJourneyStore();
+  const { currentUser } = useAuthStore();
   const [commitment, setCommitment] = useState(lkpdAnswers.commitment);
   const [selectedPledges, setSelectedPledges] = useState<Set<string>>(new Set());
   const [pdfDone, setPdfDone] = useState(false);
@@ -56,6 +58,35 @@ export default function Tahap6() {
   async function generatePDF() {
     setLkpdAnswer('commitment', commitment);
     completeStage(6);
+
+    // Sync final commitment to MongoDB
+    try {
+      const state = useJourneyStore.getState();
+      await fetch('/api/lkpd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: state.sessionId || sessionId || `session-${Date.now()}`,
+          studentName: state.studentName || currentUser?.name || 'Anonim',
+          studentClass: state.studentClass || currentUser?.className || '-',
+          studentAccountEmail: currentUser?.email || '',
+          assessmentEligible: true,
+          commitment,
+          lkpd1: state.lkpdAnswers.lkpd1,
+          lkpd2: state.lkpdAnswers.lkpd2,
+          lkpd3q1: state.lkpdAnswers.lkpd3q1,
+          lkpd3q2: state.lkpdAnswers.lkpd3q2,
+          lkpd4: state.lkpdAnswers.lkpd4,
+          totalParticles: state.totalParticles,
+          mostDangerousOrgan: state.mostDangerousOrgan,
+          quizCorrect: state.quizCorrect,
+          quizWrong: state.quizWrong,
+          selectedFoods: state.selectedFoods.map(f => f.name),
+        }),
+      });
+    } catch (e) {
+      console.error('Failed to sync final commitment to MongoDB:', e);
+    }
 
     const { default: jsPDF } = await import('jspdf');
     const doc = new jsPDF();

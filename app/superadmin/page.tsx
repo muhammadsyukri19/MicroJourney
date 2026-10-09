@@ -10,7 +10,7 @@ const EMPTY_FORM = { name: '', email: '', password: '' };
 
 export default function SuperadminPage() {
   const router = useRouter();
-  const { currentUser, users, registerTeacher, deleteTeacher, updateTeacher } = useAuthStore();
+  const { currentUser, users, registerTeacher, deleteTeacher, updateTeacher, fetchUsers } = useAuthStore();
 
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editTarget, setEditTarget] = useState<AppUser | null>(null);
@@ -23,8 +23,9 @@ export default function SuperadminPage() {
   // Guard: only superadmin
   useEffect(() => {
     if (currentUser === null) { router.push('/login'); return; }
-    if (currentUser.role !== 'superadmin') { router.push('/dashboard'); }
-  }, [currentUser, router]);
+    if (currentUser.role !== 'superadmin') { router.push('/dashboard'); return; }
+    fetchUsers('teacher');
+  }, [currentUser, router, fetchUsers]);
 
   const teachers = users.filter(u => u.role === 'teacher')
     .filter(u => u.name.toLowerCase().includes(searchQ.toLowerCase()) || u.email.toLowerCase().includes(searchQ.toLowerCase()));
@@ -38,7 +39,7 @@ export default function SuperadminPage() {
   }
 
   function openEdit(teacher: AppUser) {
-    setForm({ name: teacher.name, email: teacher.email, password: teacher.password });
+    setForm({ name: teacher.name, email: teacher.email, password: teacher.password || '' });
     setEditTarget(teacher);
     setShowPass(false);
     setFeedback(null);
@@ -51,7 +52,7 @@ export default function SuperadminPage() {
     setFeedback(null);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
       setFeedback({ type: 'err', msg: 'Semua field wajib diisi.' });
@@ -63,21 +64,21 @@ export default function SuperadminPage() {
     }
 
     if (modalMode === 'add') {
-      const result = registerTeacher(form);
+      const result = await registerTeacher(form);
       if (!result.success) { setFeedback({ type: 'err', msg: result.message }); return; }
       setFeedback({ type: 'ok', msg: result.message });
       setTimeout(closeModal, 1200);
     } else if (modalMode === 'edit' && editTarget) {
-      const result = updateTeacher(editTarget.id, form);
+      const result = await updateTeacher(editTarget.id, form);
       if (!result.success) { setFeedback({ type: 'err', msg: result.message }); return; }
       setFeedback({ type: 'ok', msg: result.message });
       setTimeout(closeModal, 1200);
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!confirmDelete) return;
-    deleteTeacher(confirmDelete.id);
+    await deleteTeacher(confirmDelete.id);
     setConfirmDelete(null);
   }
 
@@ -188,7 +189,7 @@ export default function SuperadminPage() {
                   </div>
                   <p className="text-[#3e4850] text-sm truncate">{teacher.email}</p>
                   <p className="text-[#6e7881] text-sm font-[family-name:var(--font-mono)]">
-                    {'•'.repeat(Math.min(teacher.password.length, 8))}
+                    {'•'.repeat(Math.min((teacher.password || '••••••••').length, 8))}
                   </p>
                   <div className="flex items-center gap-1">
                     <button onClick={() => openEdit(teacher)} title="Edit"

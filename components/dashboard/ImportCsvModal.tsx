@@ -20,7 +20,7 @@ interface ImportCsvModalProps {
 type Step = 'upload' | 'preview' | 'done';
 
 export default function ImportCsvModal({ onClose, createdBy }: ImportCsvModalProps) {
-  const { registerStudent } = useAuthStore();
+  const { registerStudentsBatch } = useAuthStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step,         setStep]         = useState<Step>('upload');
@@ -71,22 +71,17 @@ export default function ImportCsvModal({ onClose, createdBy }: ImportCsvModalPro
   // ── Import ──────────────────────────────────────────────────────────────────
   async function handleImport() {
     setImporting(true);
-    const failed: string[] = [];
-    const done: CsvStudentRow[] = [];
+    const valid = rows.filter(r => !r.error);
+    const initialFailed = rows.filter(r => !!r.error).map(r => `${r.name} (${r.error})`);
 
-    for (const row of rows) {
-      if (row.error) { failed.push(`${row.name} (${row.error})`); continue; }
-      try {
-        registerStudent({ ...row, createdBy });
-        done.push(row);
-      } catch {
-        failed.push(`${row.name} (gagal disimpan)`);
-      }
-    }
+    const result = await registerStudentsBatch(
+      valid.map(r => ({ name: r.name, email: r.email, password: r.password, className: r.className })),
+      createdBy
+    );
 
-    setImportedCount(done.length);
-    setFailedRows(failed);
-    setDoneRows(done);
+    setImportedCount(result.count || valid.length);
+    setFailedRows([...initialFailed, ...(result.failed || [])]);
+    setDoneRows(valid);
     setImporting(false);
     setStep('done');
   }
