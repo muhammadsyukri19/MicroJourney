@@ -38,10 +38,11 @@ export async function POST(req: NextRequest) {
         createdBy: user.createdBy || '',
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan pada server saat verifikasi login.';
     console.error('[POST /api/auth/login]', err);
     return NextResponse.json(
-      { ok: false, error: 'Terjadi kesalahan pada server saat verifikasi login.' },
+      { ok: false, error: message },
       { status: 500 }
     );
   }

@@ -57,8 +57,9 @@ export async function GET(req: NextRequest) {
       .limit(200)
       .lean();
     return NextResponse.json({ ok: true, data });
-  } catch (err) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Gagal mengambil data';
     console.error('[GET /api/lkpd]', err);
-    return NextResponse.json({ ok: false, error: 'Gagal mengambil data' }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

@@ -2,11 +2,13 @@ import dns from 'dns';
 import mongoose from 'mongoose';
 import dns from 'dns';
 
-// Ensure DNS resolver can query MongoDB SRV records on Windows
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch {
-  // Ignore in environments where setServers is restricted
+// Ensure DNS resolver can query MongoDB SRV records on Windows only
+if (process.platform === 'win32') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch {
+    // Ignore in environments where setServers is restricted
+  }
 }
 
 declare global {
@@ -38,7 +40,10 @@ export async function connectDB() {
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI).then((m) => m);
+    cached.promise = mongoose.connect(MONGODB_URI, {
+      bufferCommands: false,
+      serverSelectionTimeoutMS: 8000,
+    }).then((m) => m);
   }
 
   try {
