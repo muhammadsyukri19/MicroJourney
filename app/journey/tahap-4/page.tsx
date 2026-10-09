@@ -513,11 +513,13 @@ export default function Tahap4() {
 
           {/* Full-width Bottom CTA when all organs are completed */}
           {allOrgansDone && (
-            <button onClick={() => setPhase('lkpd')}
-              className="w-full mt-3 bg-[linear-gradient(180deg,#f0a345_0%,#d27b22_100%)] hover:brightness-110 text-white font-extrabold py-4 rounded-xl text-lg sm:text-xl transition-all flex items-center justify-center gap-2 shadow-[0_6px_0_#9a5310,0_10px_20px_rgba(0,0,0,0.3)] active:translate-y-1 active:shadow-[0_2px_0_#9a5310]">
-              Semua Organ Terinvestigasi — Isi Laporan
-              <span className="material-symbols-outlined text-2xl">arrow_forward</span>
-            </button>
+            <div className="fixed bottom-0 left-0 right-0 p-4 md:relative md:p-0 md:mt-3 z-50 bg-gradient-to-t from-[#004c6e] via-[#004c6e]/80 to-transparent md:bg-none pointer-events-none">
+              <button onClick={() => setPhase('lkpd')}
+                className="w-full max-w-7xl mx-auto bg-[linear-gradient(180deg,#f0a345_0%,#d27b22_100%)] hover:brightness-110 text-[#3b2313] font-extrabold py-4 rounded-xl text-sm sm:text-xl transition-all flex items-center justify-center gap-2 shadow-[0_4px_0_#9a5310,0_8px_15px_rgba(0,0,0,0.3)] active:translate-y-1 active:shadow-[0_2px_0_#9a5310] pointer-events-auto">
+                Semua Organ Terinvestigasi — Isi Laporan
+                <span className="material-symbols-outlined text-xl sm:text-2xl">arrow_forward</span>
+              </button>
+            </div>
           )}
         </div>
       )}
