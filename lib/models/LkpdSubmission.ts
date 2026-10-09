@@ -5,6 +5,8 @@ export interface ILkpdSubmission extends Document {
   studentName: string;
   studentClass: string;
   sessionId: string;
+  lkpdStep1: string;
+  lkpdStep2: string;
   lkpd1: string;
   lkpd2: string;
   lkpd3q1: string;
@@ -23,6 +25,8 @@ export interface ILkpdSubmission extends Document {
   actionNote?: string;
   rating?: number;
   feedback?: string;
+  preTestScore?: number;
+  postTestScore?: number;
 }
 
 const LkpdSubmissionSchema = new Schema<ILkpdSubmission>({
@@ -30,6 +34,8 @@ const LkpdSubmissionSchema = new Schema<ILkpdSubmission>({
   studentName:        { type: String, required: true },
   studentClass:       { type: String, required: true },
   sessionId:          { type: String, required: true },
+  lkpdStep1:          { type: String, default: '' },
+  lkpdStep2:          { type: String, default: '' },
   lkpd1:              { type: String, default: '' },
   lkpd2:              { type: String, default: '' },
   lkpd3q1:            { type: String, default: '' },
@@ -48,6 +54,8 @@ const LkpdSubmissionSchema = new Schema<ILkpdSubmission>({
   actionNote:         { type: String, default: '' },
   rating:             { type: Number, default: 5 },
   feedback:           { type: String, default: '' },
+  preTestScore:       { type: Number, default: null },
+  postTestScore:      { type: Number, default: null },
 });
 
 const LkpdSubmission: Model<ILkpdSubmission> =

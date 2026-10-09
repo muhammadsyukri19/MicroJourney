@@ -167,20 +167,25 @@ export default function TeacherDashboardTemplate() {
   }
 
   function fetchStudents() {
-    fetch('/api/users/students')
+    fetch('/api/users/students', { cache: 'no-store' })
       .then(r => r.json())
       .then(res => {
         if (res.ok && Array.isArray(res.data)) {
-          // Merge API students into authStore
-          res.data.forEach((st: AppUser) => {
-            useAuthStore.getState().registerStudent({
-              name: st.name,
-              email: st.email,
-              password: st.password || `${st.email.split('@')[0]}123`,
-              className: st.className || '-',
-              createdBy: adminUser.email,
-            });
-          });
+          // Merge API students into authStore avoiding infinite POST loops
+          const apiUsers: AppUser[] = res.data.map((st: any) => ({
+            id: st.id,
+            name: st.name,
+            email: st.email,
+            password: st.password || `${st.email.split('@')[0]}123`,
+            role: 'student',
+            className: st.className || '-',
+            createdBy: st.createdBy || adminUser.email,
+          }));
+
+          const { users } = useAuthStore.getState();
+          // Keep local fallback users that aren't in the DB yet, but replace DB users
+          const localOnly = users.filter(u => u.id.startsWith('student-') && !apiUsers.some(api => api.email === u.email));
+          useAuthStore.setState({ users: [...apiUsers, ...localOnly, ...users.filter(u => u.role !== 'student')] });
         }
       })
       .catch(() => {});
@@ -285,7 +290,7 @@ export default function TeacherDashboardTemplate() {
 
   function handleExportSubmissionsCsv() {
     if (filteredSubmissions.length === 0) return;
-    const headers = ['Nama Siswa', 'Kelas', 'Total Partikel', 'Organ Kritis', 'Kuis Benar', 'Kuis Salah', 'Link PR Drive', 'Link Sosmed', 'Rating Siswa', 'Catatan Aksi', 'Waktu Submit', 'Sumpah Komitmen'];
+    const headers = ['Nama Siswa', 'Kelas', 'Total Partikel', 'Organ Kritis', 'Kuis Benar', 'Kuis Salah', 'Link PR Drive', 'Link Sosmed', 'Rating Siswa', 'Catatan Aksi', 'Waktu Submit', 'Sumpah Komitmen', 'Nilai Pretest', 'Nilai Posttest'];
     const rows = filteredSubmissions.map(d => [
       `"${d.studentName.replace(/"/g, '""')}"`,
       `"${d.studentClass}"`,
@@ -296,9 +301,10 @@ export default function TeacherDashboardTemplate() {
       `"${(d.driveLink || '').replace(/"/g, '""')}"`,
       `"${(d.sosmedLink || '').replace(/"/g, '""')}"`,
       d.rating || 5,
-      `"${(d.actionNote || '').replace(/"/g, '""')}"`,
       `"${new Date(d.createdAt).toLocaleString('id-ID')}"`,
-      `"${(d.commitment || '').replace(/"/g, '""')}"`
+      `"${(d.commitment || '').replace(/"/g, '""')}"`,
+      d.preTestScore || 0,
+      d.postTestScore || 0
     ]);
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     downloadCsv(csvContent, `Rekap_Nilai_MicroJourney_${selectedClassName || 'Semua_Kelas'}_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -635,7 +641,8 @@ export default function TeacherDashboardTemplate() {
                             <th className="px-5 py-3.5">Kelas</th>
                             <th className="px-5 py-3.5">Total Partikel</th>
                             <th className="px-5 py-3.5">Organ Kritis</th>
-                            <th className="px-5 py-3.5">Hasil Kuis</th>
+                            <th className="px-5 py-3.5">Pre-test</th>
+                            <th className="px-5 py-3.5">Post-test</th>
                             <th className="px-5 py-3.5">Waktu Submit</th>
                           </tr>
                         </thead>
@@ -666,7 +673,10 @@ export default function TeacherDashboardTemplate() {
                                 </span>
                               </td>
                               <td className="px-5 py-4">
-                                <span className="text-emerald-700 font-bold">✓ {row.quizCorrect || 0}</span> / <span className="text-red-500 font-bold">✗ {row.quizWrong || 0}</span>
+                                <span className="text-slate-600 font-bold">{row.preTestScore ?? '-'}</span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className="text-[#006e2f] font-bold">{row.postTestScore ?? '-'}</span>
                               </td>
                               <td className="px-5 py-4 text-slate-400">
                                 {new Date(row.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}

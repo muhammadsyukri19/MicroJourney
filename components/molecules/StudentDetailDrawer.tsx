@@ -28,6 +28,8 @@ export interface Submission {
   actionNote?: string;
   rating?: number;
   feedback?: string;
+  preTestScore?: number;
+  postTestScore?: number;
 }
 
 interface StudentDetailDrawerProps {

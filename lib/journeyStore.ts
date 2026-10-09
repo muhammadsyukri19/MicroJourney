@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export interface LkpdAnswers {
-  lkpd1: string;   // Tahap 2: proses pelapukan
+  lkpdStep1: string; // Tahap 1: Scanner
+  lkpdStep2: string; // Tahap 2: Pelapukan
+  lkpd1: string;   // Deprecated / Tahap 2 lama
   lkpd2: string;   // Tahap 3: kontaminasi pangan
   lkpd3q1: string; // Tahap 4: mengapa lambung gagal
   lkpd3q2: string; // Tahap 4: organ paling berbahaya
@@ -33,6 +35,8 @@ interface JourneyState {
   organInteractions: string[]; // ids of organs clicked
   quizCorrect: number;
   quizWrong: number;
+  preTestScore: number | null;
+  postTestScore: number | null;
 
   setStudent: (name: string, cls: string) => void;
   completeStage: (stageId: number) => void;
@@ -44,10 +48,13 @@ interface JourneyState {
   addOrganInteraction: (id: string) => void;
   incrementCorrect: () => void;
   incrementWrong: () => void;
+  setPreTestScore: (score: number) => void;
+  setPostTestScore: (score: number) => void;
   reset: () => void;
 }
 
 const INITIAL_LKPD: LkpdAnswers = {
+  lkpdStep1: '', lkpdStep2: '',
   lkpd1: '', lkpd2: '', lkpd3q1: '', lkpd3q2: '', lkpd4: '', commitment: '',
   driveLink: '', sosmedLink: '', actionNote: '', rating: 5, feedback: '',
 };
@@ -66,6 +73,8 @@ export const useJourneyStore = create<JourneyState>()(
       organInteractions: [],
       quizCorrect: 0,
       quizWrong: 0,
+      preTestScore: null,
+      postTestScore: null,
 
       setStudent: (name, cls) => set({
         studentName: name,
@@ -143,11 +152,14 @@ export const useJourneyStore = create<JourneyState>()(
       
       incrementWrong: () => set(s => ({ quizWrong: s.quizWrong + 1 })),
 
+      setPreTestScore: (score) => set({ preTestScore: score }),
+      setPostTestScore: (score) => set({ postTestScore: score }),
+
       reset: () => set({
         studentName: '', studentClass: '', sessionId: '',
         completedStages: [], selectedFoods: [], totalParticles: 0,
         lkpdAnswers: INITIAL_LKPD, mostDangerousOrgan: '', organInteractions: [],
-        quizCorrect: 0, quizWrong: 0,
+        quizCorrect: 0, quizWrong: 0, preTestScore: null, postTestScore: null,
       }),
     }),
     { name: 'microjourney-state' }

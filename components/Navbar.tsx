@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "@/lib/authStore";
+import { useJourneyStore } from "@/lib/journeyStore";
+import { useLogoutMutation } from "@/lib/hooks/useAuth";
 import BottomNav from "@/components/BottomNav";
 
 const navLinks: { href: string; label: string; match?: string }[] = [
@@ -17,7 +19,8 @@ const navLinks: { href: string; label: string; match?: string }[] = [
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout } = useAuthStore();
+  const { currentUser } = useAuthStore();
+  const logoutMutation = useLogoutMutation();
   const isTeacher = currentUser?.role === "teacher" || currentUser?.role === "superadmin";
 
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -40,9 +43,13 @@ export default function Navbar() {
   }, []);
 
   function handleLogout() {
-    logout();
-    setAvatarOpen(false);
-    router.push("/");
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        setAvatarOpen(false);
+        useJourneyStore.getState().reset();
+        router.push("/");
+      }
+    });
   }
 
   const initials = currentUser?.name

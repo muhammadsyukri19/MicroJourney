@@ -7,9 +7,9 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { LoginMode } from '@/lib/types/login.types';
-import type { LoginResponse } from '@/lib/api/auth.api';
 import { getRedirectPath } from '@/lib/utils/login.utils';
-import { useLoginMutation, useCurrentUserQuery, useRegisterTeacherMutation } from '@/lib/hooks/useAuth';
+import { useLoginMutation, useCurrentUserQuery, useRegisterTeacherMutation, useRegisterStudentMutation } from '@/lib/hooks/useAuth';
+import { useJourneyStore } from '@/lib/journeyStore';
 
 import ModeSwitcher from '@/components/login/ModeSwitcher';
 import ContextBanner from '@/components/login/ContextBanner';
@@ -22,6 +22,7 @@ export default function LoginForm() {
   const { data: currentUser } = useCurrentUserQuery();
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterTeacherMutation();
+  const registerStudentMutation = useRegisterStudentMutation();
 
   const [mode, setMode] = useState<LoginMode>('student');
   const [isRegistering, setIsRegistering] = useState(false);
@@ -36,12 +37,22 @@ export default function LoginForm() {
   const isTeacher = mode === 'teacher';
   const accentColor = isTeacher ? '#006e2f' : '#006591';
 
+  const setStudent = useJourneyStore(s => s.setStudent);
+  const resetJourney = useJourneyStore(s => s.reset);
+  const currentStudentName = useJourneyStore(s => s.studentName);
+
   // Proteksi Halaman Login: Jika user sudah login, alihkan otomatis ke dashboard/journey
   useEffect(() => {
     if (currentUser) {
+      if (currentUser.role === 'student') {
+        if (currentStudentName && currentStudentName !== currentUser.name) {
+          resetJourney();
+        }
+        setStudent(currentUser.name, currentUser.className || '-');
+      }
       router.replace(getRedirectPath(currentUser.role));
     }
-  }, [currentUser, router]);
+  }, [currentUser, router, setStudent, resetJourney, currentStudentName]);
 
   function handleSwitchMode(m: LoginMode) {
     setMode(m);
@@ -58,16 +69,18 @@ export default function LoginForm() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (isRegistering && isTeacher) {
-      registerMutation.mutate(
-        { name, email, password, school, phoneNumber },
-        {
-          onSuccess: () => {
-            // Setelah berhasil mendaftar, arahkan ke dashboard
-            router.push(getRedirectPath('teacher'));
-          },
-        }
-      );
+    if (isRegistering) {
+      if (isTeacher) {
+        registerMutation.mutate(
+          { name, email, password, school, phoneNumber },
+          { onSuccess: () => router.push(getRedirectPath('teacher')) }
+        );
+      } else {
+        registerStudentMutation.mutate(
+          { name, email, password, className: school },
+          { onSuccess: () => router.push(getRedirectPath('student')) }
+        );
+      }
     } else {
       loginMutation.mutate(
         { email, password, mode },
@@ -123,11 +136,11 @@ export default function LoginForm() {
           className="font-extrabold text-2xl lg:text-3xl text-[#083b54] mb-1.5"
           style={{ fontFamily: 'var(--font-outfit)' }}
         >
-          {isRegistering ? 'Pendaftaran Guru Edukator' : 'Masuk Portal MicroJourney'}
+          {isRegistering ? (isTeacher ? 'Pendaftaran Guru Edukator' : 'Pendaftaran Akun Siswa') : 'Masuk Portal MicroJourney'}
         </h2>
         <p className="text-[#648796] text-sm leading-relaxed">
           {isRegistering
-            ? 'Daftarkan instansi sekolah Anda untuk mengelola pembelajaran AR & E-LKPD siswa.'
+            ? (isTeacher ? 'Daftarkan instansi sekolah Anda untuk mengelola pembelajaran AR & E-LKPD siswa.' : 'Buat akun siswa baru untuk mulai mengerjakan kuis, E-LKPD, dan menyimpan progres simulasi AR.')
             : 'Pilih peran pengguna di bawah untuk melanjutkan ke aplikasi.'}
         </p>
       </div>
@@ -140,10 +153,11 @@ export default function LoginForm() {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {isRegistering && isTeacher ? (
-          <>
-            {/* Grid Layout for Teacher Registration */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+        {isRegistering ? (
+          isTeacher ? (
+            <>
+              {/* Grid Layout for Teacher Registration */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <InputField
                 label="Nama Lengkap & Gelar *"
                 icon="badge"
@@ -213,11 +227,58 @@ export default function LoginForm() {
                 setPassword(e.target.value);
                 if (loginMutation.isError) loginMutation.reset();
                 if (registerMutation.isError) registerMutation.reset();
+                if (registerStudentMutation.isError) registerStudentMutation.reset();
               }}
               placeholder="Minimal 6 karakter"
               accentColor={accentColor}
             />
           </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <InputField
+                  label="Nama Siswa *"
+                  icon="person"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Nama Lengkap"
+                  accentColor={accentColor}
+                />
+                <InputField
+                  label="Kelas & Sekolah *"
+                  icon="class"
+                  type="text"
+                  required
+                  value={school}
+                  onChange={e => setSchool(e.target.value)}
+                  placeholder="misal: VIII-A SMPN 3"
+                  accentColor={accentColor}
+                />
+              </div>
+              <InputField
+                label="Email Siswa *"
+                icon="alternate_email"
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Siswa ID atau Email"
+                accentColor={accentColor}
+              />
+              <InputField
+                label="Kata Sandi *"
+                icon="lock"
+                isPassword
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Minimal 6 karakter"
+                accentColor={accentColor}
+              />
+            </>
+          )
         ) : (
           <>
             {/* Standard Login Inputs */}
@@ -254,21 +315,21 @@ export default function LoginForm() {
         )}
 
         {/* State: Error Feedback */}
-        {(loginMutation.isError || registerMutation.isError) && (
+        {(loginMutation.isError || registerMutation.isError || registerStudentMutation.isError) && (
           <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 animate-shake">
             <span className="material-symbols-outlined text-red-500 text-[18px] mt-0.5">error</span>
             <p className="text-red-600 text-xs font-medium leading-relaxed">
-              {loginMutation.error?.message || registerMutation.error?.message || 'Terjadi kesalahan. Silakan coba lagi.'}
+              {loginMutation.error?.message || registerMutation.error?.message || registerStudentMutation.error?.message || 'Terjadi kesalahan. Silakan coba lagi.'}
             </p>
           </div>
         )}
 
         {/* State: Success Feedback */}
-        {(loginMutation.isSuccess || registerMutation.isSuccess) && (
+        {(loginMutation.isSuccess || registerMutation.isSuccess || registerStudentMutation.isSuccess) && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-2.5">
             <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
             <p className="text-emerald-700 text-xs font-semibold">
-              {registerMutation.isSuccess && !loginMutation.isSuccess 
+              {(registerMutation.isSuccess || registerStudentMutation.isSuccess) && !loginMutation.isSuccess 
                 ? 'Pendaftaran berhasil! Sedang menyiapkan sesi...' 
                 : 'Otentikasi Berhasil! Membuka portal...'}
             </p>
@@ -278,7 +339,7 @@ export default function LoginForm() {
         {/* Submit Button with High-Impact Aesthetics */}
         <button
           type="submit"
-          disabled={loginMutation.isPending || loginMutation.isSuccess || registerMutation.isPending || registerMutation.isSuccess}
+          disabled={loginMutation.isPending || loginMutation.isSuccess || registerMutation.isPending || registerMutation.isSuccess || registerStudentMutation.isPending || registerStudentMutation.isSuccess}
           className="w-full py-4 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 mt-3 shadow-lg hover:shadow-xl"
           style={{
             fontFamily: 'var(--font-outfit)',
@@ -292,12 +353,12 @@ export default function LoginForm() {
               : '0 6px 20px rgba(0,101,145,0.30), inset 0 1px 0 rgba(255,255,255,0.25)',
           }}
         >
-          {loginMutation.isPending || registerMutation.isPending ? (
+          {loginMutation.isPending || registerMutation.isPending || registerStudentMutation.isPending ? (
             <>
               <span className="material-symbols-outlined text-[20px] animate-spin">progress_activity</span>
               Memproses Data...
             </>
-          ) : loginMutation.isSuccess ? (
+          ) : loginMutation.isSuccess || registerMutation.isSuccess || registerStudentMutation.isSuccess ? (
             <>
               <span className="material-symbols-outlined text-[20px]">check</span>
               Berhasil Masuk
@@ -307,32 +368,32 @@ export default function LoginForm() {
               <span className="material-symbols-outlined text-[20px]">
                 {isRegistering ? 'how_to_reg' : isTeacher ? 'dashboard' : 'explore'}
               </span>
-              {isRegistering ? 'Selesaikan Pendaftaran Guru' : isTeacher ? 'Masuk ke Dashboard Guru' : 'Mulai Petualangan Sains'}
+              {isRegistering ? (isTeacher ? 'Selesaikan Pendaftaran Guru' : 'Selesaikan Pendaftaran Siswa') : isTeacher ? 'Masuk ke Dashboard Guru' : 'Mulai Petualangan Sains'}
             </>
           )}
         </button>
       </form>
 
-      {/* Toggle Login/Register for Teacher */}
-      {isTeacher && (
-        <div className="mt-5 p-3 rounded-xl bg-[#f7fafc] border border-[#e2edf3] text-center">
-          <p className="text-xs text-[#527788] font-medium">
-            {isRegistering ? 'Sudah memiliki akun guru terdaftar?' : 'Belum memiliki akun guru untuk sekolah Anda?'}
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegistering(!isRegistering);
-                loginMutation.reset();
-                registerMutation.reset();
-              }}
-              className="ml-1.5 font-bold text-[#006e2f] hover:underline inline-flex items-center gap-0.5"
-            >
-              {isRegistering ? 'Masuk di sini' : 'Daftar Guru Baru'}
-              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-            </button>
-          </p>
-        </div>
-      )}
+      {/* Toggle Login/Register */}
+      <div className="mt-5 p-3 rounded-xl bg-[#f7fafc] border border-[#e2edf3] text-center">
+        <p className="text-xs text-[#527788] font-medium">
+          {isRegistering ? (isTeacher ? 'Sudah memiliki akun guru terdaftar?' : 'Sudah memiliki akun siswa?') : (isTeacher ? 'Belum memiliki akun guru untuk sekolah Anda?' : 'Belum memiliki akun siswa?')}
+          <button
+            type="button"
+            onClick={() => {
+              setIsRegistering(!isRegistering);
+              loginMutation.reset();
+              registerMutation.reset();
+              registerStudentMutation.reset();
+            }}
+            className={`ml-1.5 font-bold hover:underline inline-flex items-center gap-0.5 ${isTeacher ? 'text-[#006e2f]' : 'text-[#006591]'}`}
+          >
+            {isRegistering ? 'Masuk di sini' : (isTeacher ? 'Daftar Guru Baru' : 'Daftar Siswa Baru')}
+            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+          </button>
+        </p>
+      </div>
+
 
       {/* Footer Info */}
       <div className="mt-6 pt-4 border-t border-[#edf4f8] text-center">

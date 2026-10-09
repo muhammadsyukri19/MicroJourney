@@ -19,7 +19,7 @@ const MANUAL_FALLBACK_DELAY = 12000;
 
 export default function Tahap1() {
   const router = useRouter();
-  const { completeStage } = useJourneyStore();
+  const { completeStage, lkpdAnswers, setLkpdAnswer } = useJourneyStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -360,10 +360,29 @@ export default function Tahap1() {
               </p>
             </div>
 
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-[#083b54] mb-2 uppercase font-[family-name:var(--font-outfit)]">
+                Tuliskan Hipotesis Awalmu (LKPD Tahap 1)
+              </label>
+              <textarea
+                value={lkpdAnswers.lkpdStep1}
+                onChange={(e) => setLkpdAnswer('lkpdStep1', e.target.value)}
+                placeholder="Menurut saya, hal ini terjadi karena..."
+                className="w-full h-24 p-3 bg-[#f8fafc] border-2 border-[#e4eff4] rounded-xl text-sm font-medium focus:border-[#006591] focus:ring-0 outline-none resize-none transition-all"
+              />
+            </div>
+
             <p className="text-[#6e7881] text-xs text-center mb-6">Pikirkan jawabannya. Mulai investigasi untuk membuktikannya di Tahap 2.</p>
 
             <div className="flex flex-col gap-2.5">
-              <button onClick={proceed}
+              <button 
+                onClick={() => {
+                  if (!lkpdAnswers.lkpdStep1.trim()) {
+                    alert('Harap isi hipotesis awalmu sebelum melanjutkan!');
+                    return;
+                  }
+                  proceed();
+                }}
                 className="w-full bg-[#006591] hover:bg-[#004c6e] text-white font-bold py-4 rounded-xl text-lg transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-[#006591]/30 font-[family-name:var(--font-outfit)]">
                 Mulai Investigasi <span className="material-symbols-outlined">arrow_forward</span>
               </button>
