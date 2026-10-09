@@ -38,12 +38,22 @@ export async function POST(req: NextRequest) {
         createdBy: user.createdBy || '',
       },
     });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Terjadi kesalahan pada server saat verifikasi login.';
+  } catch (err: any) {
     console.error('[POST /api/auth/login]', err);
+    
+    // Deteksi jika error disebabkan oleh pemblokiran DNS ISP (seperti Indihome/Telkomsel di Localhost)
+    if (err?.code === 'ECONNREFUSED' || err?.message?.includes('querySrv')) {
+      return NextResponse.json(
+        { ok: false, error: 'Koneksi ke database diblokir oleh jaringan Anda (Provider/ISP). Gunakan VPN atau ubah DNS Wi-Fi ke 8.8.8.8 untuk login.' },
+        { status: 503 } // 503 Service Unavailable
+      );
+    }
+
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan pada server saat verifikasi login.';
     return NextResponse.json(
       { ok: false, error: message },
       { status: 500 }
     );
   }
 }
+

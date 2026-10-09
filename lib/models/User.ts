@@ -8,6 +8,8 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   className?: string;
+  school?: string;
+  phoneNumber?: string;
   createdBy?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +22,8 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, required: true },
     role: { type: String, enum: ['student', 'teacher', 'superadmin'], required: true },
     className: { type: String, default: '' },
+    school: { type: String, default: '' },
+    phoneNumber: { type: String, default: '' },
     createdBy: { type: String, default: '' },
   },
   { timestamps: true }

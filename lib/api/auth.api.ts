@@ -39,6 +39,24 @@ export async function loginApi(credentials: LoginCredentials): Promise<LoginResp
     throw new Error('Alamat email dan password wajib diisi.');
   }
 
+  if (USE_MOCK) {
+    await delay(500);
+    const mockUser: AppUser = {
+      id: 'mock-id-123',
+      name: mode === 'teacher' ? 'Guru Demo' : 'Siswa Demo',
+      email: email,
+      role: mode,
+      className: mode === 'student' ? 'VIII-A' : '',
+    };
+    useAuthStore.setState({ currentUser: mockUser });
+    return {
+      success: true,
+      user: mockUser,
+      token: 'mock-token',
+      redirectPath: getRedirectPath(mode),
+    };
+  }
+
   const response = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -48,7 +66,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<LoginResp
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || 'Gagal masuk. Silakan periksa kembali.');
+    throw new Error(data.error || data.message || 'Gagal masuk. Silakan periksa kembali.');
   }
 
   // Simpan data user ke store lokal agar UI tetap responsif

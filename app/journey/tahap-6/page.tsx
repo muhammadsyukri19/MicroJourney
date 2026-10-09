@@ -520,49 +520,7 @@ export default function Tahap6() {
       console.error('Failed to sync final commitment to MongoDB:', e);
     }
 
-    const { default: jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
-
-    // Header block
-    doc.setFillColor(0, 101, 145); // #006591 primary
-    doc.rect(0, 0, 210, 42, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-    doc.text('MICROJOURNEY AR', 15, 18);
-    doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-    doc.setTextColor(201, 230, 255); // primary-fixed
-    doc.text('Rapor Jurnal Investigasi Mikroplastik — IPA Kelas VIII / Kurikulum Merdeka', 15, 28);
-    doc.text(`Nama: ${studentName || '-'}    Kelas: ${studentClass || '-'}    Tanggal: ${new Date().toLocaleDateString('id-ID', { day:'numeric',month:'long',year:'numeric' })}`, 15, 36);
-
-    doc.setTextColor(0, 0, 0);
-
-    const { totalParticles, selectedFoods, mostDangerousOrgan, lkpdAnswers: answers } = useJourneyStore.getState();
-    let y = 52;
-    doc.setFontSize(13); doc.setFont('helvetica', 'bold');
-    doc.setTextColor(186, 26, 26); // error color
-    doc.text('HASIL EKSPLORASI', 15, y); y += 8;
-    doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(0);
-    doc.text(`Total mikroplastik tertelan hari ini: ${totalParticles.toLocaleString('id-ID')} partikel`, 15, y); y += 6;
-    doc.text(`Organ paling terdampak (menurut siswa): ${mostDangerousOrgan || 'Usus Halus'}`, 15, y); y += 6;
-    doc.text(`Makanan yang dianalisis: ${selectedFoods.map(f=>f.name).join(', ') || '-'}`, 15, y); y += 12;
-
-    const sections = [
-      { label: 'LKPD 1 — Proses Pelapukan Plastik', text: answers.lkpd1 },
-      { label: 'LKPD 2 — Kontaminasi Pangan', text: answers.lkpd2 },
-      { label: 'LKPD 3 Q1 — Mengapa HCl Gagal Mencerna Plastik', text: answers.lkpd3q1 },
-      { label: 'LKPD 3 Q2 — Organ Paling Berbahaya', text: answers.lkpd3q2 },
-      { label: 'LKPD 4 — Sintesis (HOTS)', text: answers.lkpd4 },
-    ];
-
-    sections.forEach(s => {
-      if (y > 255) { doc.addPage(); y = 20; }
-      doc.setFontSize(11); doc.setFont('helvetica', 'bold'); doc.setTextColor(0, 101, 145);
-      doc.text(s.label, 15, y); y += 6;
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(0);
-      const lines = doc.splitTextToSize(s.text || '(tidak diisi)', 180);
-      doc.text(lines, 15, y); y += lines.length * 5 + 6;
-    });
-
+    try {
       const { default: jsPDF } = await import('jspdf');
       const doc = new jsPDF();
 

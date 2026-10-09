@@ -1,6 +1,5 @@
 import dns from 'dns';
 import mongoose from 'mongoose';
-import dns from 'dns';
 
 // Ensure DNS resolver can query MongoDB SRV records on Windows only
 if (process.platform === 'win32') {
