@@ -28,18 +28,25 @@ if (!cached) {
 }
 
 export async function connectDB() {
-  const MONGODB_URI = process.env.MONGODB_URI;
+  let uri = process.env.MONGODB_URI;
 
-  if (!MONGODB_URI) {
+  if (!uri) {
     throw new Error('MONGODB_URI environment variable is not defined');
   }
+
+  // Bersihkan jika tidak sengaja ter-paste nama variabel, tanda petik, atau spasi di Vercel
+  uri = uri.trim();
+  if (uri.startsWith('MONGODB_URI=')) {
+    uri = uri.replace(/^MONGODB_URI=\s*/, '');
+  }
+  uri = uri.replace(/^["']|["']$/g, '').trim();
 
   if (cached.conn) {
     return cached.conn;
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI, {
+    cached.promise = mongoose.connect(uri, {
       bufferCommands: false,
       serverSelectionTimeoutMS: 8000,
     }).then((m) => m);
