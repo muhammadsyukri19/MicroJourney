@@ -73,6 +73,23 @@ export default function ImportCsvModal({ onClose, createdBy }: ImportCsvModalPro
     const failed: string[] = [];
     const done: CsvStudentRow[] = [];
 
+    const validToImport = rows.filter(r => !r.error);
+
+    try {
+      // Sync bulk array directly to MongoDB database
+      const res = await fetch('/api/users/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(validToImport.map(r => ({ ...r, createdBy }))),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        console.warn('MongoDB sync failed, registering locally fallback:', data.error);
+      }
+    } catch (err) {
+      console.warn('Network error syncing to MongoDB, registering locally fallback:', err);
+    }
+
     for (const row of rows) {
       if (row.error) { failed.push(`${row.name} (${row.error})`); continue; }
       try {

@@ -49,10 +49,17 @@ export default function TeacherDashboardTemplate() {
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
 
-  // Tabs & Navigation: 'rekap' | 'manajemen' | 'bahan-ajar' | 'pengaturan'
-  const [activeTab, setActiveTab] = useState<'rekap' | 'manajemen' | 'bahan-ajar' | 'pengaturan'>('rekap');
+  // Tabs & Navigation: 'rekap' | 'manajemen' | 'bahan-ajar' | 'pengaturan' | 'kuis'
+  const [activeTab, setActiveTab] = useState<'rekap' | 'manajemen' | 'bahan-ajar' | 'pengaturan' | 'kuis'>('rekap');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  // Stakeholder Pairs State
+  const [stakeholderPairs, setStakeholderPairs] = useState<{ id: string; role: string; task: string; impact?: string }[]>([]);
+  const [newRole, setNewRole] = useState('');
+  const [newTask, setNewTask] = useState('');
+  const [newImpact, setNewImpact] = useState('');
+  const [stkMsg, setStkMsg] = useState('');
 
   // Class Management State
   const [classList, setClassList] = useState<ClassItem[]>([
@@ -72,19 +79,57 @@ export default function TeacherDashboardTemplate() {
 
   useEffect(() => {
     fetchSubmissions();
+    fetchSettings();
+    fetchStudents();
+    fetchStakeholders();
 
-    // Load saved settings & classes
-    const savedClasses = localStorage.getItem('mj_class_list');
-    if (savedClasses) {
-      try { setClassList(JSON.parse(savedClasses)); } catch { }
-    }
-    const savedLocks = localStorage.getItem('mj_stage_locks');
-    if (savedLocks) {
-      try { setStageLocks(JSON.parse(savedLocks)); } catch { }
-    }
-    const savedAnn = localStorage.getItem('mj_class_announcement');
-    if (savedAnn) setAnnouncement(savedAnn);
+    // Auto-refresh polling every 6 seconds for real-time submission & student updates from FE
+    const interval = setInterval(() => {
+      fetchSubmissions();
+      fetchStudents();
+    }, 6000);
+
+    return () => clearInterval(interval);
   }, []);
+
+  function fetchStakeholders() {
+    fetch('/api/stakeholders')
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok && Array.isArray(res.data)) setStakeholderPairs(res.data);
+      })
+      .catch(() => {});
+  }
+
+  async function handleAddStakeholder(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newRole.trim() || !newTask.trim()) return;
+    try {
+      const res = await fetch('/api/stakeholders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole, task: newTask, impact: newImpact }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setStkMsg('Peran stakeholder baru berhasil ditambahkan!');
+        setNewRole(''); setNewTask(''); setNewImpact('');
+        fetchStakeholders();
+        setTimeout(() => setStkMsg(''), 3000);
+      }
+    } catch {
+      setStkMsg('Gagal menyimpan.');
+    }
+  }
+
+  async function handleDeleteStakeholder(id: string) {
+    try {
+      await fetch(`/api/stakeholders?id=${id}`, { method: 'DELETE' });
+      fetchStakeholders();
+    } catch {
+      // Ignore
+    }
+  }
 
   useEffect(() => {
     if (!currentUser) {
@@ -99,11 +144,59 @@ export default function TeacherDashboardTemplate() {
   const adminUser = currentUser;
 
   function fetchSubmissions() {
-    setLoading(true);
     fetch('/api/lkpd')
       .then(r => r.json())
-      .then(d => { setData(d.data || []); setLoading(false); })
+      .then(d => {
+        if (d.ok && d.data) setData(d.data);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
+  }
+
+  function fetchSettings() {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok && res.data) {
+          if (res.data.classList) setClassList(res.data.classList);
+          if (res.data.stageLocks) setStageLocks(res.data.stageLocks);
+          if (res.data.announcement) setAnnouncement(res.data.announcement);
+        }
+      })
+      .catch(() => {});
+  }
+
+  function fetchStudents() {
+    fetch('/api/users/students')
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok && Array.isArray(res.data)) {
+          // Merge API students into authStore
+          res.data.forEach((st: AppUser) => {
+            useAuthStore.getState().registerStudent({
+              name: st.name,
+              email: st.email,
+              password: st.password || `${st.email.split('@')[0]}123`,
+              className: st.className || '-',
+              createdBy: adminUser.email,
+            });
+          });
+        }
+      })
+      .catch(() => {});
+  }
+
+  function saveSettingsToDb(updatedConfig: { classList?: ClassItem[]; stageLocks?: Record<number, boolean>; announcement?: string }) {
+    const payload = {
+      classList: updatedConfig.classList ?? classList,
+      stageLocks: updatedConfig.stageLocks ?? stageLocks,
+      announcement: updatedConfig.announcement ?? announcement,
+    };
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(err => console.error('Failed to sync settings to DB:', err));
   }
 
   // Handle Class Creation
@@ -116,6 +209,7 @@ export default function TeacherDashboardTemplate() {
     const nextList = [...classList, newClass];
     setClassList(nextList);
     localStorage.setItem('mj_class_list', JSON.stringify(nextList));
+    saveSettingsToDb({ classList: nextList });
   }
 
   function handleDeleteClass(classId: string) {
@@ -124,6 +218,28 @@ export default function TeacherDashboardTemplate() {
     localStorage.setItem('mj_class_list', JSON.stringify(nextList));
     if (selectedClassName && !nextList.some(c => c.name.toLowerCase() === selectedClassName.toLowerCase())) {
       setSelectedClassName('');
+    }
+    saveSettingsToDb({ classList: nextList });
+  }
+
+  function handleRegisterStudentDb(studentData: { name: string; email: string; password: string; className: string }) {
+    registerStudent({ ...studentData, createdBy: adminUser.email });
+    fetch('/api/users/students', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...studentData, createdBy: adminUser.email }),
+    })
+      .then(() => fetchStudents())
+      .catch(() => {});
+  }
+
+  function handleDeleteStudentDb(studentId: string) {
+    const targetStudent = users.find(u => u.id === studentId);
+    deleteStudent(studentId);
+    if (targetStudent) {
+      fetch(`/api/users/students?email=${encodeURIComponent(targetStudent.email)}`, { method: 'DELETE' })
+        .then(() => fetchStudents())
+        .catch(() => {});
     }
   }
 
@@ -192,10 +308,12 @@ export default function TeacherDashboardTemplate() {
     const updated = { ...stageLocks, [stageId]: !stageLocks[stageId] };
     setStageLocks(updated);
     localStorage.setItem('mj_stage_locks', JSON.stringify(updated));
+    saveSettingsToDb({ stageLocks: updated });
   }
 
   function handleSaveAnnouncement() {
     localStorage.setItem('mj_class_announcement', announcement);
+    saveSettingsToDb({ announcement });
     setAnnouncementSaved(true);
     setTimeout(() => setAnnouncementSaved(false), 2000);
   }
@@ -319,6 +437,19 @@ export default function TeacherDashboardTemplate() {
               <span className="material-symbols-outlined text-[15px]">tune</span>
             </div>
             <span className="truncate">Kontrol Tahap</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('kuis'); setSelectedSubmission(null); setMobileMenuOpen(false); }}
+            className={`flex items-center gap-3 px-3 py-2.5 transition-all text-xs font-bold cursor-pointer ${activeTab === 'kuis'
+                ? 'bg-white text-[#006591] border-l-[4px] border-[#006591] rounded-r-xl shadow-xs'
+                : 'text-slate-600 hover:bg-white/60 hover:text-slate-900 border-l-[4px] border-transparent rounded-xl'
+              }`}
+          >
+            <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${activeTab === 'kuis' ? 'bg-[#006591] text-white' : 'bg-white/80 text-slate-500 border border-[#d2e4f0]'}`}>
+              <span className="material-symbols-outlined text-[15px]">extension</span>
+            </div>
+            <span className="truncate">Kuis Stakeholder</span>
           </button>
 
           {adminUser.role === 'superadmin' && (
@@ -564,10 +695,8 @@ export default function TeacherDashboardTemplate() {
               onCreateClass={handleCreateClass}
               onDeleteClass={handleDeleteClass}
               students={registeredStudents}
-              onRegisterStudent={({ name, email, password, className }) => {
-                registerStudent({ name, email, password, className, createdBy: adminUser.email });
-              }}
-              onDeleteStudent={deleteStudent}
+              onRegisterStudent={handleRegisterStudentDb}
+              onDeleteStudent={handleDeleteStudentDb}
               onOpenImportModal={() => setShowImportModal(true)}
               selectedClassName={selectedClassName}
               onSelectClass={(cls) => {
@@ -704,6 +833,103 @@ export default function TeacherDashboardTemplate() {
                   >
                     Simpan & Publikasikan Pesan
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'kuis' && (
+            <div className="space-y-6">
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-bold text-lg text-[#083b54] font-[family-name:var(--font-outfit)]">
+                      Manajemen Kuis Stakeholder (Tahap 6)
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Kelola pasangan Tokoh Stakeholder dan Tugas Lingkungan yang akan dimainkan siswa pada Tahap 6.
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full">
+                    {stakeholderPairs.length} Pasangan Aktif
+                  </span>
+                </div>
+
+                {stkMsg && (
+                  <div className="mb-4 p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base">check_circle</span>
+                    <span>{stkMsg}</span>
+                  </div>
+                )}
+
+                {/* Form Tambah Peran Baru */}
+                <form onSubmit={handleAddStakeholder} className="bg-[#f8fafc] border border-slate-200 rounded-xl p-4 mb-6 space-y-3">
+                  <p className="text-xs font-bold text-[#083b54] font-[family-name:var(--font-mono)] uppercase tracking-wider">
+                    + Tambah Pasangan Stakeholder Baru
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Tokoh (misal: 🏪 Supermarket & Ritel)"
+                      value={newRole}
+                      onChange={e => setNewRole(e.target.value)}
+                      className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#006591]"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Tugas (misal: Sediakan opsi kantong kain)"
+                      value={newTask}
+                      onChange={e => setNewTask(e.target.value)}
+                      className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#006591]"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Dampak Sistemik (misal: Mengurangi limbah ritel)"
+                      value={newImpact}
+                      onChange={e => setNewImpact(e.target.value)}
+                      className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#006591]"
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      className="bg-[#006591] hover:bg-[#004c6e] text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <span className="material-symbols-outlined text-sm">add</span>
+                      <span>Simpan Peran Stakeholder</span>
+                    </button>
+                  </div>
+                </form>
+
+                {/* List Stakeholder Pairs */}
+                <div className="space-y-3">
+                  {stakeholderPairs.map(stk => (
+                    <div key={stk.id} className="p-4 bg-[#FAFAFA] border border-slate-200 rounded-xl flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-[#083b54]">{stk.role}</span>
+                        </div>
+                        <p className="text-xs text-slate-700">
+                          <span className="font-semibold text-[#006e2f]">Tugas:</span> {stk.task}
+                        </p>
+                        {stk.impact && (
+                          <p className="text-[11px] text-slate-500 italic">
+                            <span className="font-semibold">Dampak:</span> {stk.impact}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteStakeholder(stk.id)}
+                        className="text-red-600 hover:text-red-800 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                        title="Hapus Pasangan Ini"
+                      >
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

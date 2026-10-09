@@ -26,19 +26,19 @@ export default function StageIntro({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-40 bg-[url('/hero-bg.webp')] bg-cover bg-center bg-no-repeat flex items-center justify-center font-[family-name:var(--font-inter)] overflow-hidden py-10 overflow-y-auto"
+      className="absolute inset-0 z-40 bg-[#083b54] bg-[url('/hero-bg.webp')] bg-cover bg-center bg-no-repeat flex items-center justify-center font-[family-name:var(--font-inter)] overflow-hidden p-3 sm:p-6"
     >
       {/* Soften vividness + lift text contrast */}
-      <div className="absolute inset-0 bg-white/10" />
+      <div className="absolute inset-0 bg-[#083b54]/40" />
 
       {/* Shadow top */}
-      <div className="absolute inset-x-0 top-0 h-1/3 md:h-2/5 bg-gradient-to-b from-[#f7f9fb] to-transparent pointer-events-none z-10" />
+      <div className="absolute inset-x-0 top-0 h-1/3 md:h-2/5 bg-gradient-to-b from-[#083b54]/80 to-transparent pointer-events-none z-10" />
 
       {/* Overlay Tipis agar teks bisa terbaca */}
-      <div className="absolute inset-0 bg-[#083b54]/60 mix-blend-multiply pointer-events-none z-10" />
+      <div className="absolute inset-0 bg-[#083b54]/50 mix-blend-multiply pointer-events-none z-10" />
 
-      {/* Shadow bottom */}
-      <div className="absolute inset-x-0 bottom-0 h-15 sm:h-10 md:h-22 lg:h-30 pointer-events-none z-30" style={{ background: "linear-gradient(to bottom, rgba(247,249,251,0) 0%, rgba(247,249,251,0.5) 50%, #f7f9fb 86%)" }} />
+      {/* Shadow bottom - Deep Ocean Blue blend instead of white */}
+      <div className="absolute inset-x-0 bottom-0 h-24 md:h-36 pointer-events-none z-30 bg-gradient-to-t from-[#083b54] via-[#083b54]/60 to-transparent" />
 
       {/* Gelembung Animasi Bawah Air */}
       <motion.div
@@ -54,7 +54,7 @@ export default function StageIntro({
 
       {layout === 'split' ? (
         /* Kontainer Utama 2-Kolom (Untuk Tahap 2 dst) */
-        <div className="relative z-10 w-full max-w-6xl px-4 md:px-6 flex flex-col md:flex-row items-center justify-center md:justify-between gap-4 md:gap-10 mt-8 md:mt-0">
+        <div className="relative z-10 w-full max-w-6xl px-2 sm:px-6 flex flex-col md:flex-row items-center justify-center md:justify-between gap-3 sm:gap-6 md:gap-10 my-auto">
 
           {/* Kolom Kiri: Ilustrasi / Mika */}
           <motion.div
@@ -67,7 +67,7 @@ export default function StageIntro({
               illustration
             ) : (
               // Default Illustration (Mika)
-              <div className="relative w-40 sm:w-56 md:w-full max-w-sm aspect-square drop-shadow-2xl">
+              <div className="relative w-24 sm:w-44 md:w-full max-w-[140px] sm:max-w-sm aspect-square drop-shadow-2xl">
                 <Image
                   src="/mika.webp"
                   alt="Penjelajah"
@@ -83,36 +83,32 @@ export default function StageIntro({
             initial={{ opacity: 0, x: 50, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 120, damping: 14, delay: 0.3 }}
-            className="w-full md:w-1/2 bg-white/10 backdrop-blur-md border border-white/30 p-6 sm:p-12 text-center md:text-left shadow-[0_32px_64px_rgba(0,0,0,0.4)] flex flex-col items-center md:items-start"
-            style={{
-              // Bentuk Gelembung Organik
-              borderRadius: '40% 60% 70% 30% / 40% 50% 60% 50%'
-            }}
+            className="w-full md:w-1/2 bg-white/10 backdrop-blur-md border border-white/30 p-4 sm:p-8 md:p-12 text-center md:text-left shadow-[0_32px_64px_rgba(0,0,0,0.4)] flex flex-col items-center md:items-start rounded-[24px] sm:rounded-[36px] md:rounded-[40%_60%_70%_30%_/_40%_50%_60%_50%]"
           >
             {/* Ikon Mengambang (Opsional) */}
             {icon && (
               <motion.div
-                className="w-16 h-16 md:w-20 md:h-20 mb-4 md:mb-6 flex items-center justify-center rounded-full bg-[#006591]/40 border-2 border-[#6bff8f]/60 backdrop-blur-sm shadow-[0_0_20px_rgba(107,255,143,0.3)]"
+                className="w-10 h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 mb-2 md:mb-6 flex items-center justify-center rounded-full bg-[#006591]/40 border-2 border-[#6bff8f]/60 backdrop-blur-sm shadow-[0_0_20px_rgba(107,255,143,0.3)]"
                 animate={{ y: [-5, 5, -5] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <span className="material-symbols-outlined text-4xl md:text-5xl text-[#6bff8f] drop-shadow-md">
+                <span className="material-symbols-outlined text-2xl sm:text-4xl md:text-5xl text-[#6bff8f] drop-shadow-md">
                   {icon}
                 </span>
               </motion.div>
             )}
 
             {/* Label Pill */}
-            <div className="inline-flex items-center gap-2 bg-[#006591]/60 backdrop-blur-sm border border-[#6bff8f]/40 px-3 py-1 md:px-4 md:py-1.5 rounded-full mb-3 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-[#6bff8f] animate-pulse" />
-              <span className="text-white text-[10px] md:text-xs font-bold uppercase tracking-widest font-[family-name:var(--font-outfit)]">MISI AKTIF</span>
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-[#006591]/60 backdrop-blur-sm border border-[#6bff8f]/40 px-2.5 py-0.5 sm:px-4 sm:py-1.5 rounded-full mb-2 md:mb-3 shadow-sm">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#6bff8f] animate-pulse" />
+              <span className="text-white text-[9px] sm:text-xs font-bold uppercase tracking-widest font-[family-name:var(--font-outfit)]">MISI AKTIF</span>
             </div>
 
             {/* Judul & Deskripsi */}
-            <h1 className="text-3xl sm:text-5xl font-extrabold font-[family-name:var(--font-outfit)] text-white mb-3 md:mb-4 drop-shadow-[0_2px_4px_rgba(0,101,145,0.8)] leading-tight">
+            <h1 className="text-xl sm:text-3xl md:text-5xl font-extrabold font-[family-name:var(--font-outfit)] text-white mb-2 md:mb-4 drop-shadow-[0_2px_4px_rgba(0,101,145,0.8)] leading-tight">
               {title}
             </h1>
-            <p className="text-white/90 text-sm md:text-lg mb-6 md:mb-10 max-w-xl drop-shadow-sm font-medium leading-relaxed">
+            <p className="text-white/90 text-xs sm:text-base md:text-lg mb-4 sm:mb-6 md:mb-10 max-w-xl drop-shadow-sm font-medium leading-normal sm:leading-relaxed">
               {description}
             </p>
 
@@ -126,27 +122,24 @@ export default function StageIntro({
           initial={{ scale: 0.8, y: 50 }}
           animate={{ scale: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 150, damping: 15 }}
-          className="relative z-10 w-[90%] max-w-2xl bg-white/20 backdrop-blur-xl border border-white/40 p-8 sm:p-12 text-center shadow-[0_32px_64px_rgba(0,101,145,0.4)] flex flex-col items-center"
-          style={{
-            borderRadius: '40% 60% 70% 30% / 40% 50% 60% 50%'
-          }}
+          className="relative z-10 w-[95%] max-w-2xl bg-white/20 backdrop-blur-xl border border-white/40 p-5 sm:p-12 text-center shadow-[0_32px_64px_rgba(0,101,145,0.4)] flex flex-col items-center rounded-[24px] sm:rounded-[36px] md:rounded-[40%_60%_70%_30%_/_40%_50%_60%_50%] my-auto"
         >
           {icon && (
             <motion.div
-              className="w-24 h-24 mb-6 flex items-center justify-center rounded-full bg-[#006591]/40 border-2 border-[#6bff8f]/60 backdrop-blur-sm shadow-[0_0_20px_rgba(107,255,143,0.3)]"
-              animate={{ y: [-10, 10, -10] }}
+              className="w-12 h-12 sm:w-24 sm:h-24 mb-3 sm:mb-6 flex items-center justify-center rounded-full bg-[#006591]/40 border-2 border-[#6bff8f]/60 backdrop-blur-sm shadow-[0_0_20px_rgba(107,255,143,0.3)]"
+              animate={{ y: [-5, 5, -5] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <span className="material-symbols-outlined text-6xl text-[#6bff8f] drop-shadow-md">
+              <span className="material-symbols-outlined text-3xl sm:text-6xl text-[#6bff8f] drop-shadow-md">
                 {icon}
               </span>
             </motion.div>
           )}
 
-          <h1 className="text-4xl sm:text-5xl font-extrabold font-[family-name:var(--font-outfit)] text-white mb-4 drop-shadow-[0_2px_4px_rgba(0,101,145,0.8)]">
+          <h1 className="text-2xl sm:text-5xl font-extrabold font-[family-name:var(--font-outfit)] text-white mb-2 sm:mb-4 drop-shadow-[0_2px_4px_rgba(0,101,145,0.8)]">
             {title}
           </h1>
-          <p className="text-white/90 text-lg mb-10 max-w-xl mx-auto drop-shadow-sm font-medium leading-relaxed">
+          <p className="text-white/90 text-xs sm:text-lg mb-4 sm:mb-10 max-w-xl mx-auto drop-shadow-sm font-medium leading-relaxed">
             {description}
           </p>
 
@@ -174,7 +167,7 @@ function WoodenButton({ onClick, text }: { onClick: () => void, text: string }) 
       onClick={onClick}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className="relative inline-flex items-center justify-center gap-3 px-10 py-4 font-extrabold text-[#3b2313] text-xl font-[family-name:var(--font-outfit)] shadow-[0_10px_20px_rgba(0,0,0,0.3)] transition-all"
+      className="relative inline-flex items-center justify-center gap-2 sm:gap-3 px-6 py-2.5 sm:px-10 sm:py-4 font-extrabold text-[#3b2313] text-sm sm:text-xl font-[family-name:var(--font-outfit)] shadow-[0_10px_20px_rgba(0,0,0,0.3)] transition-all"
       style={{
         background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
         border: '2px solid #8e4912',
@@ -182,10 +175,10 @@ function WoodenButton({ onClick, text }: { onClick: () => void, text: string }) 
         boxShadow: 'inset 0 4px 0 rgba(255,255,255,0.2), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.3)',
       }}
     >
-      <span className="absolute left-3 w-2 h-2 rounded-full bg-[#5a2e0a] shadow-[inset_0_1px_1px_rgba(0,0,0,0.8),0_1px_1px_rgba(255,255,255,0.3)]" />
-      <span className="absolute right-3 w-2 h-2 rounded-full bg-[#5a2e0a] shadow-[inset_0_1px_1px_rgba(0,0,0,0.8),0_1px_1px_rgba(255,255,255,0.3)]" />
+      <span className="absolute left-2.5 sm:left-3 w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#5a2e0a] shadow-[inset_0_1px_1px_rgba(0,0,0,0.8),0_1px_1px_rgba(255,255,255,0.3)]" />
+      <span className="absolute right-2.5 sm:right-3 w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-[#5a2e0a] shadow-[inset_0_1px_1px_rgba(0,0,0,0.8),0_1px_1px_rgba(255,255,255,0.3)]" />
 
-      <span className="material-symbols-outlined text-2xl font-bold">explore</span>
+      <span className="material-symbols-outlined text-lg sm:text-2xl font-bold">explore</span>
       {text}
     </motion.button>
   );

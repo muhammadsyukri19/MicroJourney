@@ -81,15 +81,15 @@ const DriveInputCard: React.FC<DriveInputCardProps> = ({
             className="font-extrabold text-base text-[#083b54]"
             style={{ fontFamily: 'var(--font-outfit)' }}
           >
-            Pengumpulan PR Digital & Berkas Cloudinary
+            Pengumpulan PR Digital & Dokumentasi Aksi Nyata
           </h4>
           <p className="text-[#648796] text-[11px]">
-            Unggah foto/video/dokumen aksi nyata langsung ke Cloudinary, atau tempel link Google Drive/Sosmed.
+            Unggah foto/video/dokumen aksi nyata lingkunganmu, atau tempel link Google Drive/Sosmed.
           </p>
         </div>
       </div>
 
-      {/* Cloudinary Direct File Upload Zone */}
+      {/* Direct File Upload Zone */}
       <div className="bg-[#f0f8ff] border-2 border-dashed border-[#006591]/30 rounded-xl p-4 text-center relative hover:border-[#006591] transition-all">
         <input
           type="file"
@@ -106,7 +106,7 @@ const DriveInputCard: React.FC<DriveInputCardProps> = ({
             </span>
           </div>
           <p className="font-bold text-[#083b54] text-xs">
-            {uploading ? `Mengunggah ke Cloudinary (${uploadProgress}%)...` : 'Klik atau seret file aksi di sini untuk diunggah ke Cloudinary'}
+            {uploading ? `Mengunggah Berkas (${uploadProgress}%)...` : 'Klik atau seret file dokumentasi aksi di sini untuk mengunggah'}
           </p>
           <p className="text-[10px] text-[#648796]">
             Mendukung foto, video, PDF, dan dokumen tugas (Maks 50MB)
@@ -129,7 +129,7 @@ const DriveInputCard: React.FC<DriveInputCardProps> = ({
         )}
       </div>
 
-      {/* Input Link (Cloudinary / Google Drive) */}
+      {/* Input Link (Google Drive / Cloud Storage) */}
       <div className="space-y-1">
         <InputField
           label="Link Tautan Berkas / Google Drive (Otomatis terisi jika upload file)"
@@ -137,19 +137,19 @@ const DriveInputCard: React.FC<DriveInputCardProps> = ({
           type="url"
           value={driveLink}
           onChange={(e) => onDriveLinkChange(e.target.value)}
-          placeholder="https://res.cloudinary.com/... atau https://drive.google.com/..."
+          placeholder="https://drive.google.com/... atau tautan berkas aksi..."
           accentColor="#006591"
         />
         {driveLink.includes('cloudinary.com') && (
           <div className="flex items-center gap-1.5 text-[11px] text-[#006e2f] font-semibold bg-[#e6f4ea] p-2 rounded-lg">
             <span className="material-symbols-outlined text-[14px]">check_circle</span>
-            <span>File tersimpan di Cloudinary: <a href={driveLink} target="_blank" rel="noreferrer" className="underline truncate max-w-[250px] inline-block align-bottom">{driveLink}</a></span>
+            <span>Berkas terunggah: <a href={driveLink} target="_blank" rel="noreferrer" className="underline truncate max-w-[250px] inline-block align-bottom">{driveLink}</a></span>
           </div>
         )}
         {!isDriveValid && (
           <p className="text-[11px] text-amber-600 font-semibold flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]">warning</span>
-            Pastikan format link valid (Cloudinary, Google Drive, atau URL http/https).
+            Pastikan format link valid (Google Drive, Cloud Storage, atau URL http/https).
           </p>
         )}
       </div>

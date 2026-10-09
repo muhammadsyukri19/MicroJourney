@@ -132,15 +132,15 @@ function DragCard({
       id={item.id}
       whileDrag={{ scale: 1.03, boxShadow: `0 8px 25px ${accent}40`, zIndex: 30 }}
       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-      className="select-none touch-none flex items-center gap-2.5 sm:gap-3 px-3 py-2.5 rounded-xl border-2 bg-white transition-all cursor-grab active:cursor-grabbing relative"
+      className="select-none touch-none flex items-center gap-3 sm:gap-5 px-4 sm:px-6 py-3.5 sm:py-4 rounded-2xl md:rounded-3xl border-2 bg-white transition-all cursor-grab active:cursor-grabbing relative"
       style={{
         borderColor: accent,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
       }}
     >
       {/* Index Badge */}
       <div
-        className="flex-shrink-0 w-7 h-7 rounded-full text-white text-xs font-extrabold font-[family-name:var(--font-outfit)] flex items-center justify-center shadow-sm"
+        className="flex-shrink-0 w-9 h-9 rounded-full text-white text-sm sm:text-base font-extrabold font-[family-name:var(--font-outfit)] flex items-center justify-center shadow-md"
         style={{ background: accent }}
       >
         {index + 1}
@@ -148,25 +148,25 @@ function DragCard({
 
       {/* SVG Icon */}
       <div
-        className="w-9 h-9 flex-shrink-0"
-        style={{ background: STEP_BG[item.id], borderRadius: 10, padding: 2 }}
+        className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 p-1.5 rounded-2xl shadow-inner"
+        style={{ background: STEP_BG[item.id] }}
       >
         {STEP_SVG[item.id]}
       </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-[#083b54] text-xs sm:text-sm font-[family-name:var(--font-outfit)] leading-tight">
+        <p className="font-extrabold text-[#083b54] text-sm sm:text-base md:text-lg font-[family-name:var(--font-outfit)] leading-snug">
           {STEP_LABEL[item.id]}
         </p>
-        <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+        <p className="text-xs sm:text-sm text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
           {STEP_DESC[item.id]}
         </p>
       </div>
 
-      {/* Mobile Touch & Desktop Fallback Controls (Up/Down Buttons) + Drag Grip */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <div className="flex flex-col gap-0.5">
+      {/* Controls */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-col gap-1">
           <button
             type="button"
             onClick={(e) => {
@@ -174,10 +174,10 @@ function DragCard({
               onMoveUp(index);
             }}
             disabled={index === 0}
-            className="w-6 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-90"
+            className="w-7 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-90 shadow-xs"
             title="Geser ke atas"
           >
-            <span className="material-symbols-outlined text-[14px]">keyboard_arrow_up</span>
+            <span className="material-symbols-outlined text-base">keyboard_arrow_up</span>
           </button>
           <button
             type="button"
@@ -186,19 +186,19 @@ function DragCard({
               onMoveDown(index);
             }}
             disabled={index === totalItems - 1}
-            className="w-6 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-90"
+            className="w-7 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-90 shadow-xs"
             title="Geser ke bawah"
           >
-            <span className="material-symbols-outlined text-[14px]">keyboard_arrow_down</span>
+            <span className="material-symbols-outlined text-base">keyboard_arrow_down</span>
           </button>
         </div>
 
         {/* Drag Handle Grip Icon */}
-        <div className="p-1 text-slate-400 opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing touch-none flex flex-col gap-0.5">
+        <div className="p-1.5 text-slate-400 opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing touch-none flex flex-col gap-1">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="flex gap-0.5">
-              <div className="w-1 h-1 rounded-full bg-slate-500" />
-              <div className="w-1 h-1 rounded-full bg-slate-500" />
+            <div key={i} className="flex gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
             </div>
           ))}
         </div>
@@ -257,21 +257,21 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
   // We fill exactly the remaining viewport height with overflow-hidden.
   return (
     <div
-      className="flex flex-col overflow-y-auto relative font-[family-name:var(--font-inter)] w-full min-h-[calc(100vh-7rem)] -mt-14 md:-mt-[112px] pt-14 md:pt-[112px] pb-28 md:pb-12"
+      className="flex flex-col overflow-y-auto overflow-x-hidden max-w-full relative font-[family-name:var(--font-inter)] w-full min-h-screen bg-[#083b54] pt-28 md:pt-32 pb-16"
       style={{
         background: 'linear-gradient(160deg, #083b54 0%, #006591 45%, #004c6e 100%)',
       }}
     >
       {/* Background blobs */}
-      <div className="absolute top-[-80px] right-[-80px] w-80 h-80 rounded-full blur-3xl opacity-15 pointer-events-none"
+      <div className="absolute top-[-80px] right-[-80px] w-96 h-96 rounded-full blur-3xl opacity-20 pointer-events-none"
         style={{ background: '#6bff8f' }} />
-      <div className="absolute bottom-[-80px] left-[-60px] w-72 h-72 rounded-full blur-3xl opacity-10 pointer-events-none"
+      <div className="absolute bottom-[-80px] left-[-60px] w-96 h-96 rounded-full blur-3xl opacity-15 pointer-events-none"
         style={{ background: '#f0a345' }} />
-      {/* Bottom Shadow Overlay to blend with layout background */}
+      {/* Bottom Shadow Overlay to blend seamlessly with ocean background */}
       <div className="absolute inset-x-0 bottom-0 h-24 md:h-36 pointer-events-none z-0"
-        style={{ background: "linear-gradient(to bottom, rgba(247,249,251,0) 0%, rgba(247,249,251,0.15) 30%, rgba(247,249,251,0.5) 65%, rgba(247,249,251,0.85) 85%, #f7f9fb 100%)" }} />
+        style={{ background: "linear-gradient(to bottom, transparent 0%, rgba(8,59,84,0.4) 50%, #083b54 100%)" }} />
       {/* Particles */}
-      {Array.from({ length: 12 }).map((_, i) => (
+      {Array.from({ length: 15 }).map((_, i) => (
         <motion.div key={i} className="absolute rounded-full pointer-events-none"
           style={{
             width: 3 + (i % 4), height: 3 + (i % 4),
@@ -284,7 +284,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
       ))}
 
       {/* Content */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-4">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-4 md:px-8 py-4">
         <AnimatePresence mode="wait">
 
           {/* ═══ VIEW 1: MATERI ═══ */}
@@ -292,36 +292,36 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
             <motion.div key="learn"
               initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.35 }}
-              className="w-full max-w-4xl flex flex-col items-center gap-4 py-4"
+              className="w-full max-w-6xl flex flex-col items-center gap-6 md:gap-8 py-4"
             >
               {/* Badge + Title */}
               <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-2"
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-3 shadow-sm"
                   style={{ background: 'rgba(107,255,143,0.12)', border: '1px solid rgba(107,255,143,0.35)', color: '#6bff8f' }}>
-                  <motion.span className="w-1.5 h-1.5 rounded-full bg-[#6bff8f]"
+                  <motion.span className="w-2 h-2 rounded-full bg-[#6bff8f]"
                     animate={{ scale: [1, 1.5, 1] }} transition={{ duration: 1.5, repeat: Infinity }} />
                   Tahap 3 · Penguatan Materi
                 </div>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-tight font-[family-name:var(--font-outfit)]">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight font-[family-name:var(--font-outfit)] drop-shadow-md">
                   Dari Sampah{' '}
                   <span className="text-[#6bff8f]">ke Piringmu</span>
                 </h1>
               </div>
 
               {/* Flow — responsive grid cards */}
-              <div className="w-full max-w-3xl grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 justify-items-center">
+              <div className="w-full max-w-5xl grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6 justify-items-center">
                 {ordered.map((item, i) => (
                   <motion.div
                     key={item.id}
-                    whileHover={{ scale: 1.05, y: -3 }}
-                    className="w-full flex flex-col items-center gap-1.5 p-3 rounded-2xl cursor-default"
-                    style={{ background: STEP_BG[item.id], boxShadow: `0 4px 16px ${STEP_ACCENT[item.id]}22` }}
+                    whileHover={{ scale: 1.05, y: -5 }}
+                    className="w-full flex flex-col items-center gap-2.5 p-4 sm:p-6 rounded-3xl cursor-default border border-white/20 transition-all shadow-xl"
+                    style={{ background: STEP_BG[item.id], boxShadow: `0 8px 24px ${STEP_ACCENT[item.id]}33` }}
                   >
-                    <div className="w-12 h-12 sm:w-14 sm:h-14">{STEP_SVG[item.id]}</div>
-                    <p className="text-[11px] sm:text-xs font-bold text-center text-[#083b54] leading-tight font-[family-name:var(--font-outfit)]">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 p-1.5 drop-shadow-md">{STEP_SVG[item.id]}</div>
+                    <p className="text-xs sm:text-sm md:text-base font-extrabold text-center text-[#083b54] leading-tight font-[family-name:var(--font-outfit)]">
                       {STEP_LABEL[item.id]}
                     </p>
-                    <p className="text-[10px] text-slate-500 text-center leading-tight">
+                    <p className="text-[11px] sm:text-xs text-slate-600 text-center leading-relaxed">
                       {STEP_DESC[item.id]}
                     </p>
                   </motion.div>
@@ -329,23 +329,28 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
               </div>
 
               {/* Stats pills */}
-              <div className="flex gap-3 flex-wrap justify-center">
+              <div className="flex gap-4 flex-wrap justify-center mt-2">
                 {[
                   { val: '< 5 mm', sub: 'Ukuran Mikroplastik' },
                   { val: '94%', sub: 'Lautan Tercemar' },
                   { val: '28–90', sub: 'Partikel/100g Kerang' },
                 ].map(f => (
-                  <div key={f.sub} className="px-4 py-2 rounded-full text-center"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
-                    <p className="text-white font-extrabold text-lg leading-none font-[family-name:var(--font-outfit)]">{f.val}</p>
-                    <p className="text-blue-200 text-[11px]">{f.sub}</p>
+                  <div key={f.sub} className="px-6 py-3 rounded-2xl text-center backdrop-blur-md shadow-md"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}>
+                    <p className="text-white font-extrabold text-xl sm:text-2xl leading-none font-[family-name:var(--font-outfit)]">{f.val}</p>
+                    <p className="text-blue-100 text-xs sm:text-sm mt-1">{f.sub}</p>
                   </div>
                 ))}
               </div>
 
+              {/* Source Attribution */}
+              <p className="text-white/70 text-xs sm:text-sm text-center italic mt-1 font-mono max-w-xl bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-2 rounded-xl">
+                Sumber: Diadaptasi dari WWF International (2019) &amp; Riset Pencemaran Pangan Global (BRIN/UNEP).
+              </p>
+
               <WoodButton onClick={() => setView('drag')}>
                 Siap Tantangan?
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
                   <path d="M3 9 H15 M10 4 L15 9 L10 14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </WoodButton>
@@ -357,25 +362,25 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
             <motion.div key="drag"
               initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.35 }}
-              className="w-full max-w-lg flex flex-col items-center gap-3"
+              className="w-full max-w-3xl flex flex-col items-center gap-5 md:gap-6 py-2"
             >
               {/* Title */}
               <div className="text-center">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-white font-[family-name:var(--font-outfit)] mb-1">
+                <h2 className="text-3xl md:text-4xl font-extrabold text-white font-[family-name:var(--font-outfit)] mb-2 drop-shadow-md">
                   Susun Urutannya! 🧩
                 </h2>
-                <p className="text-blue-200 text-xs sm:text-sm">
-                  <span className="text-[#6bff8f] font-bold">Geser / tekan panah</span> untuk menyusun alur yang benar.
+                <p className="text-blue-100 text-sm md:text-base font-medium">
+                  <span className="text-[#6bff8f] font-bold">Geser / tekan panah</span> untuk menyusun alur pencemaran mikroplastik yang benar.
                 </p>
               </div>
 
               {/* Drag area */}
-              <div className="w-full p-3 rounded-2xl flex flex-col gap-2 transition-all"
+              <div className="w-full p-4 sm:p-5 rounded-3xl flex flex-col gap-3 transition-all shadow-2xl"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: `2px solid ${feedback === 'correct' ? '#6bff8f' : feedback === 'wrong' ? '#ff6b6b' : 'rgba(255,255,255,0.12)'}`,
-                  backdropFilter: 'blur(16px)',
-                  boxShadow: feedback === 'correct' ? '0 0 40px rgba(107,255,143,0.2)' : 'none',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: `2px solid ${feedback === 'correct' ? '#6bff8f' : feedback === 'wrong' ? '#ff6b6b' : 'rgba(255,255,255,0.2)'}`,
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: feedback === 'correct' ? '0 0 50px rgba(107,255,143,0.3)' : '0 20px 40px rgba(0,0,0,0.3)',
                 }}>
                 <Reorder.Group
                   axis="y"
@@ -384,7 +389,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
                     setItems(newItems);
                     setFeedback('idle');
                   }}
-                  className="w-full flex flex-col gap-2"
+                  className="w-full flex flex-col gap-3"
                 >
                   {items.map((item, index) => (
                     <DragCard
@@ -403,9 +408,9 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
               <AnimatePresence>
                 {feedback === 'correct' && (
                   <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                    className="w-full py-3 px-5 rounded-xl text-center"
-                    style={{ background: 'rgba(107,255,143,0.12)', border: '1.5px solid rgba(107,255,143,0.45)' }}>
-                    <p className="text-[#6bff8f] font-extrabold font-[family-name:var(--font-outfit)]">
+                    className="w-full py-4 px-6 rounded-2xl text-center shadow-lg"
+                    style={{ background: 'rgba(107,255,143,0.15)', border: '2px solid rgba(107,255,143,0.5)' }}>
+                    <p className="text-[#6bff8f] text-base md:text-lg font-extrabold font-[family-name:var(--font-outfit)]">
                       🎉 Tepat Sekali! Urutan sudah benar.
                     </p>
                   </motion.div>
@@ -414,9 +419,9 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
                   <motion.div initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: [0, -8, 8, -5, 5, 0] }}
                     exit={{ opacity: 0 }}
-                    className="w-full py-3 px-5 rounded-xl text-center"
-                    style={{ background: 'rgba(186,26,26,0.15)', border: '1.5px solid rgba(186,26,26,0.4)' }}>
-                    <p className="text-[#ff8c8c] font-bold font-[family-name:var(--font-outfit)]">
+                    className="w-full py-4 px-6 rounded-2xl text-center shadow-lg"
+                    style={{ background: 'rgba(186,26,26,0.2)', border: '2px solid rgba(186,26,26,0.5)' }}>
+                    <p className="text-[#ff8c8c] text-base font-bold font-[family-name:var(--font-outfit)]">
                       Belum tepat — yuk coba lagi! 💪
                     </p>
                   </motion.div>
@@ -424,14 +429,14 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
               </AnimatePresence>
 
               {attempts > 0 && feedback === 'idle' && (
-                <p className="text-blue-300 text-xs">Percobaan ke-{attempts} — jangan menyerah!</p>
+                <p className="text-blue-200 text-xs sm:text-sm font-semibold">Percobaan ke-{attempts} — jangan menyerah!</p>
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 justify-center">
+              <div className="flex gap-4 justify-center">
                 {feedback !== 'correct' ? (
                   <WoodButton onClick={checkOrder}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
                       <path d="M2 8 L6 12 L14 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                     Cek Urutan
@@ -439,7 +444,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
                 ) : (
                   <WoodButton onClick={onComplete}>
                     Mulai Uji Makananku!
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                    <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
                       <path d="M3 9 H15 M10 4 L15 9 L10 14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </WoodButton>
@@ -447,8 +452,8 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
                 <motion.button
                   onClick={() => setView('learn')}
                   whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-blue-200 hover:text-white transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)' }}
+                  className="px-6 py-3 rounded-xl text-base font-bold text-blue-100 hover:text-white transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
                 >
                   ← Materi
                 </motion.button>

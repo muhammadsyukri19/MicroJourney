@@ -15,6 +15,11 @@ const NAV_ITEMS: { href: string; label: string; icon: string; match?: string }[]
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // Hide BottomNav on all 6 expedition stages for full-screen focus
+  if (pathname.includes('/journey/tahap-')) {
+    return null;
+  }
+
   return (
     <nav
       className="md:hidden fixed inset-x-0 bottom-0 z-50 px-3 pointer-events-none"

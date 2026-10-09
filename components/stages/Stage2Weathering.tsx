@@ -194,6 +194,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       osc.connect(gain);
       gain.connect(ctx.destination);
       
+      let duration = 0.5;
+
       if (type === 'uv') {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(600, ctx.currentTime);
@@ -201,6 +203,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
         osc.start(); osc.stop(ctx.currentTime + 0.5);
+        duration = 0.5;
       } else if (type === 'wave') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(150, ctx.currentTime);
@@ -208,12 +211,14 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
         gain.gain.setValueAtTime(0.3, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
         osc.start(); osc.stop(ctx.currentTime + 0.8);
+        duration = 0.8;
       } else if (type === 'error') {
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(150, ctx.currentTime);
         gain.gain.setValueAtTime(0.1, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
         osc.start(); osc.stop(ctx.currentTime + 0.3);
+        duration = 0.3;
       } else if (type === 'break') {
         osc.type = 'square';
         osc.frequency.setValueAtTime(100, ctx.currentTime);
@@ -221,7 +226,16 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
         gain.gain.setValueAtTime(0.2, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
         osc.start(); osc.stop(ctx.currentTime + 0.5);
+        duration = 0.5;
       }
+      
+      // Clean up AudioContext to prevent exceeding browser limits
+      setTimeout(() => {
+        if (ctx.state !== 'closed') {
+          ctx.close();
+        }
+      }, (duration * 1000) + 100);
+
     } catch (e) { console.error('Audio play failed', e); }
   };
 
@@ -344,22 +358,28 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-3xl mx-auto flex flex-col gap-6 mt-10"
+            className="w-full max-w-3xl mx-auto flex flex-col gap-6 mt-4"
           >
             <div className="text-center">
-              <h1 className="text-4xl font-extrabold text-[#083b54] font-[family-name:var(--font-outfit)] leading-tight mb-2">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#6bff8f]/10 border border-[#6bff8f]/30 text-[#6bff8f] text-xs font-bold uppercase tracking-widest mb-3 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-[#6bff8f] animate-pulse" />
+                Tahap 2 · Uji Pelapukan
+              </div>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-white font-[family-name:var(--font-outfit)] leading-tight mb-2 drop-shadow-md">
                 Tahap 2: Pelapukan Plastik
               </h1>
-              <p className="text-[#3e4850] text-base">
+              <p className="text-blue-100 text-sm md:text-base font-medium max-w-xl mx-auto">
                 Tonton penjelasan singkat di bawah ini sebelum kamu memulai uji laboratorium.
               </p>
             </div>
 
             {/* Video Player - Soft Glass Frame with YouTube option */}
-            <YouTubePlayer url={videoUrl} title="Video Pelapukan Mikroplastik" />
+            <div className="p-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
+              <YouTubePlayer url={videoUrl} title="Video Pelapukan Mikroplastik" />
+            </div>
 
             {/* Button Lanjut */}
-            <div className="flex justify-center mt-4 mb-20">
+            <div className="flex justify-center mt-2 mb-16">
               <motion.button
                 onClick={() => {
                   setHasWatched(true);
@@ -367,12 +387,12 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="relative inline-flex items-center justify-center gap-2 px-10 py-5 font-extrabold text-[#3b2313] text-xl font-[family-name:var(--font-outfit)] transition-all"
+                className="relative inline-flex items-center justify-center gap-3 px-10 py-4 font-extrabold text-[#3b2313] text-xl font-[family-name:var(--font-outfit)] transition-all"
                 style={{
                   background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                   border: '3px solid #8e4912',
                   borderRadius: '24px',
-                  boxShadow: 'inset 0 4px 0 rgba(255,255,255,0.2), inset 0 -4px 0 rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.2)',
+                  boxShadow: 'inset 0 4px 0 rgba(255,255,255,0.3), inset 0 -4px 0 rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.3)',
                 }}
               >
                 <span className="absolute left-4 w-3 h-3 rounded-full bg-[#5a2e0a] shadow-inner" />
@@ -392,16 +412,16 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             animate={{ opacity: 1, y: 0 }}
             className="w-full flex flex-col gap-6"
           >
-            {/* Object Selection Tabs (Soft, Not Boxy) */}
+            {/* Object Selection Tabs (Vibrant Glass Theme) */}
             <div className="flex flex-wrap gap-2 md:gap-4 justify-center">
               {PLASTIC_OBJECTS.map(item => (
                 <button
                   key={item.id}
                   onClick={() => handleSelectObject(item.id)}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 md:px-6 md:py-3 rounded-[20px] md:rounded-[24px] transition-all border-2 ${
+                  className={`flex flex-col items-center gap-1 px-4 py-2.5 md:px-6 md:py-3.5 rounded-2xl md:rounded-3xl transition-all border-2 ${
                     selectedObject === item.id 
-                      ? 'bg-white border-[#006591] text-[#006591] shadow-lg scale-110 z-10' 
-                      : 'bg-white/60 border-transparent text-[#6e7881] hover:bg-white/90 hover:scale-105'
+                      ? 'bg-gradient-to-b from-white to-[#e4f1f9] border-[#6bff8f] text-[#083b54] shadow-[0_0_20px_rgba(107,255,143,0.4)] scale-105 z-10 font-bold' 
+                      : 'bg-white/10 backdrop-blur-md border-white/20 text-white/90 hover:bg-white/20 hover:text-white hover:scale-105'
                   }`}
                 >
                   <span className="text-2xl md:text-3xl">{item.emoji}</span>
@@ -411,7 +431,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             </div>
 
             {/* The Lab Area - Soft Water Gradient (Fixed Height to not jump around) */}
-            <div className="w-full h-[500px] rounded-[40px] overflow-hidden shadow-xl relative flex flex-col border-[4px] border-white bg-gradient-to-b from-[#87CEEB] to-[#004c6e] transition-all duration-700">
+            <div className="w-full h-[500px] rounded-[40px] overflow-hidden shadow-2xl relative flex flex-col border-[4px] border-white/40 bg-gradient-to-b from-[#87CEEB] to-[#004c6e] transition-all duration-700">
               
               {/* Gelombang Laut Berjalan */}
               <div className="absolute inset-0 pointer-events-none opacity-40">
@@ -450,12 +470,12 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute top-8 left-1/2 -translate-x-1/2 z-50 w-max max-w-md"
+                    className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm"
                   >
-                    <div className={`px-6 py-3 rounded-full shadow-lg backdrop-blur-md border-2 text-center text-sm font-bold ${
-                      messageType === 'error' ? 'bg-white/90 border-[#ba1a1a] text-[#ba1a1a]' :
-                      messageType === 'success' ? 'bg-white/90 border-[#006e2f] text-[#006e2f]' :
-                      'bg-white/90 border-[#006591] text-[#006591]'
+                    <div className={`px-4 py-2 md:px-6 md:py-3 rounded-2xl md:rounded-full shadow-lg backdrop-blur-md border-2 text-center text-xs md:text-sm font-bold ${
+                      messageType === 'error' ? 'bg-white/95 border-[#ba1a1a] text-[#ba1a1a]' :
+                      messageType === 'success' ? 'bg-white/95 border-[#006e2f] text-[#006e2f]' :
+                      'bg-white/95 border-[#006591] text-[#006591]'
                     }`}>
                       {message}
                     </div>
@@ -468,12 +488,12 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                 <button
                   onClick={playVoiceInstruction}
                   title="Dengarkan Suara Panduan"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-[#006591]/30 text-[#006591] text-xs font-bold shadow-md hover:bg-[#006591] hover:text-white transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/90 backdrop-blur-md border border-[#006591]/30 text-[#006591] text-xs font-bold shadow-md hover:bg-[#006591] hover:text-white transition-all active:scale-95"
                 >
-                  <span className="material-symbols-outlined text-base">volume_up</span>
+                  <span className="material-symbols-outlined text-base animate-pulse">volume_up</span>
                   <span>Suara Panduan</span>
                 </button>
-                <div className="bg-white/70 backdrop-blur-sm border-2 border-white rounded-xl md:rounded-2xl px-3 py-2 md:px-5 md:py-3 w-28 md:w-40 shadow-sm">
+                <div className="bg-white/80 backdrop-blur-sm border-2 border-white rounded-xl md:rounded-2xl px-3 py-2 md:px-5 md:py-3 w-28 md:w-40 shadow-sm">
                   <p className="text-[#006591] text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1 md:mb-2 flex justify-between">
                     <span>Sinar UV</span> <span>{uvExposure}%</span>
                   </p>
@@ -481,7 +501,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     <motion.div className="h-full bg-[#f0a345]" animate={{ width: `${uvExposure}%` }} />
                   </div>
                 </div>
-                <div className="bg-white/70 backdrop-blur-sm border-2 border-white rounded-xl md:rounded-2xl px-3 py-2 md:px-5 md:py-3 w-28 md:w-40 shadow-sm">
+                <div className="bg-white/80 backdrop-blur-sm border-2 border-white rounded-xl md:rounded-2xl px-3 py-2 md:px-5 md:py-3 w-28 md:w-40 shadow-sm">
                   <p className="text-[#006e2f] text-[10px] md:text-xs font-bold uppercase tracking-widest mb-1 md:mb-2 flex justify-between">
                     <span>Fisik</span> <span>{bottleIntegrity}%</span>
                   </p>
@@ -540,8 +560,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                 {labPhase === 'complete' && (
                   <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
                      <div className="w-20 h-20 rounded-full bg-white/50 flex items-center justify-center text-5xl mb-4 shadow-xl border-4 border-white">🎉</div>
-                     <h3 className="font-extrabold font-[family-name:var(--font-outfit)] text-[#083b54] text-3xl">Berhasil Hancur!</h3>
-                     <p className="text-[#006591] font-bold mt-2">Plastik telah menjadi mikroplastik di lautan.</p>
+                     <h3 className="font-extrabold font-[family-name:var(--font-outfit)] text-white text-3xl drop-shadow-md">Berhasil Hancur!</h3>
+                     <p className="text-[#6bff8f] font-bold mt-2 text-lg drop-shadow-sm">Plastik telah menjadi mikroplastik di lautan.</p>
                   </motion.div>
                 )}
                 <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
@@ -552,7 +572,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                 {labPhase === 'lab' && (
                   <motion.div 
                     initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
-                    className="relative z-20 p-3 md:p-6 flex justify-center gap-3 md:gap-8 bg-white/10 backdrop-blur-sm border-t border-white/40"
+                    className="relative z-20 p-3 md:p-6 flex justify-center gap-3 md:gap-8 bg-white/10 backdrop-blur-md border-t border-white/40"
                   >
                     <ToolTile id="uv" icon="wb_sunny" label="Panas Matahari" desc="(UV)" color="from-[#fff3d4] to-[#fde08b]" textColor="text-[#b27b00]" onDragEnd={handleDragEnd} />
                     <ToolTile id="wave" icon="waves" label="Abrasi Pantai" desc="(Ombak)" color="from-[#e4f1f9] to-[#c9e6ff]" textColor="text-[#006591]" onDragEnd={handleDragEnd} />
@@ -570,12 +590,14 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                   animate={{ opacity: 1, y: 0, height: 'auto' }}
                   className="w-full flex flex-col gap-6 mt-4 mb-20"
                 >
-                  <div className="bg-white rounded-[32px] p-8 shadow-xl border-4 border-[#e4f1f9]">
-                    <div className="flex items-center gap-4 mb-8 border-b-2 border-[#e4f1f9] pb-6">
-                      <span className="material-symbols-outlined text-4xl text-[#006591]">assignment</span>
+                  <div className="bg-white/10 backdrop-blur-xl rounded-[32px] p-6 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.4)] border border-white/20">
+                    <div className="flex items-center gap-4 mb-8 border-b border-white/15 pb-6">
+                      <div className="w-12 h-12 rounded-2xl bg-[#6bff8f]/20 border border-[#6bff8f]/40 flex items-center justify-center flex-shrink-0">
+                        <span className="material-symbols-outlined text-2xl text-[#6bff8f]">assignment</span>
+                      </div>
                       <div>
-                        <h2 className="text-2xl font-extrabold text-[#083b54] font-[family-name:var(--font-outfit)]">Evaluasi Eksperimen</h2>
-                        <p className="text-[#6e7881] text-sm">Jawab 3 pertanyaan berikut berdasarkan hasil uji laboratorium virtual tadi.</p>
+                        <h2 className="text-2xl font-extrabold text-white font-[family-name:var(--font-outfit)]">Evaluasi Eksperimen</h2>
+                        <p className="text-blue-200 text-sm">Jawab 3 pertanyaan berikut berdasarkan hasil uji laboratorium virtual tadi.</p>
                       </div>
                     </div>
 
@@ -587,31 +609,36 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
 
                         return (
                           <div key={q.id} className="flex flex-col gap-3">
-                            <h3 className="font-bold text-[#083b54] text-base flex gap-2">
-                              <span className="text-[#006591]">{index + 1}.</span> {q.text}
+                            <h3 className="font-bold text-white text-base flex gap-2">
+                              <span className="text-[#6bff8f] font-extrabold">{index + 1}.</span> {q.text}
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              {q.options.map(opt => (
-                                <button
-                                  key={opt.id}
-                                  onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
-                                  className={`p-4 rounded-2xl border-2 text-left transition-all text-sm font-semibold flex items-start gap-3 ${
-                                    answers[q.id] === opt.id
-                                      ? (showErrors && !isCorrect 
-                                          ? 'bg-[#fce8e6] border-[#ba1a1a] text-[#ba1a1a] shadow-sm' 
-                                          : 'bg-[#e4f1f9] border-[#006591] text-[#006591] shadow-md scale-[1.02]')
-                                      : 'bg-white border-[#eceef0] hover:border-[#006591]/50 text-[#3e4850] hover:bg-[#f7f9fb]'
-                                  }`}
-                                >
-                                  <span className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    {answers[q.id] === opt.id && <span className="w-2.5 h-2.5 rounded-full bg-current" />}
-                                  </span>
-                                  {opt.text}
-                                </button>
-                              ))}
+                              {q.options.map(opt => {
+                                const isSelected = answers[q.id] === opt.id;
+                                let bgClass = 'bg-white/5 border-white/15 text-blue-100 hover:bg-white/15 hover:text-white';
+                                if (isSelected) {
+                                  if (showErrors && !isCorrect) {
+                                    bgClass = 'bg-[#ba1a1a]/30 border-[#ba1a1a] text-red-200 shadow-lg';
+                                  } else {
+                                    bgClass = 'bg-[#006591]/60 border-[#6bff8f] text-white shadow-[0_0_15px_rgba(107,255,143,0.3)] scale-[1.02]';
+                                  }
+                                }
+                                return (
+                                  <button
+                                    key={opt.id}
+                                    onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
+                                    className={`p-4 rounded-2xl border-2 text-left transition-all text-sm font-semibold flex items-start gap-3 ${bgClass}`}
+                                  >
+                                    <span className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center flex-shrink-0 mt-0.5">
+                                      {isSelected && <span className="w-2.5 h-2.5 rounded-full bg-current" />}
+                                    </span>
+                                    {opt.text}
+                                  </button>
+                                );
+                              })}
                             </div>
                             {showError && (
-                              <p className="text-[#ba1a1a] text-xs font-bold italic mt-1">Jawaban ini kurang tepat, coba pikirkan lagi peristiwa di lab tadi.</p>
+                              <p className="text-[#ff8c8c] text-xs font-bold italic mt-1">Jawaban ini kurang tepat, coba pikirkan lagi peristiwa di lab tadi.</p>
                             )}
                           </div>
                         );
@@ -619,7 +646,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     </div>
 
                     {/* Submit Button */}
-                    <div className="mt-10 pt-6 border-t-2 border-[#e4f1f9] flex justify-end">
+                    <div className="mt-10 pt-6 border-t border-white/15 flex justify-end">
                       <motion.button
                         onClick={handleSubmitEvaluation}
                         disabled={!allAnswered}
@@ -630,7 +657,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                           background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                           border: '3px solid #8e4912',
                           borderRadius: '20px',
-                          boxShadow: allAnswered ? 'inset 0 4px 0 rgba(255,255,255,0.2), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.2)' : 'none',
+                          boxShadow: allAnswered ? 'inset 0 4px 0 rgba(255,255,255,0.3), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.3)' : 'none',
                         }}
                       >
                         <span className="absolute left-4 w-2 h-2 rounded-full bg-[#5a2e0a]" />
