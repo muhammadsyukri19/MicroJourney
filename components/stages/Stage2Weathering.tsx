@@ -1,7 +1,7 @@
-'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import YouTubePlayer from '@/components/ui/YouTubePlayer';
+import { useJourneyStore } from '@/lib/journeyStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LabPhase = 'lab' | 'breaking' | 'complete';
@@ -139,6 +139,7 @@ interface Props {
 }
 
 export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ' }: Props) {
+  const { lkpdAnswers, setLkpdAnswer } = useJourneyStore();
   const [hasWatched, setHasWatched] = useState(false);
   const [labPhase, setLabPhase] = useState<LabPhase>('lab');
   const [selectedObject, setSelectedObject] = useState('bottle');
@@ -643,12 +644,34 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                           </div>
                         );
                       })}
+                      {/* LKPD Textarea for Stage 2 */}
+                      <div className="mt-8 p-6 bg-white/5 border border-white/20 rounded-2xl">
+                        <label className="block text-sm font-bold text-white mb-3 uppercase font-[family-name:var(--font-outfit)]">
+                          Tuliskan Kesimpulan Analisismu (LKPD Tahap 2)
+                        </label>
+                        <p className="text-blue-200 text-xs mb-4">
+                          Berdasarkan simulasi dan 3 pertanyaan di atas, simpulkan bagaimana botol plastik utuh bisa berakhir menjadi mikroplastik yang tertelan ikan di lautan.
+                        </p>
+                        <textarea
+                          value={lkpdAnswers.lkpdStep2}
+                          onChange={(e) => setLkpdAnswer('lkpdStep2', e.target.value)}
+                          placeholder="Kesimpulan saya..."
+                          className="w-full h-28 p-4 bg-white/10 text-white border-2 border-white/30 rounded-xl text-sm placeholder:text-blue-300 focus:border-[#6bff8f] focus:ring-0 outline-none resize-none transition-all"
+                        />
+                      </div>
+
                     </div>
 
                     {/* Submit Button */}
-                    <div className="mt-10 pt-6 border-t border-white/15 flex justify-end">
+                    <div className="mt-8 pt-6 border-t border-white/15 flex justify-end">
                       <motion.button
-                        onClick={handleSubmitEvaluation}
+                        onClick={() => {
+                          if (!lkpdAnswers.lkpdStep2.trim()) {
+                            alert('Harap isi kesimpulan analisismu (LKPD) sebelum melanjutkan!');
+                            return;
+                          }
+                          handleSubmitEvaluation();
+                        }}
                         disabled={!allAnswered}
                         whileHover={allAnswered ? { scale: 1.05 } : {}}
                         whileTap={allAnswered ? { scale: 0.95 } : {}}

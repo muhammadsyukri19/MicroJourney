@@ -62,3 +62,16 @@ export function useRegisterTeacherMutation() {
     mutationFn: (input: { name: string; email: string; password: string; school: string; phoneNumber?: string }) => authApi.registerTeacher(input),
   });
 }
+
+/**
+ * Hook mutation TanStack Query untuk register siswa.
+ */
+export function useRegisterStudentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; email: string; password: string; className: string }) => authApi.registerStudent(input),
+    onSuccess: (data) => {
+      queryClient.setQueryData(AUTH_QUERY_KEY, data.user);
+    }
+  });
+}

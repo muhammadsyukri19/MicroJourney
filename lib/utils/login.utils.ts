@@ -20,5 +20,5 @@ export function validateRoleForMode(mode: LoginMode, userRole: UserRole): string
  * Tentukan path redirect setelah login berdasarkan role.
  */
 export function getRedirectPath(role: UserRole): string {
-  return role === 'student' ? '/' : '/dashboard';
+  return role === 'student' ? '/journey' : '/dashboard';
 }

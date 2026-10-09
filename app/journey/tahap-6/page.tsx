@@ -504,6 +504,8 @@ export default function Tahap6() {
           studentAccountEmail: currentUser?.email || '',
           assessmentEligible: true,
           commitment,
+          lkpdStep1: state.lkpdAnswers.lkpdStep1,
+          lkpdStep2: state.lkpdAnswers.lkpdStep2,
           lkpd1: state.lkpdAnswers.lkpd1,
           lkpd2: state.lkpdAnswers.lkpd2,
           lkpd3q1: state.lkpdAnswers.lkpd3q1,
@@ -557,11 +559,12 @@ export default function Tahap6() {
       y += 12;
 
       const sections = [
-        { label: 'LKPD 1 — Proses Pelapukan Plastik', text: answers.lkpd1 },
-        { label: 'LKPD 2 — Kontaminasi Pangan', text: answers.lkpd2 },
-        { label: 'LKPD 3 Q1 — Mengapa HCl Gagal Mencerna Plastik', text: answers.lkpd3q1 },
-        { label: 'LKPD 3 Q2 — Organ Paling Berbahaya', text: answers.lkpd3q2 },
-        { label: 'LKPD 4 — Sintesis (HOTS)', text: answers.lkpd4 },
+        { label: 'LKPD Tahap 1 — Analisis AR Scanner', text: answers.lkpdStep1 },
+        { label: 'LKPD Tahap 2 — Observasi Proses Pelapukan', text: answers.lkpdStep2 },
+        { label: 'LKPD Tahap 3 — Kontaminasi Pangan (Makanan Dipilih)', text: answers.lkpd2 },
+        { label: 'LKPD Tahap 4 — Mengapa HCl Lambung Gagal', text: answers.lkpd3q1 },
+        { label: 'LKPD Tahap 4 — Organ Paling Terdampak', text: answers.lkpd3q2 },
+        { label: 'LKPD Tahap 5 — Sintesis Jaring Kasus (HOTS)', text: answers.lkpd4 },
       ];
 
       sections.forEach((s) => {
@@ -793,7 +796,7 @@ export default function Tahap6() {
                 </div>
 
                 <button
-                  onClick={() => router.push('/summary')}
+                  onClick={() => router.push('/journey/post-test')}
                   className="w-full py-4 px-6 rounded-2xl text-base sm:text-lg font-extrabold text-[#3b2313] flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl border-2 border-[#8e4912]"
                   style={{
                     fontFamily: 'var(--font-outfit)',
@@ -801,7 +804,7 @@ export default function Tahap6() {
                     boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3), 0 8px 16px rgba(0,0,0,0.25)',
                   }}
                 >
-                  <span>Lanjut ke Halaman Rangkuman Ekspedisi</span>
+                  <span>Lanjut ke Tes Akhir (Post-test)</span>
                   <span className="material-symbols-outlined text-2xl">arrow_forward</span>
                 </button>
               </div>
@@ -815,8 +818,8 @@ export default function Tahap6() {
         stageNumber={6}
         stageTitle="Sumpah Komitmen Ekologi"
         xpEarned={150}
-        nextStagePath="/summary"
-        nextStageLabel="Lanjut ke Halaman Rangkuman Ekspedisi"
+        nextStagePath="/journey/post-test"
+        nextStageLabel="Lanjut ke Tes Akhir (Post-test)"
         onClose={() => setShowCompletionModal(false)}
       />
     </div>

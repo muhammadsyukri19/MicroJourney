@@ -255,19 +255,26 @@ export const useAuthStore = create<AuthState>()(
       },
 
       deleteStudent: async (id) => {
+        const targetUser = get().users.find(u => u.id === id);
+        if (!targetUser) return { success: false, error: 'User not found' };
+
+        // Optimistic UI update: hapus dari state lokal dulu agar responsif
+        set(state => ({
+          users: state.users.filter(u => u.id !== id),
+        }));
+
         try {
-          const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+          // Gunakan email jika id berupa format lokal "student-..." agar backend bisa menemukannya
+          const identifier = id.startsWith('student-') ? encodeURIComponent(targetUser.email) : id;
+          const res = await fetch(`/api/users/${identifier}`, { method: 'DELETE' });
+          
           if (!res.ok) {
-            const d = await res.json().catch(() => ({}));
-            return { success: false, error: d.error };
+            console.warn('[AUTH] Delete from DB failed, but removed locally.');
           }
         } catch (err) {
           console.error('[AUTH] Delete student error:', err);
         }
 
-        set(state => ({
-          users: state.users.filter(u => u.id !== id),
-        }));
         return { success: true };
       },
 

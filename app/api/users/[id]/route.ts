@@ -13,10 +13,11 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     const { id } = await context.params;
 
     let query: Record<string, unknown> = {};
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      query = { _id: id };
+    const decodedId = decodeURIComponent(id);
+    if (mongoose.Types.ObjectId.isValid(decodedId)) {
+      query = { _id: decodedId };
     } else {
-      query = { email: id.toLowerCase() };
+      query = { email: decodedId.toLowerCase() };
     }
 
     const deleted = await User.findOneAndDelete(query);
@@ -45,10 +46,11 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     const { name, email, password, className } = body;
 
     let query: Record<string, unknown> = {};
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      query = { _id: id };
+    const decodedId = decodeURIComponent(id);
+    if (mongoose.Types.ObjectId.isValid(decodedId)) {
+      query = { _id: decodedId };
     } else {
-      query = { email: id.toLowerCase() };
+      query = { email: decodedId.toLowerCase() };
     }
 
     const user = await User.findOne(query);

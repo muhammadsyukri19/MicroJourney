@@ -5,7 +5,7 @@ import User from '@/lib/models/User';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, password, school, phoneNumber, role = 'teacher' } = body;
+    const { name, email, password, school, className, phoneNumber, role = 'teacher' } = body;
 
     if (!name || !email || !password) {
       return NextResponse.json({ success: false, message: 'Harap lengkapi nama, email, dan password' }, { status: 400 });
@@ -34,6 +34,7 @@ export async function POST(req: Request) {
         email,
         password, // Disimpan plain text untuk sementara
         school: school || '',
+        className: className || '',
         phoneNumber: phoneNumber || '',
         role
       });
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
           email: newUser.email,
           role: newUser.role,
           school: newUser.school,
+          className: newUser.className,
           phoneNumber: newUser.phoneNumber,
         }
       }, { status: 201 });
@@ -70,6 +72,7 @@ export async function POST(req: Request) {
         email,
         role: role as 'teacher' | 'student' | 'superadmin',
         school: school || '',
+        className: className || '',
         phoneNumber: phoneNumber || '',
       };
 

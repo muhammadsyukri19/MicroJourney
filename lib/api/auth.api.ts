@@ -121,7 +121,36 @@ export async function registerTeacherApi(input: {
     throw new Error(data.message || 'Gagal mendaftar. Silakan coba lagi.');
   }
 
+  useAuthStore.setState({ currentUser: data.user });
+
   return { success: true, message: 'Pendaftaran berhasil.', user: data.user };
+}
+
+export async function registerStudentApi(input: {
+  name: string;
+  email: string;
+  password: string;
+  className: string;
+}) {
+  if (!input.name.trim() || !input.email.trim() || !input.password || !input.className.trim()) {
+    throw new Error('Semua kolom wajib diisi.');
+  }
+
+  const response = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...input, role: 'student' }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Gagal mendaftar. Silakan coba lagi.');
+  }
+
+  useAuthStore.setState({ currentUser: data.user });
+
+  return { success: true, message: 'Pendaftaran berhasil.', user: data.user, redirectPath: '/journey' };
 }
 
 export const authApi = {
@@ -129,4 +158,5 @@ export const authApi = {
   logout: logoutApi,
   getCurrentUser: getCurrentUserApi,
   registerTeacher: registerTeacherApi,
+  registerStudent: registerStudentApi,
 };
