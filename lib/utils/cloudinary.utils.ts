@@ -23,6 +23,7 @@ export async function uploadToCloudinary(
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', uploadPreset);
+  formData.append('folder', 'LIDM'); // Otomatis membuat/masuk ke folder LIDM
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

@@ -55,30 +55,28 @@ export default function LoginForm() {
     registerMutation.reset();
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
-    setLoading(true);
 
-    try {
-      const res = await login(email, password);
-      setLoading(false);
-
-      if (!res.success || !res.user) {
-        setError(res.error || 'Email atau password salah. Coba periksa kembali.');
-        return;
-      }
-
-      const roleError = validateRoleForMode(mode, res.user.role);
-      if (roleError) {
-        setError(roleError);
-        return;
-      }
-
-      router.push(getRedirectPath(res.user.role));
-    } catch {
-      setLoading(false);
-      setError('Terjadi kendala koneksi ke server database. Silakan coba lagi.');
+    if (isRegistering && isTeacher) {
+      registerMutation.mutate(
+        { name, email, password, school, phoneNumber },
+        {
+          onSuccess: () => {
+            // Setelah berhasil mendaftar, arahkan ke dashboard
+            router.push(getRedirectPath('teacher'));
+          },
+        }
+      );
+    } else {
+      loginMutation.mutate(
+        { email, password, mode },
+        {
+          onSuccess: (data) => {
+            router.push(data.redirectPath);
+          },
+        }
+      );
     }
   }
 
