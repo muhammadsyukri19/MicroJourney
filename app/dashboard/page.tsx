@@ -1,5 +1,9 @@
-// APP ROUTE: /dashboard
-// App Route Page mengimpor dan merender TeacherDashboardTemplate (Atomic Design).
+'use client';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuthStore, AppUser } from '@/lib/authStore';
+import ImportCsvModal from '@/components/dashboard/ImportCsvModal';
 import TeacherDashboardTemplate from '@/components/templates/pages/dashboard/TeacherDashboardTemplate';
 
 interface Submission {
