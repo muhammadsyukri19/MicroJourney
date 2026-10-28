@@ -33,7 +33,7 @@ export default function Tahap1() {
   const [modelLoading, setModelLoading] = useState(false);
   const [customModelLoaded, setCustomModelLoaded] = useState(false);
   const [showManualFallback, setShowManualFallback] = useState(false);
-  const [scanHint, setScanHint] = useState('Arahkan kamera ke botol atau wadah plastik');
+  const [scanHint, setScanHint] = useState('Arahkan kamera ke sampah plastik di sekitarmu (botol plastik, gelas, kresek)');
   const [lockProgress, setLockProgress] = useState(0);
 
   const lockProgressRef = useRef(0);
@@ -127,7 +127,7 @@ export default function Tahap1() {
 
       const model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
       setModelLoading(false);
-      setScanHint('Dekatkan botol/gelas plastik ke tengah sasaran kamera...');
+      setScanHint('Dekatkan sampah plastik (botol plastik, gelas plastik, kemasan) ke tengah sasaran kamera...');
 
       async function detect() {
         if (!activeRef.current || !videoRef.current || !overlayRef.current) return;
@@ -220,7 +220,7 @@ export default function Tahap1() {
           setConfidence(0);
           setDetectedClass('');
           setScanHint(bestPrediction
-            ? `AI melihat "${bestPrediction.class}" (${Math.round(bestPrediction.score * 100)}%). Arahkan ke botol/gelas plastik.`
+            ? `AI melihat "${bestPrediction.class}" (${Math.round(bestPrediction.score * 100)}%). Arahkan ke botol plastik, gelas, atau sampah plastik lain.`
             : 'Belum ada objek terbaca. Pastikan objek terlihat jelas di bawah cahaya.');
         }
 
@@ -252,7 +252,7 @@ export default function Tahap1() {
         {phase === 'init' && !cameraError && (
           <StageIntro
             title="Tahap 1: AR Scanner Plastik"
-            description="Arahkan kamera ke botol atau gelas plastik di sekitarmu. AI akan mendeteksi jenis polimer dan potensinya menjadi mikroplastik."
+            description="Arahkan kamera ke sampah plastik di sekitarmu (seperti botol plastik, gelas, atau kantong kresek). AI akan mendeteksi jenis polimer dan potensinya menjadi mikroplastik."
             icon="qr_code_scanner"
             layout="centered"
             actionText="Aktifkan Kamera AI"
@@ -356,7 +356,7 @@ export default function Tahap1() {
 
             <div className="bg-[#f2f4f6] border-l-4 border-[#006591] rounded-xl p-5 mb-5">
               <p className="text-[#3e4850] text-sm leading-relaxed italic font-medium">
-                &ldquo;Bagaimana mungkin benda padat sintetis ini bisa menembus dan menetap di dalam usus manusia — padahal tubuh kita dirancang untuk mencerna makanan?&rdquo;
+                &ldquo;Bagaimana mungkin benda padat sintetis ini bisa menembus dan menetap di dalam usus manusia — sedangkan tubuh kita dirancang untuk mencerna makanan?&rdquo;
               </p>
             </div>
 

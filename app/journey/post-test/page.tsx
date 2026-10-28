@@ -42,12 +42,16 @@ export default function PostTestPage() {
       setPostTestScore(score);
       setIsFinished(true);
 
-      // Sync postTestScore to MongoDB (assuming tahap-6 already created the doc)
+      // Sync postTestScore to MongoDB (updating or creating the doc)
+      const currentAuth = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('microjourney-auth') || '{}')?.state?.currentUser : null;
       fetch('/api/lkpd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: sessionId || `session-${Date.now()}`,
+          studentName: studentName || currentAuth?.name || 'Siswa',
+          studentClass: state.studentClass || currentAuth?.className || 'VIII-A',
+          studentAccountEmail: currentAuth?.email || '',
           preTestScore: preTestScore,
           postTestScore: score,
         }),

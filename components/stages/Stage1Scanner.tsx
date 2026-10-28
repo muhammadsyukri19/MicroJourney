@@ -206,7 +206,7 @@ export default function Stage1Scanner({ onComplete }: Props) {
             </h3>
             <div className="bg-[var(--color-primary-fixed)] border-l-4 border-[var(--color-primary)] rounded-lg p-5 mb-5">
               <p className="text-sm text-[var(--color-on-primary-fixed)] leading-relaxed italic">
-                &ldquo;Bagaimana mungkin benda padat sintetis ini bisa menembus dan menetap di dalam usus manusia — padahal tubuh kita dirancang untuk mencerna makanan?&rdquo;
+                &ldquo;Bagaimana mungkin benda padat sintetis ini bisa menembus dan menetap di dalam usus manusia — sedangkan tubuh kita dirancang untuk mencerna makanan?&rdquo;
               </p>
             </div>
             <p className="text-xs text-[var(--color-on-surface-variant)] text-center mb-6">

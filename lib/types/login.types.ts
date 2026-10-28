@@ -1,6 +1,6 @@
 // ─── Types untuk halaman Login ───────────────────────────────────────────────
 
-export type LoginMode = 'student' | 'teacher';
+export type LoginMode = 'student' | 'teacher' | 'superadmin';
 
 export interface LoginFormState {
   email: string;

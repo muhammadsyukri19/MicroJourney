@@ -29,7 +29,7 @@ export const ORGANS: Organ[] = [
     statusText: 'Dalam Tekanan / Terancam',
     particles: 350,
     isKeyOrgan: true,
-    impact: 'Meskipun lambung kita menghasilkan cairan asam yang sangat kuat (pH 1–2) untuk menghancurkan makanan, cairan tersebut tetap gagal melarutkan plastik karena ikatan kimia polimernya jauh lebih tangguh. Akibatnya, partikel plastik yang bersifat indigestible (tidak dapat dicerna) terus diaduk bersama makanan dan mulai menggesek dinding lambung.',
+    impact: 'Meskipun lambung kita menghasilkan cairan asam yang sangat kuat (pH-2) untuk menghancurkan makanan, cairan tersebut tetap gagal melarutkan plastik karena ikatan kimia polimernya jauh lebih tangguh. Akibatnya, partikel plastik yang bersifat indigestible (tidak dapat dicerna) terus diaduk bersama makanan dan mulai menggesek dinding lambung.',
     sciNote: 'Polimer sintetis seperti PET dan Polystyrene resisten terhadap cairan asam pencernaan (Gastroenterology & Lancet Planetary Health).',
   },
   {

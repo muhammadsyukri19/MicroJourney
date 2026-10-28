@@ -47,7 +47,7 @@ export default function LandingPage() {
               className="mt-4 text-[26px] sm:text-[40px] lg:text-[52px] leading-[1.06] font-extrabold font-[family-name:var(--font-outfit)] text-[#083b54] tracking-tight max-w-[15ch]"
               style={{ textShadow: "0 2px 16px rgba(255,255,255,0.6)" }}
             >
-              Jadi Detektif Mikroplastik Lewat <span className="text-[#0a8f5f]">Misi Seru</span>
+              Jadi Detektif Mikroplastik Lewat <span className="text-[#0a8f5f]">Petualangan Mika</span>
             </h1>
 
             <p className="mt-3 text-[13px] sm:text-[16px] lg:text-[18px] leading-relaxed text-[#0c4a66] font-medium max-w-[44ch]" style={{ textShadow: "0 1px 10px rgba(255,255,255,0.75)" }}>

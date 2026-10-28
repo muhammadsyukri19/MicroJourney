@@ -5,6 +5,7 @@ import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
 import GuestLimitModal from '@/components/auth/GuestLimitModal';
 import BottomNav from '@/components/BottomNav';
+import UserProfileWidget from '@/components/auth/UserProfileWidget';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 
@@ -211,6 +212,11 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                 );
               })}
             </div>
+          </div>
+
+          {/* User Profile & Role Status Widget */}
+          <div className="flex items-center gap-2 z-20">
+            <UserProfileWidget sizeClass="w-9 h-9 sm:w-10 sm:h-10" showRoleBadgeInline />
           </div>
 
         </div>
