@@ -13,31 +13,30 @@ type Phase = 'init' | 'scanning' | 'detected' | 'pemantik';
  * lewat pengujian kamera langsung; ubah di sini bila hasil uji menuntutnya.
  */
 const SCANNER_CONFIG = {
-  /** Kelas COCO-SSD yang dijadikan target. Nama = kelas model, nilai = label tampilan. */
+  /** Kelas COCO-SSD yang dijadikan target (botol, gelas, atau wadah mangkok plastik). */
   targetClasses: {
     bottle: 'Botol',
-    cup: 'Gelas / Cangkir',
+    cup: 'Gelas / Cup',
+    bowl: 'Wadah / Mangkok',
   } as Record<string, string>,
-  /** minScore yang diteruskan ke model.detect (kandidat mentah). */
-  inferenceMinScore: 0.3,
-  /** Skor minimal agar kotak & label digambar (belum berarti diterima). */
-  drawMinScore: 0.4,
-  /** Skor minimal agar sebuah frame dihitung sebagai konfirmasi. */
-  acceptMinScore: 0.6,
-  /** Lama (ms) objek harus bertahan di dalam lingkaran sasaran (kelas & posisi konsisten) sebelum dikunci. */
-  holdDurationMs: 3000,
-  /** Diameter lingkaran sasaran di tengah layar (px CSS, dibatasi 80% sisi terpendek layar). Deteksi hanya dihitung di dalam lingkaran ini. */
-  roiDiameterPx: 256,
+  /** minScore diteruskan ke model.detect agar model tidak memangkas kandidat sebelum dianalisis. */
+  inferenceMinScore: 0.2,
+  /** Skor minimal agar kotak & label digambar di canvas (umpan balik visual cepat). */
+  drawMinScore: 0.25,
+  /** Skor minimal agar sebuah deteksi menambah waktu konfirmasi penguncian. */
+  acceptMinScore: 0.35,
+  /** Lama (ms) objek harus bertahan di tengah sasaran kamera (1.8 detik). */
+  holdDurationMs: 1800,
   /** Jeda (ms) menampilkan status "terkunci" sebelum modal pertanyaan pemantik muncul. */
-  lockedFlashMs: 1500,
-  /** Batas maksimum langkah waktu per inferensi (ms) agar lonjakan lag tidak mempercepat penguncian. */
-  maxStepMs: 300,
-  /** Toleransi frame tanpa deteksi sebelum progres mulai berkurang. */
-  missToleranceFrames: 3,
+  lockedFlashMs: 1200,
+  /** Batas maksimum langkah waktu per inferensi (ms). */
+  maxStepMs: 250,
+  /** Toleransi frame tanpa deteksi sebelum progres berkurang perlahan. */
+  missToleranceFrames: 6,
   /** IoU minimal antara kotak frame ini dan sebelumnya agar dianggap objek yang sama. */
-  minIouContinuity: 0.2,
-  /** Jeda minimal antar inferensi (ms) agar tidak membebani perangkat. */
-  minInferenceIntervalMs: 100,
+  minIouContinuity: 0.15,
+  /** Jeda minimal antar inferensi (ms). */
+  minInferenceIntervalMs: 80,
   maxDetections: 10,
   /** Setelah ini (ms) tombol "simulasi manual" ditampilkan. */
   manualFallbackDelayMs: 12000,
@@ -249,29 +248,45 @@ export default function Tahap1() {
     const cfg = SCANNER_CONFIG;
     const target = prepareCanvas(video, canvas);
     const step = Math.min(Math.max(dt, 0), cfg.maxStepMs);
-
-    // Objek kelas target di seluruh frame (di dalam maupun di luar lingkaran sasaran)
+    // Objek kelas target di seluruh frame (di dalam maupun di luar area tengah)
     const targetPreds = preds.filter(
       p => p.class in cfg.targetClasses && p.score >= cfg.drawMinScore,
     );
 
-    // Hanya objek yang pusat kotaknya berada di dalam lingkaran sasaran yang dihitung.
-    // Koordinat video dikonversi ke koordinat elemen (memperhitungkan object-cover).
+    // Hanya objek yang berada di area tengah kamera yang dihitung konfirmasinya.
+    // Memperhitungkan koordinat canvas terskala (object-cover).
     const inRoi = (p: DetectedObject) => {
-      if (!target) return false;
+      if (!target) return true;
       const { cw, ch, scale, ox, oy } = target;
-      const radius = Math.min(cfg.roiDiameterPx, Math.min(cw, ch) * 0.8) / 2;
-      const cx = (p.bbox[0] + p.bbox[2] / 2) * scale + ox;
-      const cy = (p.bbox[1] + p.bbox[3] / 2) * scale + oy;
-      return Math.hypot(cx - cw / 2, cy - ch / 2) <= radius;
+      const x = p.bbox[0] * scale + ox;
+      const y = p.bbox[1] * scale + oy;
+      const w = p.bbox[2] * scale;
+      const h = p.bbox[3] * scale;
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const screenCenterX = cw / 2;
+      const screenCenterY = ch / 2;
+
+      // Area toleransi tengah: radius 35% dimensi layar atau minimal 160px
+      const centerTolerance = Math.max(160, Math.min(cw, ch) * 0.35);
+
+      // 1. Titik tengah objek mendekati tengah layar
+      if (Math.hypot(cx - screenCenterX, cy - screenCenterY) <= centerTolerance) {
+        return true;
+      }
+      // 2. ATAU bounding box objek mencakup titik tengah layar (misal botol besar)
+      return (
+        screenCenterX >= x - 20 && screenCenterX <= x + w + 20 &&
+        screenCenterY >= y - 20 && screenCenterY <= y + h + 20
+      );
     };
     const candidates = targetPreds.filter(inRoi);
 
-    // Tidak ada kandidat di dalam lingkaran: toleransi beberapa frame, lalu kurangi progres
+    // Tidak ada kandidat di area tengah
     if (candidates.length === 0) {
       missFramesRef.current += 1;
       if (missFramesRef.current > cfg.missToleranceFrames) {
-        holdMsRef.current = Math.max(0, holdMsRef.current - step * 2);
+        holdMsRef.current = Math.max(0, holdMsRef.current - step * 1.5);
         if (holdMsRef.current === 0) {
           trackRef.current = null;
         }
@@ -282,10 +297,10 @@ export default function Tahap1() {
       const seen = [...preds].sort((a, b) => b.score - a.score)[0];
       setScanHint(
         outside
-          ? `${cfg.targetClasses[outside.class]} (${outside.class}) terlihat tetapi di luar lingkaran. Geser ke tengah lingkaran sasaran.`
+          ? `${cfg.targetClasses[outside.class]} terlihat di tepi. Arahkan ke area tengah kamera.`
           : seen
-            ? `Model melihat "${seen.class}" (${Math.round(seen.score * 100)}%), bukan botol atau gelas. Arahkan botol/gelas ke tengah lingkaran.`
-            : 'Belum ada objek terbaca. Pastikan objek terlihat jelas dan cukup terang.',
+            ? `AI melihat "${seen.class}" (${Math.round(seen.score * 100)}%). Arahkan botol atau gelas plastik ke tengah.`
+            : 'Belum ada objek terbaca. Pastikan botol/gelas terlihat jelas di bawah cahaya.',
       );
       return false;
     }
@@ -295,9 +310,9 @@ export default function Tahap1() {
     const prev = trackRef.current;
     let pick: DetectedObject;
     if (prev) {
-      const sameClass = candidates.filter(c => c.class === prev.cls);
+      const sameClass = candidates.filter((c: DetectedObject) => c.class === prev.cls);
       if (sameClass.length > 0) {
-        pick = sameClass.reduce((best, c) => (iou(c.bbox, prev.bbox) > iou(best.bbox, prev.bbox) ? c : best));
+        pick = sameClass.reduce((best: DetectedObject, c: DetectedObject) => (iou(c.bbox, prev.bbox) > iou(best.bbox, prev.bbox) ? c : best));
         if (iou(pick.bbox, prev.bbox) < cfg.minIouContinuity) {
           // Posisi melompat jauh: anggap objek berbeda, mulai konfirmasi dari awal
           holdMsRef.current = 0;
@@ -531,45 +546,21 @@ export default function Tahap1() {
             <div key={pos} className={`absolute ${pos} w-16 h-16 ${cls} border-[#6bff8f] opacity-80 shadow-[0_0_15px_rgba(107,255,143,0.5)]`} />
           ))}
 
-          {/* Top Status Badge */}
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
-            <div className="bg-[#083b54]/80 backdrop-blur-md px-6 py-2.5 rounded-full border-2 border-[#6bff8f]/30 shadow-[0_4px_20px_rgba(0,0,0,0.3)] flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#6bff8f] animate-ping" />
-              <p className="text-[#6bff8f] text-xs font-[family-name:var(--font-outfit)] font-extrabold tracking-wider">
-                {modelLoading ? 'MEMUAT MODEL AI...' : lockProgress > 0 ? `MENAHAN OBJEK (${lockProgress}%)` : 'LETAKKAN BOTOL / GELAS DI TENGAH LINGKARAN'}
+          {/* Top Status Badge - diletakkan di bawah navbar agar tidak tertutup */}
+          <div className="absolute top-28 sm:top-32 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 z-20 pointer-events-none w-[min(92vw,420px)] text-center">
+            <div className="bg-[#083b54]/85 backdrop-blur-md px-5 py-2.5 rounded-full border border-[#6bff8f]/30 shadow-[0_4px_20px_rgba(0,0,0,0.3)] flex items-center justify-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#6bff8f] animate-ping shrink-0" />
+              <p className="text-[#6bff8f] text-xs font-[family-name:var(--font-outfit)] font-extrabold tracking-wider truncate">
+                {modelLoading ? 'MEMUAT MODEL AI...' : lockProgress > 0 ? `MENAHAN OBJEK (${lockProgress}%)` : 'ARAHKAN BOTOL / GELAS KE TENGAH'}
               </p>
             </div>
-            <p className="bg-black/40 backdrop-blur-sm text-white/80 text-[10px] font-semibold px-3 py-1 rounded-full">
-              Model deteksi objek umum (COCO-SSD) · bukan model khusus plastik
+            <p className="bg-black/50 backdrop-blur-sm text-white/80 text-[10px] font-semibold px-3 py-0.5 rounded-full">
+              Model deteksi objek umum (COCO-SSD)
             </p>
           </div>
 
-          {/* Area sasaran: sisi luar lingkaran digelapkan; deteksi hanya dihitung di dalam lingkaran */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `radial-gradient(circle at center, transparent calc(min(${SCANNER_CONFIG.roiDiameterPx}px, 80vmin) / 2), rgba(8,59,84,0.55) calc(min(${SCANNER_CONFIG.roiDiameterPx}px, 80vmin) / 2 + 1px))`,
-            }}
-          />
-
-          {/* Center Target Circle + cincin progres tahan */}
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none"
-            style={{ width: `min(${SCANNER_CONFIG.roiDiameterPx}px, 80vmin)`, height: `min(${SCANNER_CONFIG.roiDiameterPx}px, 80vmin)` }}
-          >
-            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50" cy="50" r="49" fill="none"
-                stroke="#6bff8f" strokeOpacity={lockProgress > 0 ? 0.35 : 0.6}
-                strokeWidth="1" strokeDasharray={lockProgress > 0 ? undefined : '3 3'}
-              />
-              <circle
-                cx="50" cy="50" r="49" fill="none"
-                stroke="#6bff8f" strokeWidth="2.5" strokeLinecap="round"
-                strokeDasharray={`${(lockProgress / 100) * 307.9} 307.9`}
-                style={{ transition: 'stroke-dasharray 150ms linear' }}
-              />
-            </svg>
+          {/* Center Target Circle */}
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-dashed ${lockProgress > 0 ? 'border-[#6bff8f] shadow-[0_0_20px_rgba(107,255,143,0.3)]' : 'border-[#6bff8f]/40'} rounded-full flex items-center justify-center pointer-events-none transition-all duration-300`}>
             <div className="w-4 h-4 border-t-2 border-l-2 border-[#6bff8f]" />
           </div>
 
@@ -587,7 +578,7 @@ export default function Tahap1() {
                 />
               </div>
               <p className="text-center text-white/70 text-[10px] mt-1.5 font-semibold">
-                Tahan objek di dalam lingkaran selama ±{Math.round(SCANNER_CONFIG.holdDurationMs / 1000)} detik...
+                Tahan posisi kamera stabil di tengah...
               </p>
             </div>
           )}
