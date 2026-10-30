@@ -28,6 +28,9 @@ export interface Submission {
   actionNote?: string;
   rating?: number;
   feedback?: string;
+  preTestScore?: number;
+  postTestScore?: number;
+  studentAccountEmail?: string;
 }
 
 interface StudentDetailDrawerProps {
@@ -60,12 +63,12 @@ export default function StudentDetailDrawer({
               className="font-extrabold text-lg text-[#083b54]"
               style={{ fontFamily: 'var(--font-outfit)' }}
             >
-              {submission.studentName}
+              {submission.studentName || 'Tanpa Nama'}
             </h3>
-            <ClassBadge classNameLabel={submission.studentClass} isActive={true} />
+            <ClassBadge classNameLabel={submission.studentClass || '-'} isActive={true} />
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Waktu Submit: {new Date(submission.createdAt).toLocaleString('id-ID')}
+            Waktu Submit: {submission.createdAt ? new Date(submission.createdAt).toLocaleString('id-ID') : '-'}
           </p>
         </div>
         <button
@@ -85,7 +88,7 @@ export default function StudentDetailDrawer({
               Tingkat Kontaminasi
             </p>
             <p className="text-base font-extrabold text-red-700">
-              {submission.totalParticles.toLocaleString('id-ID')} Partikel
+              {(submission.totalParticles || 0).toLocaleString('id-ID')} Partikel
             </p>
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
@@ -111,6 +114,42 @@ export default function StudentDetailDrawer({
             <span className="text-red-600 font-extrabold bg-red-100 px-2.5 py-0.5 rounded-md">
               ✗ {submission.quizWrong || 0} Salah
             </span>
+          </div>
+        </div>
+
+        {/* Evaluasi Pre-test & Post-test (N-Gain) */}
+        <div className="bg-gradient-to-br from-[#f8fafc] to-[#eef6fa] border border-[#cbe1ef] rounded-xl p-3.5 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <p className="font-extrabold text-[#083b54] uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px] text-[#006591]">analytics</span>
+              Evaluasi Pre-test & Post-test (Kompetensi)
+            </p>
+            {submission.preTestScore !== undefined && submission.postTestScore !== undefined && submission.preTestScore !== null && submission.postTestScore !== null && (
+              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                submission.postTestScore >= submission.preTestScore 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  : 'bg-amber-50 text-amber-700 border-amber-200'
+              }`}>
+                {submission.postTestScore >= submission.preTestScore ? `+${submission.postTestScore - submission.preTestScore} Poin Peningkatan` : `${submission.postTestScore - submission.preTestScore} Poin`}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-center">
+            <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+              <p className="text-[10px] font-bold text-slate-500 uppercase">Pre-test (Awal)</p>
+              <p className="text-base font-extrabold text-slate-800">
+                {submission.preTestScore !== null && submission.preTestScore !== undefined ? `${submission.preTestScore}` : '-'}
+                <span className="text-[10px] text-slate-400 font-normal"> / 100</span>
+              </p>
+            </div>
+            <div className="bg-white p-2.5 rounded-lg border border-emerald-200 shadow-2xs">
+              <p className="text-[10px] font-bold text-emerald-700 uppercase">Post-test (Akhir)</p>
+              <p className="text-base font-extrabold text-emerald-700">
+                {submission.postTestScore !== null && submission.postTestScore !== undefined ? `${submission.postTestScore}` : '-'}
+                <span className="text-[10px] text-emerald-500 font-normal"> / 100</span>
+              </p>
+            </div>
           </div>
         </div>
 

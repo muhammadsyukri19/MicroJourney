@@ -13,6 +13,7 @@ import DriveInputCard from '@/components/molecules/DriveInputCard';
 import FeedbackFormCard from '@/components/molecules/FeedbackFormCard';
 import PageContainer from '@/components/atoms/PageContainer';
 import MikaMascot from '@/components/MikaMascot';
+import UserProfileWidget from '@/components/auth/UserProfileWidget';
 
 const ORGAN_LABEL_MAP: Record<string, string> = {
   mouth: 'Mulut',
@@ -360,17 +361,21 @@ export default function StandaloneSummaryPage() {
               </div>
             </div>
 
-            <button
-              onClick={generateCertificatePDF}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-[#3b2313] transition-all hover:scale-105 active:scale-95 shadow-md border border-[#8e4912]"
-              style={{
-                background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
-                fontFamily: 'var(--font-outfit)',
-              }}
-            >
-              <span className="material-symbols-outlined text-base">workspace_premium</span>
-              <span className="hidden sm:inline">{certGenerated ? 'Unduh PDF' : 'Cetak Sertifikat'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={generateCertificatePDF}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-[#3b2313] transition-all hover:scale-105 active:scale-95 shadow-md border border-[#8e4912]"
+                style={{
+                  background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
+                  fontFamily: 'var(--font-outfit)',
+                }}
+              >
+                <span className="material-symbols-outlined text-base">workspace_premium</span>
+                <span className="hidden sm:inline">{certGenerated ? 'Unduh PDF' : 'Cetak Sertifikat'}</span>
+              </button>
+
+              <UserProfileWidget sizeClass="w-9 h-9" />
+            </div>
           </div>
         </PageContainer>
       </header>

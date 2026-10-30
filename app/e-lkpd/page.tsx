@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
+import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
 import MikaMascot from '@/components/MikaMascot';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
@@ -194,7 +195,8 @@ export default function ELKPDPage() {
   }
 
   return (
-    <div className="min-h-screen pt-24 sm:pt-28 pb-24 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative overflow-x-hidden">
+    <div className="min-h-screen pb-24 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative overflow-x-hidden">
+      <Navbar />
       {/* Background patterns */}
       <div className="absolute inset-0 adventure-map opacity-10 pointer-events-none" />
       <div className="absolute top-10 left-10 w-96 h-96 bg-[#6bff8f]/10 rounded-full blur-3xl pointer-events-none" />

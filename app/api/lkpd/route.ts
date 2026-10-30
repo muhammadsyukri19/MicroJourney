@@ -13,6 +13,8 @@ export async function POST(req: NextRequest) {
       ...(body.studentName !== undefined && { studentName: body.studentName }),
       ...(body.studentClass !== undefined && { studentClass: body.studentClass }),
       sessionId,
+      ...(body.lkpdStep1 !== undefined && { lkpdStep1: body.lkpdStep1 }),
+      ...(body.lkpdStep2 !== undefined && { lkpdStep2: body.lkpdStep2 }),
       ...(body.lkpd1 !== undefined && { lkpd1: body.lkpd1 }),
       ...(body.lkpd2 !== undefined && { lkpd2: body.lkpd2 }),
       ...(body.lkpd3q1 !== undefined && { lkpd3q1: body.lkpd3q1 }),
@@ -26,6 +28,8 @@ export async function POST(req: NextRequest) {
       ...(body.assessmentEligible !== undefined && { assessmentEligible: Boolean(body.assessmentEligible) }),
       ...(body.quizCorrect !== undefined && { quizCorrect: Number(body.quizCorrect) }),
       ...(body.quizWrong !== undefined && { quizWrong: Number(body.quizWrong) }),
+      ...(body.preTestScore !== undefined && { preTestScore: Number(body.preTestScore) }),
+      ...(body.postTestScore !== undefined && { postTestScore: Number(body.postTestScore) }),
     };
 
     const submission = await LkpdSubmission.findOneAndUpdate(

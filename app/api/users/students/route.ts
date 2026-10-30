@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import User from '@/lib/models/User';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
@@ -74,3 +76,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'Gagal menyimpan data siswa' }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    await connectDB();
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get('email');
+    const id = searchParams.get('id');
+
+    if (!email && !id) {
+      return NextResponse.json({ ok: false, error: 'Email atau ID diperlukan' }, { status: 400 });
+    }
+
+    const filter: any = {};
+    if (email) filter.email = email.toLowerCase();
+    if (id) filter._id = id;
+
+    const result = await User.deleteOne(filter);
+    
+    console.log('[DEBUG] DELETE FILTER:', filter);
+    console.log('[DEBUG] DELETE RESULT:', result);
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ ok: false, error: 'Akun tidak ditemukan' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, message: 'Berhasil menghapus akun siswa' });
+  } catch (err) {
+    console.error('[DELETE /api/users/students]', err);
+    return NextResponse.json({ ok: false, error: 'Gagal menghapus data siswa' }, { status: 500 });
+  }
+}
+

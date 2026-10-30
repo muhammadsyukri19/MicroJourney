@@ -2,15 +2,14 @@ import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono, Fredoka } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-outfit", // keep same variable name so all JSX still works
+  variable: "--font-outfit",
+  display: "swap",
 });
-const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500", "700"], variable: "--font-mono" });
-// Font display bergaya game anak (untuk teks ukiran kayu di navbar) — rounded, bobot bisa diatur
-const fredoka = Fredoka({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-fredoka" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+const fredoka = Fredoka({ subsets: ["latin"], variable: "--font-fredoka", display: "swap" });
 
 import NextTopLoader from 'nextjs-toploader';
 import QueryProvider from '@/components/providers/QueryProvider';

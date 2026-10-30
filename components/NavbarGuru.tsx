@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import UserProfileWidget from '@/components/auth/UserProfileWidget';
 
 export default function NavbarGuru() {
   const pathname = usePathname();
@@ -19,13 +20,7 @@ export default function NavbarGuru() {
           <Link href="/rapor-guru/data-siswa" className={`transition-colors font-semibold text-sm pb-2 ${pathname === '/rapor-guru/data-siswa' ? 'text-[var(--color-primary)] border-b-4 border-[var(--color-primary)] font-bold' : 'text-[var(--color-on-surface-variant)] hover:text-[var(--color-primary)]'}`}>Data Siswa</Link>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-[var(--color-on-surface)]">Dimas Fernanda, S.Pd</p>
-            <p className="text-xs text-[var(--color-on-surface-variant)]">Guru IPA - SMP N X</p>
-          </div>
-          <div className="w-10 h-10 rounded-full bg-[var(--color-primary-fixed)] flex items-center justify-center overflow-hidden border-2 border-[var(--color-primary)] shadow-sm">
-            <span className="material-symbols-outlined text-[var(--color-primary)]">person</span>
-          </div>
+          <UserProfileWidget sizeClass="w-10 h-10" />
         </div>
       </nav>
     </header>

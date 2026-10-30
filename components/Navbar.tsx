@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "@/lib/authStore";
+import { useJourneyStore } from "@/lib/journeyStore";
+import { useLogoutMutation } from "@/lib/hooks/useAuth";
 import BottomNav from "@/components/BottomNav";
+import UserProfileWidget from "@/components/auth/UserProfileWidget";
 
 const navLinks: { href: string; label: string; match?: string }[] = [
   { href: "/", label: "Beranda" },
@@ -17,10 +20,10 @@ const navLinks: { href: string; label: string; match?: string }[] = [
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, logout } = useAuthStore();
+  const { currentUser } = useAuthStore();
+  const logoutMutation = useLogoutMutation();
   const isTeacher = currentUser?.role === "teacher" || currentUser?.role === "superadmin";
 
-  const [avatarOpen, setAvatarOpen] = useState(false);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
   // Auto-hide navbar: sembunyi saat scroll ke bawah, muncul saat scroll ke atas
@@ -39,83 +42,6 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  function handleLogout() {
-    logout();
-    setAvatarOpen(false);
-    router.push("/");
-  }
-
-  const initials = currentUser?.name
-    ? currentUser.name
-      .split(" ")
-      .map((w) => w[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase()
-    : null;
-
-  // Isi dropdown profil (dipakai ulang di bar mobile & papan desktop)
-  const dropdownContent = currentUser ? (
-    <>
-      <div className="px-4 py-3 border-b border-[#eceef0]">
-        <p className="text-[13px] font-bold text-[#191c1e] truncate">{currentUser.name}</p>
-        <p className="text-[11px] text-[#6e7881] truncate">{currentUser.email}</p>
-        <span
-          className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${currentUser.role === "superadmin" ? "bg-[#ba1a1a]/10 text-[#ba1a1a]" : currentUser.role === "teacher" ? "bg-[#006591]/10 text-[#006591]" : "bg-[#006e2f]/10 text-[#006e2f]"
-            }`}
-        >
-          {currentUser.role === "superadmin" ? "Super Admin" : currentUser.role === "teacher" ? "Guru" : "Siswa"}
-        </span>
-      </div>
-      {isTeacher && (
-        <Link href="/dashboard" className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-[#3e4850] hover:bg-[#f7f9fb] transition-colors" onClick={() => setAvatarOpen(false)}>
-          <span className="material-symbols-outlined text-base text-[#006591]">dashboard</span>
-          Dashboard Guru
-        </Link>
-      )}
-      {currentUser.role === "superadmin" && (
-        <Link href="/superadmin" className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-[#3e4850] hover:bg-[#f7f9fb] transition-colors" onClick={() => setAvatarOpen(false)}>
-          <span className="material-symbols-outlined text-base text-[#785a00]">admin_panel_settings</span>
-          Kelola Guru
-        </Link>
-      )}
-      <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-[#ba1a1a] hover:bg-[#ba1a1a]/5 transition-colors border-t border-[#eceef0] mt-1">
-        <span className="material-symbols-outlined text-base">logout</span>
-        Keluar
-      </button>
-    </>
-  ) : (
-    <>
-      <div className="px-4 py-3 border-b border-[#eceef0]">
-        <p className="text-[12px] text-[#6e7881]">Belum masuk akun</p>
-      </div>
-      <Link href="/login" className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-[#006591] font-semibold hover:bg-[#f7f9fb] transition-colors" onClick={() => setAvatarOpen(false)}>
-        <span className="material-symbols-outlined text-base">login</span>
-        Login
-      </Link>
-    </>
-  );
-
-  // Tombol avatar + dropdown (dipakai di mobile & desktop)
-  const renderAvatar = (sizeClass: string) => (
-    <div className="relative pointer-events-auto">
-      <button
-        onClick={() => setAvatarOpen((v) => !v)}
-        className={`${sizeClass} rounded-full border-2 flex items-center justify-center transition-all active:scale-95 select-none shadow-sm ${currentUser ? "bg-[#006591] border-white text-white font-bold text-[13px]" : "bg-white border-[#006591]/60 text-[#006591]"
-          }`}
-        aria-label="Menu profil"
-      >
-        {initials ? <span className="leading-none">{initials}</span> : <span className="material-symbols-outlined text-[18px]">person</span>}
-      </button>
-      {avatarOpen && (
-        <>
-          <div className="fixed inset-0 z-[55]" onClick={() => setAvatarOpen(false)} />
-          <div className="absolute right-0 top-12 w-56 bg-white rounded-2xl shadow-xl border border-[#eceef0] py-2 z-[60] overflow-hidden">{dropdownContent}</div>
-        </>
-      )}
-    </div>
-  );
-
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-50 h-14 md:h-[112px] flex items-center pointer-events-none transition-transform duration-300 ease-out" style={{ transform: hideNav ? "translateY(-150%)" : "translateY(0)" }}>
@@ -124,7 +50,7 @@ export default function Navbar() {
           <Link href="/" className="pointer-events-auto font-[family-name:var(--font-outfit)] text-[17px] font-extrabold text-[#006591] tracking-tight" style={{ textShadow: "0 1px 8px rgba(255,255,255,0.75)" }}>
             MicroJourney <span className="text-[#006e2f]">AR</span>
           </Link>
-          {renderAvatar("w-9 h-9")}
+          <UserProfileWidget sizeClass="w-9 h-9" />
         </div>
 
         {/* ── DESKTOP: papan kayu gantung (logo + menu + avatar di atas papan) ── */}
@@ -188,7 +114,7 @@ export default function Navbar() {
                 <span className="material-symbols-outlined text-xl">dashboard</span>
               </Link>
             )}
-            {renderAvatar("w-10 h-10")}
+            <UserProfileWidget sizeClass="w-10 h-10" />
           </div>
         </div>
       </nav>

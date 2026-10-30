@@ -17,7 +17,7 @@ const STAGES = [
 
 export default function JourneyDashboard() {
   const router = useRouter();
-  const { studentName, completedStages } = useJourneyStore();
+  const { studentName, completedStages, preTestScore } = useJourneyStore();
   const currentUser = useAuthStore(state => state.currentUser);
   
   const [guestModalOpen, setGuestModalOpen] = useState(false);
@@ -116,13 +116,23 @@ export default function JourneyDashboard() {
             Di sini kamu akan melalui 6 tahapan misi rahasia untuk mengungkap bahaya plastik bagi bumi kita.
           </p>
 
-          <button
-            onClick={() => router.push('/journey/tahap-1')}
-            className="bg-[#6bff8f] hover:bg-[#4be672] text-[#004a1f] px-8 py-3.5 rounded-full font-extrabold text-lg transition-transform active:scale-95 shadow-md font-[family-name:var(--font-outfit)] inline-flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined">explore</span>
-            Mulai Misi Pertama
-          </button>
+          {preTestScore === null ? (
+            <button
+              onClick={() => router.push('/journey/pre-test')}
+              className="bg-[#006591] hover:bg-[#004c6e] text-white px-8 py-3.5 rounded-full font-extrabold text-lg transition-transform active:scale-95 shadow-md font-[family-name:var(--font-outfit)] inline-flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined">quiz</span>
+              Mulai Pre-test Dulu
+            </button>
+          ) : (
+            <button
+              onClick={() => router.push('/journey/tahap-1')}
+              className="bg-[#6bff8f] hover:bg-[#4be672] text-[#004a1f] px-8 py-3.5 rounded-full font-extrabold text-lg transition-transform active:scale-95 shadow-md font-[family-name:var(--font-outfit)] inline-flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined">explore</span>
+              Lanjutkan Misi
+            </button>
+          )}
         </div>
 
         {/* Video Embed */}
@@ -155,12 +165,18 @@ export default function JourneyDashboard() {
           const isNext = completedStages.length + 1 === stage.id;
           const isGuestBlocked = isGuest && stage.id > 2;
           const isTeacherLocked = stageLocks[stage.id] === false;
-          const isLocked = (!isCompleted && !isNext && stage.id !== 1) || isGuestBlocked || isTeacherLocked;
+          const isLocked = preTestScore === null || (!isCompleted && !isNext && stage.id !== 1) || isGuestBlocked || isTeacherLocked;
 
           return (
             <div
               key={stage.id}
-              onClick={() => handleStageClick(stage, isLocked && !isGuestBlocked)}
+              onClick={() => {
+                if (preTestScore === null) {
+                  alert('Selesaikan Pre-test terlebih dahulu!');
+                  return;
+                }
+                handleStageClick(stage, isLocked && !isGuestBlocked);
+              }}
               className={`relative rounded-[24px] p-6 border-2 transition-all ${
                 isGuestBlocked
                   ? 'bg-amber-50/40 border-[#f0a345]/50 hover:border-[#f0a345] cursor-pointer hover:-translate-y-1'
