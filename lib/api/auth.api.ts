@@ -43,7 +43,7 @@ export async function loginApi(credentials: LoginCredentials): Promise<LoginResp
     await delay(500);
     const mockUser: AppUser = {
       id: 'mock-id-123',
-      name: mode === 'teacher' ? 'Guru Demo' : 'Siswa Demo',
+      name: mode === 'superadmin' ? 'Super Admin' : mode === 'teacher' ? 'Guru Demo' : 'Siswa Demo',
       email: email,
       role: mode,
       className: mode === 'student' ? 'VIII-A' : '',
@@ -57,16 +57,40 @@ export async function loginApi(credentials: LoginCredentials): Promise<LoginResp
     };
   }
 
-  const response = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, mode }),
-  });
+  let data: any;
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, mode }),
+    });
 
-  const data = await response.json();
+    data = await response.json();
 
-  if (!response.ok) {
-    throw new Error(data.error || data.message || 'Gagal masuk. Silakan periksa kembali.');
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Gagal masuk. Silakan periksa kembali.');
+    }
+  } catch (err: any) {
+    // Fallback: coba login lokal via authStore jika server offline atau error jaringan
+    const localRes = await useAuthStore.getState().login(email, password);
+    if (localRes.success && localRes.user) {
+      const roleErr = validateRoleForMode(mode, localRes.user.role);
+      if (roleErr) throw new Error(roleErr);
+
+      return {
+        success: true,
+        user: localRes.user,
+        token: 'local-token',
+        redirectPath: getRedirectPath(localRes.user.role),
+      };
+    }
+    throw new Error(err.message || 'Gagal masuk. Silakan periksa kembali email & password.');
+  }
+
+  // Validasi role mode dengan role akun hasil server
+  const roleError = validateRoleForMode(mode, data.user.role);
+  if (roleError) {
+    throw new Error(roleError);
   }
 
   // Simpan data user ke store lokal agar UI tetap responsif

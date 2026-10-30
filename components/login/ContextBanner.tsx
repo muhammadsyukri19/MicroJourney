@@ -7,6 +7,14 @@ interface ContextBannerProps {
 }
 
 const CONTENT = {
+  superadmin: {
+    icon: 'admin_panel_settings',
+    text: 'Akses kontrol penuh: Master data sekolah, akun guru, materi kurikulum, dan supervisi global.',
+    bg: '#f5f3ff',
+    border: '#ddd6fe',
+    color: '#5b21b6',
+    iconColor: '#7c3aed',
+  },
   teacher: {
     icon: 'bar_chart',
     text: 'Akses rekap nilai, progress kelas, dan data E-LKPD siswa.',

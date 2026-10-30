@@ -515,6 +515,8 @@ export default function Tahap6() {
           mostDangerousOrgan: state.mostDangerousOrgan,
           quizCorrect: state.quizCorrect,
           quizWrong: state.quizWrong,
+          preTestScore: state.preTestScore,
+          postTestScore: state.postTestScore,
           selectedFoods: state.selectedFoods.map(f => f.name),
         }),
       });

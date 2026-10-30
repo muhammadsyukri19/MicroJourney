@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
+import { useAuthStore } from '@/lib/authStore';
 import { PRETEST_QUESTIONS } from '@/lib/testsData';
 
 export default function PreTestPage() {
@@ -40,6 +41,25 @@ export default function PreTestPage() {
       const score = Math.round((correct / PRETEST_QUESTIONS.length) * 100);
       setPreTestScore(score);
       setIsFinished(true);
+
+      const state = useJourneyStore.getState();
+      const currentAuth = useAuthStore.getState().currentUser;
+      const sId = state.sessionId || `session-${Date.now()}`;
+      if (!state.sessionId) {
+        useJourneyStore.setState({ sessionId: sId });
+      }
+
+      fetch('/api/lkpd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: sId,
+          studentName: state.studentName || currentAuth?.name || 'Siswa',
+          studentClass: state.studentClass || currentAuth?.className || 'VIII-A',
+          studentAccountEmail: currentAuth?.email || '',
+          preTestScore: score,
+        }),
+      }).catch(e => console.error('Failed to sync pre-test score', e));
     }
   };
 

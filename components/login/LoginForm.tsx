@@ -13,6 +13,7 @@ import { useJourneyStore } from '@/lib/journeyStore';
 
 import ModeSwitcher from '@/components/login/ModeSwitcher';
 import ContextBanner from '@/components/login/ContextBanner';
+import CredentialHint from '@/components/login/CredentialHint';
 import InputField from '@/components/ui/InputField';
 
 export default function LoginForm() {
@@ -35,7 +36,8 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
 
   const isTeacher = mode === 'teacher';
-  const accentColor = isTeacher ? '#006e2f' : '#006591';
+  const isSuperAdmin = mode === 'superadmin';
+  const accentColor = isSuperAdmin ? '#7c3aed' : isTeacher ? '#006e2f' : '#006591';
 
   const setStudent = useJourneyStore(s => s.setStudent);
   const resetJourney = useJourneyStore(s => s.reset);
@@ -293,7 +295,7 @@ export default function LoginForm() {
                 setEmail(e.target.value);
                 if (loginMutation.isError) loginMutation.reset();
               }}
-              placeholder={isTeacher ? 'guru@sekolah.com' : 'siswa@email.com'}
+              placeholder={isSuperAdmin ? 'superadmin@gmail.com' : isTeacher ? 'guru@sekolah.com' : 'siswa@email.com'}
               accentColor={accentColor}
             />
 
@@ -343,12 +345,16 @@ export default function LoginForm() {
           className="w-full py-4 rounded-xl font-extrabold text-sm flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.98] disabled:opacity-60 mt-3 shadow-lg hover:shadow-xl"
           style={{
             fontFamily: 'var(--font-outfit)',
-            background: isTeacher
+            background: isSuperAdmin
+              ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
+              : isTeacher
               ? 'linear-gradient(135deg, #009940 0%, #006e2f 100%)'
               : 'linear-gradient(135deg, #0088cc 0%, #006591 100%)',
             color: 'white',
-            border: isTeacher ? '2px solid #004f20' : '2px solid #004a6b',
-            boxShadow: isTeacher
+            border: isSuperAdmin ? '2px solid #5b21b6' : isTeacher ? '2px solid #004f20' : '2px solid #004a6b',
+            boxShadow: isSuperAdmin
+              ? '0 6px 20px rgba(124,58,237,0.30), inset 0 1px 0 rgba(255,255,255,0.25)'
+              : isTeacher
               ? '0 6px 20px rgba(0,110,47,0.30), inset 0 1px 0 rgba(255,255,255,0.25)'
               : '0 6px 20px rgba(0,101,145,0.30), inset 0 1px 0 rgba(255,255,255,0.25)',
           }}
@@ -366,34 +372,48 @@ export default function LoginForm() {
           ) : (
             <>
               <span className="material-symbols-outlined text-[20px]">
-                {isRegistering ? 'how_to_reg' : isTeacher ? 'dashboard' : 'explore'}
+                {isRegistering ? 'how_to_reg' : isSuperAdmin ? 'admin_panel_settings' : isTeacher ? 'dashboard' : 'explore'}
               </span>
-              {isRegistering ? (isTeacher ? 'Selesaikan Pendaftaran Guru' : 'Selesaikan Pendaftaran Siswa') : isTeacher ? 'Masuk ke Dashboard Guru' : 'Mulai Petualangan Sains'}
+              {isRegistering
+                ? (isTeacher ? 'Selesaikan Pendaftaran Guru' : 'Selesaikan Pendaftaran Siswa')
+                : isSuperAdmin
+                ? 'Masuk ke Portal Super Admin'
+                : isTeacher
+                ? 'Masuk ke Dashboard Guru'
+                : 'Mulai Petualangan Sains'}
             </>
           )}
         </button>
       </form>
 
-      {/* Toggle Login/Register */}
-      <div className="mt-5 p-3 rounded-xl bg-[#f7fafc] border border-[#e2edf3] text-center">
-        <p className="text-xs text-[#527788] font-medium">
-          {isRegistering ? (isTeacher ? 'Sudah memiliki akun guru terdaftar?' : 'Sudah memiliki akun siswa?') : (isTeacher ? 'Belum memiliki akun guru untuk sekolah Anda?' : 'Belum memiliki akun siswa?')}
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegistering(!isRegistering);
-              loginMutation.reset();
-              registerMutation.reset();
-              registerStudentMutation.reset();
-            }}
-            className={`ml-1.5 font-bold hover:underline inline-flex items-center gap-0.5 ${isTeacher ? 'text-[#006e2f]' : 'text-[#006591]'}`}
-          >
-            {isRegistering ? 'Masuk di sini' : (isTeacher ? 'Daftar Guru Baru' : 'Daftar Siswa Baru')}
-            <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-          </button>
-        </p>
+      {/* Credential Hint */}
+      <div className="mt-4">
+        <CredentialHint mode={mode} />
       </div>
 
+      {/* Toggle Login/Register (Only for Teacher / Student) */}
+      {!isSuperAdmin && (
+        <div className="mt-4 p-3 rounded-xl bg-[#f7fafc] border border-[#e2edf3] text-center">
+          <p className="text-xs text-[#527788] font-medium">
+            {isRegistering
+              ? (isTeacher ? 'Sudah memiliki akun guru terdaftar?' : 'Sudah memiliki akun siswa?')
+              : (isTeacher ? 'Belum memiliki akun guru untuk sekolah Anda?' : 'Belum memiliki akun siswa?')}
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                loginMutation.reset();
+                registerMutation.reset();
+                registerStudentMutation.reset();
+              }}
+              className={`ml-1.5 font-bold hover:underline inline-flex items-center gap-0.5 ${isTeacher ? 'text-[#006e2f]' : 'text-[#006591]'}`}
+            >
+              {isRegistering ? 'Masuk di sini' : (isTeacher ? 'Daftar Guru Baru' : 'Daftar Siswa Baru')}
+              <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+            </button>
+          </p>
+        </div>
+      )}
 
       {/* Footer Info */}
       <div className="mt-6 pt-4 border-t border-[#edf4f8] text-center">

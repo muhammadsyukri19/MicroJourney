@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import UserProfileWidget from '@/components/auth/UserProfileWidget';
 
 export default function FormPengamatanPage() {
   const router = useRouter();
@@ -24,13 +25,16 @@ export default function FormPengamatanPage() {
             <Link href="/e-lkpd" className="material-symbols-outlined p-2 hover:bg-[var(--color-surface-container)] rounded-full transition-colors text-[var(--color-on-surface-variant)] mr-2">arrow_back</Link>
             <span className="font-[family-name:var(--font-plus-jakarta)] font-bold text-[var(--color-on-surface)] tracking-tight">Form Pengamatan</span>
           </div>
-          <button
-            form="form-pengamatan"
-            type="submit"
-            className="bg-[var(--color-primary)] text-white px-6 py-2 rounded-lg font-semibold hover:bg-[var(--color-primary)]/90 transition-colors shadow-md"
-          >
-            Kirim Jawaban
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              form="form-pengamatan"
+              type="submit"
+              className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-[var(--color-primary)]/90 transition-colors shadow-md cursor-pointer"
+            >
+              Kirim Jawaban
+            </button>
+            <UserProfileWidget sizeClass="w-9 h-9" />
+          </div>
         </nav>
       </header>
 

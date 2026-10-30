@@ -6,9 +6,11 @@ const DEFAULT_SETTINGS = {
   stageLocks: { 1: true, 2: true, 3: true, 4: true, 5: true, 6: true },
   announcement: 'Selamat datang di media pembelajaran MicroJourney AR IPA Kelas VIII. Selesaikan Tahap 1 hingga Tahap 6 sesuai petunjuk.',
   classList: [
-    { id: 'c-1', name: 'VIII-A', academicYear: '2026/2027' },
-    { id: 'c-2', name: 'VIII-B', academicYear: '2026/2027' },
-    { id: 'c-3', name: 'VIII-C', academicYear: '2026/2027' },
+    { id: 'c-1', name: 'VIII-7 (SMPN 3 Banda Aceh)', academicYear: '2026/2027' },
+    { id: 'c-2', name: 'VIII-7 (SMPN 2 Banda Aceh)', academicYear: '2026/2027' },
+    { id: 'c-3', name: 'VIII-1 (SMPN 3 Banda Aceh)', academicYear: '2026/2027' },
+    { id: 'c-4', name: 'VIII-A (SMPN 1)', academicYear: '2026/2027' },
+    { id: 'c-5', name: 'VII-A', academicYear: '2026/2027' },
   ]
 };
 

@@ -9,8 +9,9 @@ interface ModeSwitcherProps {
 }
 
 const MODES: { value: LoginMode; label: string; icon: string; color: string }[] = [
-  { value: 'student', label: 'Siswa',  icon: 'school',         color: '#006591' },
-  { value: 'teacher', label: 'Guru',   icon: 'assignment_ind', color: '#006e2f' },
+  { value: 'student', label: 'Siswa', icon: 'school', color: '#006591' },
+  { value: 'teacher', label: 'Guru', icon: 'assignment_ind', color: '#006e2f' },
+  { value: 'superadmin', label: 'Admin', icon: 'admin_panel_settings', color: '#7c3aed' },
 ];
 
 export default function ModeSwitcher({ mode, onChange }: ModeSwitcherProps) {
