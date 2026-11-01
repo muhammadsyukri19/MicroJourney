@@ -291,6 +291,83 @@ interface ScanFeedbackState {
   message: string;
 }
 
+// Singleton cache & preload promise di level modul agar model hanya dimuat 1x dan instan saat dibuka kembali
+let cachedTfModule: typeof import('@tensorflow/tfjs') | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedCocoModel: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedResinModel: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let preloadPromise: Promise<{ tf: any; cocoModel: any; resinModel: any }> | null = null;
+
+async function loadModelsAsync() {
+  if (cachedCocoModel && cachedResinModel && cachedTfModule) {
+    return {
+      tf: cachedTfModule,
+      cocoModel: cachedCocoModel,
+      resinModel: cachedResinModel,
+    };
+  }
+
+  const [tfModule, cocoSsdModule] = await Promise.all([
+    import('@tensorflow/tfjs'),
+    import('@tensorflow-models/coco-ssd'),
+  ]);
+
+  await tfModule.ready();
+  cachedTfModule = tfModule;
+
+  // Muat COCO-SSD dan Resin MobileNetV2 secara paralel
+  const loadCocoPromise = (async () => {
+    if (cachedCocoModel) return cachedCocoModel;
+    try {
+      const headCheck = await fetch(PRODUCTION_COCO_MODEL_URL, { method: 'HEAD' });
+      if (headCheck.ok) {
+        return await cocoSsdModule.load({
+          base: 'lite_mobilenet_v2',
+          modelUrl: PRODUCTION_COCO_MODEL_URL,
+        });
+      }
+    } catch {
+      // Fallback ke model default bila HEAD gagal
+    }
+    return await cocoSsdModule.load({ base: 'lite_mobilenet_v2' });
+  })();
+
+  const loadResinPromise = (async () => {
+    if (cachedResinModel) return cachedResinModel;
+    const loadedResin = await tfModule.loadGraphModel(PRODUCTION_RESIN_MODEL_URL);
+    // Warmup tensor 1 pass
+    const warmIn = tfModule.zeros([1, 224, 224, 3], 'float32');
+    const warmOut = loadedResin.predict(warmIn) as import('@tensorflow/tfjs').Tensor;
+    await warmOut.data();
+    warmIn.dispose();
+    warmOut.dispose();
+    return loadedResin;
+  })();
+
+  const [cocoModel, resinModel] = await Promise.all([loadCocoPromise, loadResinPromise]);
+  cachedCocoModel = cocoModel;
+  cachedResinModel = resinModel;
+
+  return {
+    tf: cachedTfModule,
+    cocoModel: cachedCocoModel,
+    resinModel: cachedResinModel,
+  };
+}
+
+function preloadModels() {
+  if (!preloadPromise) {
+    preloadPromise = loadModelsAsync().catch(err => {
+      console.warn('Preload model AI latar belakang error:', err);
+      preloadPromise = null;
+      throw err;
+    });
+  }
+  return preloadPromise;
+}
+
 export default function Tahap1() {
   const { completeStage, lkpdAnswers, setLkpdAnswer } = useJourneyStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -381,53 +458,17 @@ export default function Tahap1() {
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  // Preload model AI di background saat user masuk ke Tahap 1 (di layar pembuka StageIntro)
+  useEffect(() => {
+    preloadModels();
+  }, []);
+
   async function ensureModelsLoaded() {
-    if (tfRef.current && cocoModelRef.current && resinModelRef.current) {
-      return {
-        tf: tfRef.current,
-        cocoModel: cocoModelRef.current,
-        resinModel: resinModelRef.current,
-      };
-    }
-
-    const [tfModule, cocoSsdModule] = await Promise.all([
-      import('@tensorflow/tfjs'),
-      import('@tensorflow-models/coco-ssd'),
-    ]);
-    await tfModule.ready();
-    tfRef.current = tfModule;
-
-    if (!cocoModelRef.current) {
-      try {
-        const headCheck = await fetch(PRODUCTION_COCO_MODEL_URL, { method: 'HEAD' });
-        if (headCheck.ok) {
-          cocoModelRef.current = await cocoSsdModule.load({
-            base: 'lite_mobilenet_v2',
-            modelUrl: PRODUCTION_COCO_MODEL_URL,
-          });
-        } else {
-          cocoModelRef.current = await cocoSsdModule.load({ base: 'lite_mobilenet_v2' });
-        }
-      } catch {
-        cocoModelRef.current = await cocoSsdModule.load({ base: 'lite_mobilenet_v2' });
-      }
-    }
-
-    if (!resinModelRef.current) {
-      const loadedResin = await tfModule.loadGraphModel(PRODUCTION_RESIN_MODEL_URL);
-      const warmIn = tfModule.zeros([1, 224, 224, 3], 'float32');
-      const warmOut = loadedResin.predict(warmIn) as import('@tensorflow/tfjs').Tensor;
-      await warmOut.data();
-      warmIn.dispose();
-      warmOut.dispose();
-      resinModelRef.current = loadedResin;
-    }
-
-    return {
-      tf: tfRef.current,
-      cocoModel: cocoModelRef.current,
-      resinModel: resinModelRef.current,
-    };
+    const loaded = await preloadModels();
+    tfRef.current = loaded.tf;
+    cocoModelRef.current = loaded.cocoModel;
+    resinModelRef.current = loaded.resinModel;
+    return loaded;
   }
 
   // Preprocessing: tf.slice + resizeBilinear([224, 224]) float32 [0..255] (embedded Rescaling di graph)
@@ -509,16 +550,21 @@ export default function Tahap1() {
         );
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Jalankan inisialisasi stream kamera dan pemuatan model AI secara paralel
+      const cameraStreamPromise = navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       });
+
+      const [stream, { cocoModel }] = await Promise.all([
+        cameraStreamPromise,
+        ensureModelsLoaded(),
+      ]);
+
       streamRef.current = stream;
       if (!videoRef.current) return;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setPhase('scanning');
-
-      const { cocoModel } = await ensureModelsLoaded();
       setModelLoading(false);
 
       async function detect() {
