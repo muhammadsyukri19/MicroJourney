@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { FOODS } from '@/lib/foods';
 import Stage3MaterialIntro from '@/components/stages/Stage3MaterialIntro';
+import { useStageBack } from '@/lib/stageBack';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 
 type Phase = 'materi' | 'select' | 'reveal' | 'summary';
@@ -243,6 +244,15 @@ export default function Tahap3() {
   }
 
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+
+  // Rangkuman -> hasil -> pilih makanan -> materi -> Tahap 2
+  useStageBack(() => {
+    if (phase === 'summary') setPhase('reveal');
+    else if (phase === 'reveal') setPhase('select');
+    else if (phase === 'select') setPhase('materi');
+    else return false;
+    return true;
+  });
 
   function handleNext() {
     completeStage(3);

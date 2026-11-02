@@ -1,5 +1,6 @@
 'use client';
 
+import { useStageBack } from '@/lib/stageBack';
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { MICROPLASTIC_JOURNEY_ITEMS, type DragItem } from '@/lib/dragDropData';
@@ -210,6 +211,11 @@ function DragCard({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => void }) {
   const [view, setView] = useState<'learn' | 'drag'>('learn');
+  useStageBack(() => {
+    if (view !== 'drag') return false;
+    setView('learn');
+    return true;
+  }, 1);
   const [items, setItems] = useState<DragItem[]>(() => {
     const arr = [...MICROPLASTIC_JOURNEY_ITEMS];
     do {

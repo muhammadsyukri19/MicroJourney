@@ -1,4 +1,5 @@
 'use client';
+import { useStageBack } from '@/lib/stageBack';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
@@ -169,6 +170,15 @@ export default function Tahap4() {
   }
 
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+
+  // Detail organ ditutup dulu, lalu LKPD -> organ -> pengantar -> Tahap 3
+  useStageBack(() => {
+    if (activeOrgan) setActiveOrgan(null);
+    else if (phase === 'lkpd') setPhase('organs');
+    else if (phase === 'organs') setPhase('bridge');
+    else return false;
+    return true;
+  });
 
   function handleNext() {
     setLkpdAnswer('lkpd3q1', lkpd3q1);

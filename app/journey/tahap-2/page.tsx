@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
+import { useStageBack } from '@/lib/stageBack';
 import { useAuthStore } from '@/lib/authStore';
 import Stage2Weathering from '@/components/stages/Stage2Weathering';
 import StageIntro from '@/components/stages/StageIntro';
@@ -21,17 +22,14 @@ export default function Tahap2() {
   const [guestModalOpen, setGuestModalOpen] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
-  // Tombol kembali mengikuti riwayat: lab -> video -> pengantar -> halaman sebelumnya
-  useEffect(() => {
-    const onPopState = () => setPhase(window.history.state?.stage2Step ? 'main' : 'intro');
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
-
-  function startMain() {
-    window.history.pushState({ ...window.history.state, stage2Step: 'video' }, '');
-    setPhase('main');
-  }
+  // Video -> pengantar -> Tahap 1 (langkah lab dan evaluasi ditangani Stage2Weathering)
+  useStageBack(() => {
+    if (phase === 'main') {
+      setPhase('intro');
+      return true;
+    }
+    return false;
+  });
 
   function handleComplete() {
     completeStage(2);
@@ -60,7 +58,7 @@ export default function Tahap2() {
               icon="wb_sunny"
               layout="split"
               actionText="Mulai Simulasi"
-              onStart={startMain}
+              onStart={() => setPhase('main')}
             />
           </div>
         )}

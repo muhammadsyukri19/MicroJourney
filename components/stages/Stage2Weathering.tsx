@@ -4,6 +4,7 @@ import YouTubePlayer from '@/components/ui/YouTubePlayer';
 import MikaMascot from '@/components/MikaMascot';
 import PlasticShatter3D, { CRACK_END } from '@/components/stages/PlasticShatter3D';
 import { useJourneyStore } from '@/lib/journeyStore';
+import { useStageBack } from '@/lib/stageBack';
 import MIKA_VOICE_LINES from '@/lib/mikaVoiceLines.json';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -650,23 +651,25 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     audioCtxRef.current = null;
   }, []);
 
-  const goToStep = (step: 'lab' | 'evaluation') => {
-    window.history.pushState({ ...window.history.state, stage2Step: step }, '');
-    setHasWatched(true);
-    setScreen(step);
-  };
-
-  // Tombol kembali menelusuri langkah di dalam tahap ini
-  useEffect(() => {
-    const onPopState = () => {
-      const step = window.history.state?.stage2Step;
+  // Evaluasi -> lab -> video
+  useStageBack(() => {
+    if (hasWatched && screen === 'evaluation') {
+      setScreen('lab');
+      return true;
+    }
+    if (hasWatched) {
       stopVoice();
-      setHasWatched(step === 'lab' || step === 'evaluation');
-      setScreen(step === 'evaluation' ? 'evaluation' : 'lab');
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, [stopVoice]);
+      // Animasi pecah yang sedang berjalan tidak dilanjutkan
+      if (labPhase === 'breaking') {
+        setLabPhase('lab');
+        setUvExposure(0);
+        setBottleIntegrity(100);
+      }
+      setHasWatched(false);
+      return true;
+    }
+    return false;
+  }, 1);
 
   const toggleVoiceGuide = () => {
     if (isSpeaking) stopVoice();
@@ -909,7 +912,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             <div className="flex justify-center md:mt-2 md:mb-16">
               <motion.button
                 onClick={() => {
-                  goToStep('lab');
+                  setHasWatched(true);
                   speakMika('intro');
                 }}
                 whileHover={{ scale: 1.05 }}
@@ -971,7 +974,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
               {/* Tombol Menuju Evaluasi */}
               <button
                 onClick={() => {
-                  goToStep('evaluation');
+                  setScreen('evaluation');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className={`${testedObjects.length > 0 ? 'inline-flex' : 'hidden md:inline-flex'} w-full md:w-auto justify-center items-center gap-2 px-5 py-2 md:py-3 rounded-xl md:rounded-2xl font-extrabold text-sm text-[#3b2313] transition-all shadow-xl active:scale-95 border-2 border-[#8e4912] flex-shrink-0`}
@@ -1196,7 +1199,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                       </button>
                       <button
                         onClick={() => {
-                          goToStep('evaluation');
+                          setScreen('evaluation');
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
                         className="flex-1 min-h-12 py-2 px-2 md:px-4 rounded-xl font-extrabold text-sm text-[#3b2313] transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useJourneyStore } from '@/lib/journeyStore';
 import StageIntro from '@/components/stages/StageIntro';
+import { useStageBack } from '@/lib/stageBack';
 import {
   classifyCrop,
   detectObjects,
@@ -938,6 +939,22 @@ export default function Tahap1() {
       setModelLoading(false);
     }
   }
+
+  // Hasil -> kamera -> layar pembuka -> peta
+  useStageBack(() => {
+    if (phase === 'pemantik') {
+      startCamera();
+      return true;
+    }
+    if (phase === 'scanning' || phase === 'detected' || cameraError) {
+      stopCamera();
+      setCameraError(null);
+      setModelLoading(false);
+      setPhase('init');
+      return true;
+    }
+    return false;
+  });
 
   function proceed() {
     completeStage(1);

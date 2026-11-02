@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
+import { runStageBack } from '@/lib/stageBack';
 import GuestLimitModal from '@/components/auth/GuestLimitModal';
 import BottomNav from '@/components/BottomNav';
 import UserProfileWidget from '@/components/auth/UserProfileWidget';
@@ -27,6 +28,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
 
   const isDashboard = pathname === '/journey';
   const currentId = isDashboard ? 0 : (STAGES.find(s => pathname.startsWith(s.path))?.id ?? 1);
+  const previousStage = STAGES.find(s => s.id === currentId - 1);
   const isGuest = !currentUser;
   const isGuestBlockedPath = isGuest && currentId > 2;
 
@@ -62,13 +64,16 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
               </button>
             ) : (
               <button
+                // Mundur per langkah di dalam tahap; setelah habis, ke tahap sebelumnya, lalu peta
                 onClick={() => {
-                  // Halaman yang dibuka langsung tidak punya riwayat, jadi kembali ke peta
-                  if (window.history.length > 1) router.back();
-                  else router.push('/journey');
+                  if (runStageBack()) {
+                    window.scrollTo(0, 0);
+                    return;
+                  }
+                  router.push(previousStage?.path ?? '/journey');
                 }}
-                title="Kembali ke halaman sebelumnya"
-                aria-label="Kembali ke halaman sebelumnya"
+                title="Kembali"
+                aria-label="Kembali"
                 className="relative flex items-center justify-center gap-1 w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
                 style={{
                   background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
