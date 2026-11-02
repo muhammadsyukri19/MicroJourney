@@ -42,12 +42,12 @@ export default function StageIntro({
 
       {/* Gelembung Animasi Bawah Air */}
       <motion.div
-        className="absolute bottom-[-10%] left-[10%] w-64 h-64 rounded-full bg-white/10 blur-2xl mix-blend-overlay pointer-events-none"
+        className="hidden md:block absolute bottom-[-10%] left-[10%] w-64 h-64 rounded-full bg-white/10 blur-2xl mix-blend-overlay pointer-events-none"
         animate={{ y: [0, -800], opacity: [0, 0.5, 0], scale: [1, 1.5] }}
         transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
       />
       <motion.div
-        className="absolute bottom-[-20%] right-[20%] w-48 h-48 rounded-full bg-[#6bff8f]/10 blur-2xl mix-blend-overlay pointer-events-none"
+        className="hidden md:block absolute bottom-[-20%] right-[20%] w-48 h-48 rounded-full bg-[#6bff8f]/10 blur-2xl mix-blend-overlay pointer-events-none"
         animate={{ y: [0, -900], opacity: [0, 0.4, 0], scale: [1, 2] }}
         transition={{ duration: 15, repeat: Infinity, ease: 'linear', delay: 3 }}
       />
@@ -83,7 +83,7 @@ export default function StageIntro({
             initial={{ opacity: 0, x: 50, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             transition={{ type: "spring", stiffness: 120, damping: 14, delay: 0.3 }}
-            className="w-full md:w-1/2 bg-white/10 backdrop-blur-md border border-white/30 p-4 sm:p-8 md:p-12 text-center md:text-left shadow-[0_32px_64px_rgba(0,0,0,0.4)] flex flex-col items-center md:items-start rounded-[24px] sm:rounded-[36px] md:rounded-[40%_60%_70%_30%_/_40%_50%_60%_50%]"
+            className="w-full md:w-1/2 bg-[#083b54]/60 md:bg-white/10 md:backdrop-blur-md border border-white/30 p-4 sm:p-8 md:p-12 text-center md:text-left shadow-[0_32px_64px_rgba(0,0,0,0.4)] flex flex-col items-center md:items-start rounded-[24px] sm:rounded-[36px] md:rounded-[40%_60%_70%_30%_/_40%_50%_60%_50%]"
           >
             {/* Ikon Mengambang (Opsional) */}
             {icon && (
@@ -122,7 +122,7 @@ export default function StageIntro({
           initial={{ scale: 0.8, y: 50 }}
           animate={{ scale: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 150, damping: 15 }}
-          className="relative z-10 w-[95%] max-w-2xl bg-white/20 backdrop-blur-xl border border-white/40 p-5 sm:p-12 text-center shadow-[0_32px_64px_rgba(0,101,145,0.4)] flex flex-col items-center rounded-[24px] sm:rounded-[36px] md:rounded-[40%_60%_70%_30%_/_40%_50%_60%_50%] my-auto"
+          className="relative z-10 w-[95%] max-w-2xl bg-[#083b54]/60 md:bg-white/20 md:backdrop-blur-xl border border-white/40 p-5 sm:p-12 text-center shadow-[0_32px_64px_rgba(0,101,145,0.4)] flex flex-col items-center rounded-[24px] sm:rounded-[36px] md:rounded-[40%_60%_70%_30%_/_40%_50%_60%_50%] my-auto"
         >
           {icon && (
             <motion.div

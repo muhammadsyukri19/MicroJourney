@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import YouTubePlayer from '@/components/ui/YouTubePlayer';
 import MikaMascot from '@/components/MikaMascot';
+import PlasticShatter3D, { CRACK_END } from '@/components/stages/PlasticShatter3D';
 import { useJourneyStore } from '@/lib/journeyStore';
 import MIKA_VOICE_LINES from '@/lib/mikaVoiceLines.json';
 
@@ -23,6 +24,18 @@ const PLASTIC_OBJECTS = [
 ];
 
 type VoiceLine = keyof typeof MIKA_VOICE_LINES;
+
+const BREAK_AUDIO_URLS = {
+  crack: '/audio/sfx/plastik-retak.mp3',
+  shatter: '/audio/sfx/plastik-pecah.mp3',
+  voice: '/audio/mika/tahap2-broken.mp3',
+};
+// Potongan berkas suara (detik): retak punya dua bunyi "krek", pecah diawali 0,3 detik hening
+const CRACK_FIRST = { offset: 0, duration: 0.25 };
+const CRACK_SECOND = { offset: 1.42, duration: 0.58, at: 0.42 };
+const SHATTER_OFFSET = 0.3;
+// Mika baru bicara setelah bunyi pecah utama selesai
+const BROKEN_VOICE_AT = 1.8;
 
 // Urutan pilihan suara wanita Indonesia di berbagai browser/HP
 const FEMALE_VOICE_HINTS = [/gadis/i, /damayanti/i, /natural/i, /google/i, /wanita|female/i];
@@ -62,10 +75,13 @@ const EVALUATION_QUESTIONS = [
 ];
 
 // ─── SVG Shapes per Object (Large, Bold & Realistic) ──────────────────────────
-function PlasticSVG({ objectId, uvExposure, breaking }: { objectId: string, uvExposure: number, breaking: boolean }) {
-  const filter = `brightness(${1 - uvExposure * 0.002}) sepia(${uvExposure * 0.7}%) saturate(${Math.max(0.3, 1 - uvExposure * 0.007)})`;
+function PlasticSVG({ objectId, uvExposure, integrity, breaking }: { objectId: string, uvExposure: number, integrity: number, breaking: boolean }) {
+  // Makin lama terjemur, plastik makin menguning
+  const filter = `brightness(${1 - uvExposure * 0.0008}) sepia(${uvExposure * 0.62}%) saturate(${1 + uvExposure * 0.006})`;
   const obj = PLASTIC_OBJECTS.find(o => o.id === objectId)!;
-  const crackOpacity = (threshold: number) => Math.max(0, Math.min(1, (uvExposure - threshold) / 30));
+  // Matahari hanya memunculkan retak halus pertama; retakan besar baru terbuka oleh hantaman ombak
+  const wear = uvExposure * 0.4 + (100 - integrity) * 0.6;
+  const crackOpacity = (threshold: number) => Math.max(0, Math.min(1, (wear - threshold) / 30));
 
   const baseCls = `transition-all duration-500 drop-shadow-2xl mx-auto block ${breaking ? 'opacity-0 scale-50' : 'opacity-100 scale-100 sm:scale-105'}`;
 
@@ -469,6 +485,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
+  const [useFallbackBreak, setUseFallbackBreak] = useState(false);
+  const [hasBurst, setHasBurst] = useState(false);
   const animRef = useRef<number>(0);
   const phaseRef = useRef(labPhase);
   phaseRef.current = labPhase;
@@ -476,6 +494,9 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
   const [isSpeaking, setIsSpeaking] = useState(false);
   const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const voiceFilesMissingRef = useRef(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const breakBuffersRef = useRef<Partial<Record<keyof typeof BREAK_AUDIO_URLS, AudioBuffer>>>({});
+  const scheduledVoiceRef = useRef<{ source?: AudioBufferSourceNode; timer?: number }>({});
   const [showOceanSampleModal, setShowOceanSampleModal] = useState(false);
 
   const showMessage = (text: string, type: 'info' | 'error' | 'success' = 'info') => {
@@ -486,6 +507,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
 
   const handleSelectObject = (id: string) => {
     if (labPhase === 'breaking') return;
+    stopVoice();
     setSelectedObject(id);
     setUvExposure(0);
     setBottleIntegrity(100);
@@ -498,6 +520,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     setBottleIntegrity(100);
     setLabPhase('lab');
     setMessage('');
+    stopVoice();
     showMessage(`🔄 Sampel objek telah di-reset ke kondisi awal. Silakan uji coba lagi!`, 'info');
   };
 
@@ -508,6 +531,16 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       voiceAudioRef.current.pause();
       voiceAudioRef.current = null;
     }
+    window.clearTimeout(scheduledVoiceRef.current.timer);
+    if (scheduledVoiceRef.current.source) {
+      scheduledVoiceRef.current.source.onended = null;
+      try {
+        scheduledVoiceRef.current.source.stop();
+      } catch {
+        // Sudah selesai diputar
+      }
+    }
+    scheduledVoiceRef.current = {};
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -554,8 +587,68 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     audio.onended = () => setIsSpeaking(false);
     audio.onerror = fallBack;
     setIsSpeaking(true);
-    audio.play().catch(fallBack);
+    audio.play().catch((err: Error) => {
+      // Diblokir browser bukan berarti berkasnya hilang
+      if (err.name === 'NotAllowedError') setIsSpeaking(false);
+      else fallBack();
+    });
   }, [speakWithDeviceVoice, stopVoice]);
+
+  /** Retak, pecah, lalu suara Mika dijadwalkan bersama agar pas dengan animasi */
+  const playBreakAudio = useCallback(() => {
+    const ctx = audioCtxRef.current;
+    const { crack, shatter, voice } = breakBuffersRef.current;
+    if (ctx && crack && shatter) {
+      const start = ctx.currentTime + 0.02;
+      const play = (buffer: AudioBuffer, at: number, offset: number, duration?: number) => {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(start + at, offset, duration);
+      };
+      play(crack, 0, CRACK_FIRST.offset, CRACK_FIRST.duration);
+      play(crack, CRACK_SECOND.at, CRACK_SECOND.offset, CRACK_SECOND.duration);
+      play(shatter, CRACK_END, SHATTER_OFFSET);
+    }
+    if (ctx && voice) {
+      const source = ctx.createBufferSource();
+      source.buffer = voice;
+      source.connect(ctx.destination);
+      source.onended = () => setIsSpeaking(false);
+      source.start(ctx.currentTime + BROKEN_VOICE_AT);
+      scheduledVoiceRef.current = {
+        source,
+        timer: window.setTimeout(() => setIsSpeaking(true), BROKEN_VOICE_AT * 1000),
+      };
+    } else {
+      scheduledVoiceRef.current = {
+        timer: window.setTimeout(() => speakMika('broken'), BROKEN_VOICE_AT * 1000),
+      };
+    }
+  }, [speakMika]);
+
+  // Unduh suara pecah lebih awal; AudioContext diaktifkan saat siswa menyentuh alat
+  useEffect(() => {
+    if (!hasWatched || audioCtxRef.current) return;
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    audioCtxRef.current = ctx;
+    (Object.keys(BREAK_AUDIO_URLS) as (keyof typeof BREAK_AUDIO_URLS)[]).forEach(key => {
+      fetch(BREAK_AUDIO_URLS[key])
+        .then(res => res.arrayBuffer())
+        .then(data => ctx.decodeAudioData(data))
+        .then(buffer => {
+          breakBuffersRef.current[key] = buffer;
+        })
+        .catch(err => console.warn('Suara gagal dimuat:', key, err));
+    });
+  }, [hasWatched]);
+
+  useEffect(() => () => {
+    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current = null;
+  }, []);
 
   const goToStep = (step: 'lab' | 'evaluation') => {
     window.history.pushState({ ...window.history.state, stage2Step: step }, '');
@@ -643,6 +736,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
 
   const handleApplyTool = (tool: 'uv' | 'wave' | 'bacteria') => {
     if (labPhase === 'breaking' || labPhase === 'complete') return;
+    // Browser HP hanya mengizinkan audio aktif dari sentuhan siswa
+    audioCtxRef.current?.resume().catch(() => {});
 
     if (tool === 'bacteria') {
       setActiveEffect('bacteria');
@@ -698,9 +793,9 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
 
   const triggerBreak = useCallback(() => {
     if (phaseRef.current === 'breaking' || phaseRef.current === 'complete') return;
+    setHasBurst(false);
     setLabPhase('breaking');
-    playSound('break');
-    speakMika('broken');
+    stopVoice();
     showMessage('💥 Pecah jadi serpihan sangat kecil!', 'success');
     const colors = ['#90caf9', '#80cbc4', '#ce93d8', '#fff176', '#ef9a9a', '#a5d6a7'];
     particlesRef.current = Array.from({ length: 150 }, () => ({
@@ -712,10 +807,25 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       opacity: 1,
       color: colors[Math.floor(Math.random() * colors.length)],
     }));
-  }, [speakMika]);
+  }, [stopVoice]);
 
+  const markBurst = useCallback(() => setHasBurst(true), []);
+  const markFallback = useCallback(() => setUseFallbackBreak(true), []);
+
+  const finishBreak = useCallback(() => {
+    setLabPhase('complete');
+    setTestedObjects(prev => Array.from(new Set([...prev, selectedObject])));
+  }, [selectedObject]);
+
+  // Muat pustaka 3D lebih awal agar animasi pecah langsung tampil
   useEffect(() => {
-    if (labPhase !== 'breaking') return;
+    if (hasWatched) import('three').catch(() => setUseFallbackBreak(true));
+  }, [hasWatched]);
+
+  // Animasi 2D hanya dipakai bila 3D tidak tersedia di perangkat
+  useEffect(() => {
+    if (labPhase !== 'breaking' || !useFallbackBreak) return;
+    playBreakAudio();
     const canvas = canvasRef.current!;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
@@ -742,15 +852,12 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       if (particlesRef.current.length > 0) {
         animRef.current = requestAnimationFrame(animate);
       } else {
-        setTimeout(() => {
-          setLabPhase('complete');
-          setTestedObjects(prev => Array.from(new Set([...prev, selectedObject])));
-        }, 400);
+        setTimeout(finishBreak, 400);
       }
     }
     animRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(animRef.current);
-  }, [labPhase]);
+  }, [labPhase, useFallbackBreak, finishBreak, playBreakAudio]);
 
   const obj = PLASTIC_OBJECTS.find(o => o.id === selectedObject)!;
 
@@ -1032,14 +1139,29 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                   </motion.div>
                 )}
 
-                {/* Floating Plastic Specimen */}
-                {labPhase !== 'complete' && (
-                  <motion.div 
-                    animate={labPhase === 'lab' ? { y: [0, -14, 0], rotate: [-1, 1, -1] } : {}} 
-                    transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+                {/* Benda asli tetap tampil dan rusak bertahap sampai pecahan 3D mengambil alih */}
+                {(labPhase === 'lab' || (labPhase === 'breaking' && !hasBurst && !useFallbackBreak)) && (
+                  <motion.div
+                    animate={labPhase === 'lab' ? { y: [0, -14, 0], rotate: [-1, 1, -1] } : { y: 0, rotate: 0 }}
+                    transition={labPhase === 'lab' ? { duration: 4.5, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.1 }}
                     className="absolute inset-2 md:relative md:inset-auto z-10 flex items-center justify-center md:p-2"
                   >
-                    <PlasticSVG objectId={selectedObject} uvExposure={uvExposure} breaking={labPhase === 'breaking'} />
+                    {/* Berguncang tiap kena ombak, dan bergetar makin kuat sesaat sebelum pecah */}
+                    <motion.div
+                      key={`hit-${bottleIntegrity}-${labPhase}`}
+                      className="h-full md:h-auto flex items-center justify-center"
+                      initial={false}
+                      animate={
+                        labPhase === 'breaking'
+                          ? { x: [0, -3, 3, -5, 5, -8, 8, -10, 10, 0], rotate: [0, -0.5, 0.5, -1, 1, -1.5, 1.5, -2, 2, 0] }
+                          : bottleIntegrity < 100
+                          ? { x: [0, -12, 11, -8, 6, -3, 0], rotate: [0, -3, 3, -2, 1, 0, 0] }
+                          : {}
+                      }
+                      transition={{ duration: labPhase === 'breaking' ? CRACK_END : 0.55, ease: 'easeOut' }}
+                    >
+                      <PlasticSVG objectId={selectedObject} uvExposure={uvExposure} integrity={bottleIntegrity} breaking={false} />
+                    </motion.div>
                   </motion.div>
                 )}
 
@@ -1089,12 +1211,22 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     </div>
                   </motion.div>
                 )}
+                {(labPhase === 'breaking' || labPhase === 'complete') && !useFallbackBreak && (
+                  <PlasticShatter3D
+                    objectId={selectedObject}
+                    uvExposure={uvExposure}
+                    onStart={playBreakAudio}
+                    onBurst={markBurst}
+                    onDone={finishBreak}
+                    onUnavailable={markFallback}
+                  />
+                )}
                 <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
               </div>
 
               {/* Draggable Tools Desk (Bottom) */}
               <AnimatePresence>
-                {labPhase === 'lab' && (
+                {(labPhase === 'lab' || (labPhase === 'breaking' && !hasBurst && !useFallbackBreak)) && (
                   <motion.div 
                     initial={{ y: 40, opacity: 0 }} 
                     animate={{ y: 0, opacity: 1 }} 

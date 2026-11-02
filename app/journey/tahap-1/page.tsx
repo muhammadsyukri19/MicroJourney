@@ -2,6 +2,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useJourneyStore } from '@/lib/journeyStore';
 import StageIntro from '@/components/stages/StageIntro';
+import {
+  classifyCrop,
+  detectObjects,
+  releaseFrame,
+  startScannerAI,
+  stopScannerAI,
+} from '@/lib/plasticScannerClient';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -224,8 +231,6 @@ const CANDIDATE_PAD_RATIOS = [0.08, 0.2];
 const REJECTED_MATERIAL_STATUS =
   'AI belum yakin. Coba foto dari sisi lain, atau cari kode segitiga di kemasan.';
 
-const PRODUCTION_RESIN_MODEL_URL = '/models/plastic/model.json';
-const PRODUCTION_COCO_MODEL_URL = '/models/coco-ssd/model.json';
 
 // Faktor interpolasi posisi bingkai per frame render (0..1, makin besar makin responsif)
 const BOX_LERP = 0.28;
@@ -393,93 +398,14 @@ const INITIAL_SCAN_CARD: ScanFeedbackState = {
   message: 'Arahkan kamera ke sampah plastik sampai masuk bingkai, lalu tekan Scan.',
 };
 
-// Singleton cache & preload promise di level modul agar model hanya dimuat 1x dan instan saat dibuka kembali
-let cachedTfModule: typeof import('@tensorflow/tfjs') | null = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cachedCocoModel: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cachedResinModel: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let preloadPromise: Promise<{ tf: any; cocoModel: any; resinModel: any }> | null = null;
-
-async function loadModelsAsync() {
-  if (cachedCocoModel && cachedResinModel && cachedTfModule) {
-    return {
-      tf: cachedTfModule,
-      cocoModel: cachedCocoModel,
-      resinModel: cachedResinModel,
-    };
-  }
-
-  const [tfModule, cocoSsdModule] = await Promise.all([
-    import('@tensorflow/tfjs'),
-    import('@tensorflow-models/coco-ssd'),
-  ]);
-
-  await tfModule.ready();
-  cachedTfModule = tfModule;
-
-  // Muat COCO-SSD dan Resin MobileNetV2 secara paralel
-  const loadCocoPromise = (async () => {
-    if (cachedCocoModel) return cachedCocoModel;
-    try {
-      const headCheck = await fetch(PRODUCTION_COCO_MODEL_URL, { method: 'HEAD' });
-      if (headCheck.ok) {
-        return await cocoSsdModule.load({
-          base: 'lite_mobilenet_v2',
-          modelUrl: PRODUCTION_COCO_MODEL_URL,
-        });
-      }
-    } catch {
-      // Fallback ke model default bila HEAD gagal
-    }
-    return await cocoSsdModule.load({ base: 'lite_mobilenet_v2' });
-  })();
-
-  const loadResinPromise = (async () => {
-    if (cachedResinModel) return cachedResinModel;
-    const loadedResin = await tfModule.loadGraphModel(PRODUCTION_RESIN_MODEL_URL);
-    // Warmup tensor 1 pass (batch 2 = crop + versi cermin, sama seperti saat analisis foto)
-    const warmIn = tfModule.zeros([2, 224, 224, 3], 'float32');
-    const warmOut = loadedResin.predict(warmIn) as import('@tensorflow/tfjs').Tensor;
-    await warmOut.data();
-    warmIn.dispose();
-    warmOut.dispose();
-    return loadedResin;
-  })();
-
-  const [cocoModel, resinModel] = await Promise.all([loadCocoPromise, loadResinPromise]);
-  // Warmup COCO-SSD agar tombol Scan pertama tidak menunggu kompilasi shader
-  const warmFrame = tfModule.zeros([300, 300, 3], 'int32') as import('@tensorflow/tfjs').Tensor3D;
-  await cocoModel.detect(warmFrame);
-  warmFrame.dispose();
-  cachedCocoModel = cocoModel;
-  cachedResinModel = resinModel;
-
-  return {
-    tf: cachedTfModule,
-    cocoModel: cachedCocoModel,
-    resinModel: cachedResinModel,
-  };
-}
-
-function preloadModels() {
-  if (!preloadPromise) {
-    preloadPromise = loadModelsAsync().catch(err => {
-      console.warn('Preload model AI latar belakang error:', err);
-      preloadPromise = null;
-      throw err;
-    });
-  }
-  return preloadPromise;
-}
+let stopAiTimer = 0;
 
 export default function Tahap1() {
   const { completeStage, lkpdAnswers, setLkpdAnswer } = useJourneyStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const procCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const staticOverlayKeyRef = useRef<string | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const renderRafRef = useRef<number>(0);
@@ -499,14 +425,6 @@ export default function Tahap1() {
   });
   const displayBoxRef = useRef<Box | null>(null);
   const boxAlphaRef = useRef(0);
-
-  // Model references
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tfRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cocoModelRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resinModelRef = useRef<any>(null);
 
   const [phase, setPhaseState] = useState<Phase>('init');
   const setPhase = useCallback((p: Phase) => {
@@ -603,68 +521,15 @@ export default function Tahap1() {
     [stopCamera]
   );
 
-  // Preload model AI di background saat user masuk ke Tahap 1 (di layar pembuka StageIntro)
+  // AI disiapkan di Web Worker sejak layar pembuka, jadi tampilan tidak ikut macet.
+  // Penghentian ditunda agar pemasangan ganda di mode dev tidak memuat ulang model.
   useEffect(() => {
-    preloadModels().catch(() => {});
+    window.clearTimeout(stopAiTimer);
+    startScannerAI().catch(err => console.warn('AI scanner gagal disiapkan:', err));
+    return () => {
+      stopAiTimer = window.setTimeout(stopScannerAI, 500);
+    };
   }, []);
-
-  async function ensureModelsLoaded() {
-    const loaded = await preloadModels();
-    tfRef.current = loaded.tf;
-    cocoModelRef.current = loaded.cocoModel;
-    resinModelRef.current = loaded.resinModel;
-    return loaded;
-  }
-
-  // Preprocessing: crop ke canvas kecil -> resizeBilinear([224, 224]) float32 [0..255]
-  // (Rescaling sudah tertanam di graph). Hanya area crop yang diunggah ke GPU, bukan full frame.
-  const classifyCropTensor = useCallback(
-    (
-      sourceCanvas: HTMLCanvasElement,
-      cropBox: Box
-    ): number[] | null => {
-      const tf = tfRef.current;
-      const resinModel = resinModelRef.current;
-      const [cx1, cy1, cw, ch] = cropBox.map(v => Math.round(v)) as Box;
-
-      if (!tf || !resinModel || cw < 8 || ch < 8) return null;
-
-      if (!cropCanvasRef.current) cropCanvasRef.current = document.createElement('canvas');
-      const crop = cropCanvasRef.current;
-      if (crop.width !== cw) crop.width = cw;
-      if (crop.height !== ch) crop.height = ch;
-      const cctx = crop.getContext('2d', { willReadFrequently: true });
-      if (!cctx) return null;
-      cctx.drawImage(sourceCanvas, cx1, cy1, cw, ch, 0, 0, cw, ch);
-
-      // Periksa variansi luminansi di seluruh area crop (bukan hanya pojok kiri atas)
-      const imgData = cctx.getImageData(0, 0, cw, ch).data;
-      const step = Math.max(4, Math.floor(imgData.length / 4 / 1024)) * 4;
-      let sumLum = 0;
-      let sumSqLum = 0;
-      let count = 0;
-      for (let i = 0; i < imgData.length; i += step) {
-        const lum = 0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2];
-        sumLum += lum;
-        sumSqLum += lum * lum;
-        count++;
-      }
-      if (count === 0) return null;
-      const meanLum = sumLum / count;
-      const varianceLum = sumSqLum / count - meanLum * meanLum;
-      if (varianceLum < 1.0) return null;
-
-      // Rata-rata prediksi crop dan versi cerminnya agar hasil satu foto lebih stabil
-      return tf.tidy(() => {
-        const cropTensor = tf.browser.fromPixels(crop);
-        const resized = tf.image.resizeBilinear(cropTensor, [224, 224], false).toFloat();
-        const batched = tf.stack([resized, tf.reverse(resized, 1)]);
-        const outTensor = resinModel.predict(batched);
-        return Array.from(outTensor.mean(0).dataSync()) as number[];
-      });
-    },
-    []
-  );
 
   /** Loop render 60fps: menggambar bingkai bidik, sapuan laser saat analisis, dan bingkai objek */
   const drawOverlayFrame = useCallback(() => {
@@ -679,6 +544,15 @@ export default function Tahap1() {
     // Ubah ukuran canvas hanya bila dimensi berubah (mengubah ukuran tiap frame = flicker & boros)
     if (canvas.width !== vw) canvas.width = vw;
     if (canvas.height !== vh) canvas.height = vh;
+
+    // Saat menunggu Scan bingkai tidak berubah, jadi cukup digambar sekali
+    const staticKey =
+      captureModeRef.current === 'live' && boxAlphaRef.current === 0 && phaseRef.current === 'scanning'
+        ? `${vw}x${vh}x${video.clientWidth}x${video.clientHeight}`
+        : null;
+    if (staticKey && staticOverlayKeyRef.current === staticKey) return;
+    staticOverlayKeyRef.current = staticKey;
+
     ctx.clearRect(0, 0, vw, vh);
 
     const region = getVisibleRegion(video);
@@ -790,8 +664,7 @@ export default function Tahap1() {
   /** Memotret frame kamera saat tombol Scan ditekan, lalu: COCO-SSD -> crop -> klasifikasi resin */
   const analyzeCapture = useCallback(async () => {
     const video = videoRef.current;
-    const cocoModel = cocoModelRef.current;
-    if (!video || !cocoModel || video.readyState < 2) return;
+    if (!video || video.readyState < 2) return;
     if (phaseRef.current !== 'scanning' || captureModeRef.current !== 'live') return;
     const session = sessionRef.current;
 
@@ -818,17 +691,10 @@ export default function Tahap1() {
     };
 
     try {
-      // Beri kesempatan UI menampilkan status sebelum inferensi berjalan
-      await new Promise(r => setTimeout(r, 50));
-
       const region = getVisibleRegion(video);
       const roi = getCenterRoi(region);
 
-      const preds: Array<{ bbox: Box; class: string; score: number }> = await cocoModel.detect(
-        procCanvas,
-        6,
-        0.2
-      );
+      const preds = await detectObjects(await createImageBitmap(procCanvas));
       if (session !== sessionRef.current) return;
 
       // Abaikan deteksi yang sebagian besar berada di luar area layar yang terlihat
@@ -904,7 +770,7 @@ export default function Tahap1() {
         const cy1 = Math.max(0, y1 - padY);
         const cx2 = Math.min(vw, x2 + padX);
         const cy2 = Math.min(vh, y2 + padY);
-        const probs = classifyCropTensor(procCanvas, [
+        const probs = await classifyCrop([
           cx1,
           cy1,
           Math.max(1, cx2 - cx1),
@@ -912,6 +778,8 @@ export default function Tahap1() {
         ]);
         if (probs) allProbs.push(probs);
       }
+      if (session !== sessionRef.current) return;
+      releaseFrame().catch(() => {});
 
       let topClass: string | null = null;
       let topScore: number | null = null;
@@ -1003,7 +871,7 @@ export default function Tahap1() {
         { box: null, kind: 'none', label: '', isCenterFallback: false }
       );
     }
-  }, [classifyCropTensor, playScanPing, setCaptureMode, setPhase, stopCamera]);
+  }, [playScanPing, setCaptureMode, setPhase, stopCamera]);
 
   function retakePhoto() {
     overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
@@ -1035,7 +903,7 @@ export default function Tahap1() {
       }
 
       // Kamera & model dimuat paralel; video ditampilkan secepatnya selagi model masih dimuat
-      const modelsPromise = ensureModelsLoaded();
+      const modelsPromise = startScannerAI();
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
@@ -1066,7 +934,7 @@ export default function Tahap1() {
     } catch (err: unknown) {
       if (session !== sessionRef.current) return;
       stopCamera();
-      setCameraError(err instanceof Error ? err.message : 'Akses kamera ditolak');
+      setCameraError(err instanceof Error ? err.message : 'Kamera atau AI belum bisa dibuka.');
       setModelLoading(false);
     }
   }
@@ -1218,7 +1086,7 @@ export default function Tahap1() {
           {/* Pill status ringkas — diletakkan di bawah header kayu (h-28) */}
           <div className="absolute top-[7.5rem] inset-x-0 flex justify-center px-4">
             <div
-              className={`px-3.5 py-1.5 rounded-full backdrop-blur-md border shadow-lg flex items-center gap-2 transition-colors duration-300 ${
+              className={`px-3.5 py-1.5 rounded-full md:backdrop-blur-md border shadow-lg flex items-center gap-2 transition-colors duration-300 ${
                 statusTone === 'lock'
                   ? 'bg-[#006e2f]/85 border-[#6bff8f]/60 text-[#6bff8f]'
                   : statusTone === 'warn'
@@ -1242,7 +1110,7 @@ export default function Tahap1() {
 
           {/* Kartu informasi bawah */}
           <div className="absolute inset-x-0 bottom-0 flex flex-col items-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pointer-events-auto">
-            <div className="w-[min(100%,440px)] bg-[#083b54]/90 backdrop-blur-md border border-white/15 rounded-2xl p-3.5 shadow-2xl text-white">
+            <div className="w-[min(100%,440px)] bg-[#083b54]/95 md:backdrop-blur-md border border-white/15 rounded-2xl p-3.5 shadow-2xl text-white">
               {/* Pesan panduan utama */}
               <div className="flex items-center justify-between gap-2">
                 <p
