@@ -2,6 +2,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useJourneyStore } from '@/lib/journeyStore';
 import StageIntro from '@/components/stages/StageIntro';
+import PlasticShatter3D from '@/components/stages/PlasticShatter3D';
+import MicroplasticAR from '@/components/stages/MicroplasticAR';
 import { useStageBack } from '@/lib/stageBack';
 import {
   classifyCrop,
@@ -400,6 +402,7 @@ const INITIAL_SCAN_CARD: ScanFeedbackState = {
 };
 
 let stopAiTimer = 0;
+const noop = () => {};
 
 export default function Tahap1() {
   const { completeStage, lkpdAnswers, setLkpdAnswer } = useJourneyStore();
@@ -440,6 +443,7 @@ export default function Tahap1() {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [showAnswerHint, setShowAnswerHint] = useState(false);
+  const [shatterObject, setShatterObject] = useState('bag');
   const answerRef = useRef<HTMLTextAreaElement>(null);
   const [captureMode, setCaptureModeState] = useState<CaptureMode>('live');
   const setCaptureMode = useCallback((mode: CaptureMode) => {
@@ -836,11 +840,13 @@ export default function Tahap1() {
         });
         setCaptureMode('result');
         playScanPing('lock');
+        // Kamera dilanjutkan agar plastik pecah di atas gambar nyata
+        setShatterObject(
+          ({ bottle: 'bottle', cup: 'cup', bowl: 'jug' } as Record<string, string>)[evalLabel.toLowerCase()] ?? 'bag'
+        );
+        overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
+        video.play().catch(() => {});
         setPhase('detected');
-        lockTimeoutRef.current = window.setTimeout(() => {
-          stopCamera();
-          setPhase('pemantik');
-        }, 1500);
         return;
       }
 
@@ -872,7 +878,7 @@ export default function Tahap1() {
         { box: null, kind: 'none', label: '', isCenterFallback: false }
       );
     }
-  }, [playScanPing, setCaptureMode, setPhase, stopCamera]);
+  }, [playScanPing, setCaptureMode, setPhase]);
 
   function retakePhoto() {
     overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
@@ -955,6 +961,17 @@ export default function Tahap1() {
     }
     return false;
   });
+
+  const showResultCard = useCallback(() => {
+    stopCamera();
+    setPhase('pemantik');
+  }, [setPhase, stopCamera]);
+
+  const playShatterSound = useCallback(() => {
+    const sound = new Audio('/audio/sfx/plastik-pecah.mp3');
+    sound.currentTime = 0.3;
+    sound.play().catch(() => {});
+  }, []);
 
   function proceed() {
     completeStage(1);
@@ -1048,6 +1065,18 @@ export default function Tahap1() {
         </div>
       )}
 
+      {/* Plastik pecah menjadi mikroplastik 3D di atas kamera yang tetap hidup */}
+      {phase === 'detected' && (
+        <PlasticShatter3D
+          objectId={shatterObject}
+          uvExposure={40}
+          onStart={noop}
+          onBurst={playShatterSound}
+          onDone={showResultCard}
+          onUnavailable={showResultCard}
+        />
+      )}
+
       {/* Real-time Scanning HUD */}
       {(phase === 'scanning' || phase === 'detected') && (
         <div className="absolute inset-0 pointer-events-none z-20">
@@ -1075,27 +1104,6 @@ export default function Tahap1() {
                   Menyiapkan kamera &amp; model AI…
                 </p>
                 <p className="text-white/60 text-xs">Hanya perlu beberapa detik</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Kilatan sukses saat target terkunci */}
-          <AnimatePresence>
-            {phase === 'detected' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_center,rgba(107,255,143,0.28),transparent_65%)]"
-              >
-                <motion.div
-                  initial={{ scale: 0.4, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 320, damping: 18 }}
-                  className="w-20 h-20 rounded-full bg-[#006e2f]/90 border-2 border-[#6bff8f] shadow-[0_0_40px_rgba(107,255,143,0.6)] flex items-center justify-center"
-                >
-                  <span className="material-symbols-outlined text-[#6bff8f] text-5xl">check</span>
-                </motion.div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1271,6 +1279,7 @@ export default function Tahap1() {
               <p className="mt-1 text-xs text-[#6e7881] leading-snug shrink-0">
                 Ini tebakan AI. Untuk memastikan, cari kode segitiga di kemasan.
               </p>
+              <MicroplasticAR />
 
               {/* Pertanyaan */}
               <div className="mt-2.5 pt-2.5 [@media(min-height:720px)]:mt-4 [@media(min-height:720px)]:pt-4 border-t border-[#e4eff4] flex-1 min-h-[9.5rem] flex flex-col">
