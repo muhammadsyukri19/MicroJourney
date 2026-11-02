@@ -3,6 +3,7 @@ import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import YouTubePlayer from '@/components/ui/YouTubePlayer';
 import MikaMascot from '@/components/MikaMascot';
 import { useJourneyStore } from '@/lib/journeyStore';
+import MIKA_VOICE_LINES from '@/lib/mikaVoiceLines.json';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LabPhase = 'lab' | 'breaking' | 'complete';
@@ -14,12 +15,17 @@ interface Particle {
 
 // ─── Plastic Objects Data ─────────────────────────────────────────────────────
 const PLASTIC_OBJECTS = [
-  { id: 'bottle', emoji: '🍾', label: 'Botol Plastik', type: 'PET (Kode 1)', years: 450, color: '#B3E5FC', strokeColor: '#64B5F6' },
+  { id: 'bottle', emoji: '🧴', label: 'Botol Plastik', type: 'PET (Kode 1)', years: 450, color: '#B3E5FC', strokeColor: '#64B5F6' },
   { id: 'cup', emoji: '🥤', label: 'Gelas Plastik', type: 'PP (Kode 5)', years: 400, color: '#FFCCBC', strokeColor: '#FF7043' },
   { id: 'bag', emoji: '🛍️', label: 'Kantong Kresek', type: 'LDPE (Kode 4)', years: 1000, color: '#E1BEE7', strokeColor: '#AB47BC' },
   { id: 'straw', emoji: '🧃', label: 'Sedotan Plastik', type: 'PP (Kode 5)', years: 200, color: '#F8BBD0', strokeColor: '#E91E63' },
   { id: 'jug', emoji: '🫙', label: 'Wadah Plastik', type: 'HDPE (Kode 2)', years: 500, color: '#C8E6C9', strokeColor: '#43A047' },
 ];
+
+type VoiceLine = keyof typeof MIKA_VOICE_LINES;
+
+// Urutan pilihan suara wanita Indonesia di berbagai browser/HP
+const FEMALE_VOICE_HINTS = [/gadis/i, /damayanti/i, /natural/i, /google/i, /wanita|female/i];
 
 // ─── Pertanyaan Evaluasi (LKPD) ───────────────────────────────────────────────
 const EVALUATION_QUESTIONS = [
@@ -65,7 +71,7 @@ function PlasticSVG({ objectId, uvExposure, breaking }: { objectId: string, uvEx
 
   if (objectId === 'bottle') {
     return (
-      <svg viewBox="0 0 160 300" className={`w-40 h-72 sm:w-52 sm:h-96 md:w-60 md:h-[400px] ${baseCls}`} style={{ filter }}>
+      <svg viewBox="0 0 160 300" className={`h-full w-auto md:w-60 md:h-[400px] ${baseCls}`} style={{ filter }}>
         <defs>
           <filter id="crackGlow" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ba1a1a" floodOpacity="0.8" />
@@ -158,7 +164,7 @@ function PlasticSVG({ objectId, uvExposure, breaking }: { objectId: string, uvEx
 
   if (objectId === 'cap' || objectId === 'cup') {
     return (
-      <svg viewBox="0 0 180 240" className={`w-44 h-60 sm:w-56 sm:h-76 md:w-68 md:h-[350px] ${baseCls}`} style={{ filter }}>
+      <svg viewBox="0 0 180 240" className={`h-full w-auto md:w-68 md:h-[350px] ${baseCls}`} style={{ filter }}>
         <defs>
           <filter id="crackGlowCup" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ba1a1a" floodOpacity="0.8" />
@@ -230,7 +236,7 @@ function PlasticSVG({ objectId, uvExposure, breaking }: { objectId: string, uvEx
 
   if (objectId === 'bag') {
     return (
-      <svg viewBox="0 0 200 240" className={`w-48 h-60 sm:w-60 sm:h-76 md:w-72 md:h-[350px] ${baseCls}`} style={{ filter }}>
+      <svg viewBox="0 0 200 240" className={`h-full w-auto md:w-72 md:h-[350px] ${baseCls}`} style={{ filter }}>
         <defs>
           <filter id="crackGlowBag" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ba1a1a" floodOpacity="0.8" />
@@ -303,7 +309,7 @@ function PlasticSVG({ objectId, uvExposure, breaking }: { objectId: string, uvEx
 
   if (objectId === 'straw') {
     return (
-      <svg viewBox="0 0 100 320" className={`w-28 h-72 sm:w-36 sm:h-96 md:w-44 md:h-[400px] ${baseCls}`} style={{ filter }}>
+      <svg viewBox="0 0 100 320" className={`h-full w-auto md:w-44 md:h-[400px] ${baseCls}`} style={{ filter }}>
         <defs>
           <filter id="crackGlowStraw" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ba1a1a" floodOpacity="0.8" />
@@ -367,7 +373,7 @@ function PlasticSVG({ objectId, uvExposure, breaking }: { objectId: string, uvEx
 
   if (objectId === 'jug') {
     return (
-      <svg viewBox="0 0 200 240" className={`w-48 h-60 sm:w-60 sm:h-76 md:w-72 md:h-[350px] ${baseCls}`} style={{ filter }}>
+      <svg viewBox="0 0 200 240" className={`h-full w-auto md:w-72 md:h-[350px] ${baseCls}`} style={{ filter }}>
         <defs>
           <filter id="crackGlowJug" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#ba1a1a" floodOpacity="0.8" />
@@ -468,6 +474,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
   phaseRef.current = labPhase;
 
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
+  const voiceFilesMissingRef = useRef(false);
   const [showOceanSampleModal, setShowOceanSampleModal] = useState(false);
 
   const showMessage = (text: string, type: 'info' | 'error' | 'success' = 'info') => {
@@ -493,20 +501,90 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     showMessage(`🔄 Sampel objek telah di-reset ke kondisi awal. Silakan uji coba lagi!`, 'info');
   };
 
-  const playVoiceInstruction = () => {
+  const stopVoice = useCallback(() => {
+    if (voiceAudioRef.current) {
+      voiceAudioRef.current.onended = null;
+      voiceAudioRef.current.onerror = null;
+      voiceAudioRef.current.pause();
+      voiceAudioRef.current = null;
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const text = "Halo penjelajah! Di laboratorium ini, seret atau drag ketiga media di bawah ini ke arah objek plastik di tengah. Coba geser terus berulang kali sampai objek plastik hancur dan pecah menjadi mikroplastik!";
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'id-ID';
-      utterance.rate = 0.95;
-      utterance.pitch = 1.05;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
     }
+    setIsSpeaking(false);
+  }, []);
+
+  /** Suara bawaan HP: pilih suara wanita Indonesia yang terdengar paling natural */
+  const speakWithDeviceVoice = useCallback((text: string) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      setIsSpeaking(false);
+      return;
+    }
+    const indonesian = window.speechSynthesis
+      .getVoices()
+      .filter(v => /^(id|in)[-_]/i.test(v.lang));
+    const voice = FEMALE_VOICE_HINTS.map(hint => indonesian.find(v => hint.test(v.name))).find(Boolean) ?? indonesian[0];
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'id-ID';
+    if (voice) utterance.voice = voice;
+    utterance.rate = 1.05;
+    utterance.pitch = 1.2;
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  /** MP3 di public/audio/mika bila tersedia; bila belum ada, memakai suara bawaan HP */
+  const speakMika = useCallback((key: VoiceLine) => {
+    stopVoice();
+    const text = MIKA_VOICE_LINES[key];
+    if (voiceFilesMissingRef.current) {
+      speakWithDeviceVoice(text);
+      return;
+    }
+    const audio = new Audio(`/audio/mika/tahap2-${key}.mp3`);
+    voiceAudioRef.current = audio;
+    const fallBack = () => {
+      if (voiceAudioRef.current !== audio) return;
+      voiceAudioRef.current = null;
+      voiceFilesMissingRef.current = true;
+      speakWithDeviceVoice(text);
+    };
+    audio.onended = () => setIsSpeaking(false);
+    audio.onerror = fallBack;
+    setIsSpeaking(true);
+    audio.play().catch(fallBack);
+  }, [speakWithDeviceVoice, stopVoice]);
+
+  const goToStep = (step: 'lab' | 'evaluation') => {
+    window.history.pushState({ ...window.history.state, stage2Step: step }, '');
+    setHasWatched(true);
+    setScreen(step);
   };
+
+  // Tombol kembali menelusuri langkah di dalam tahap ini
+  useEffect(() => {
+    const onPopState = () => {
+      const step = window.history.state?.stage2Step;
+      stopVoice();
+      setHasWatched(step === 'lab' || step === 'evaluation');
+      setScreen(step === 'evaluation' ? 'evaluation' : 'lab');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [stopVoice]);
+
+  const toggleVoiceGuide = () => {
+    if (isSpeaking) stopVoice();
+    else speakMika('intro');
+  };
+
+  // Daftar suara HP dimuat asinkron; hentikan suara saat keluar dari halaman
+  useEffect(() => {
+    if ('speechSynthesis' in window) window.speechSynthesis.getVoices();
+    return stopVoice;
+  }, [stopVoice]);
 
   const playSound = (type: 'uv' | 'wave' | 'error' | 'break') => {
     try {
@@ -569,28 +647,31 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     if (tool === 'bacteria') {
       setActiveEffect('bacteria');
       playSound('error');
-      showMessage('❌ Bakteri: "Plastik ini polimer sintetis buatan manusia, aku tidak bisa menguraikannya!"', 'error');
+      speakMika('bacteria');
+      showMessage('🦠 Bakteri menyerah! Plastik buatan manusia, jadi tidak bisa ia uraikan.', 'error');
     } else if (tool === 'uv') {
       setActiveEffect('uv');
       playSound('uv');
+      if (uvExposure < 50 && uvExposure + 35 >= 50) speakMika('uvReady');
       if (uvExposure < 100) {
         setUvExposure(prev => {
           const next = Math.min(100, prev + 35);
           if (next >= 100) {
-            showMessage('☀️ Kerapuhan UV 100%! Sekarang seret Ombak berulang kali sampai hancur pecah!', 'success');
+            showMessage('☀️ Sudah sangat rapuh! Hantam terus pakai Ombak!', 'success');
           } else {
-            showMessage(`☀️ Sinar UV memutus ikatan polimer (${next}%). Geser terus!`, 'info');
+            showMessage(`☀️ Plastiknya mulai rapuh (${next}%). Terus!`, 'info');
           }
           return next;
         });
       } else {
-        showMessage('☀️ Objek sudah sangat getas oleh UV! Sekarang seret Ombak terus sampai pecah!', 'info');
+        showMessage('☀️ Sudah cukup dijemur! Sekarang pakai Ombak!', 'info');
       }
     } else if (tool === 'wave') {
       setActiveEffect('wave');
       playSound('wave');
       if (uvExposure < 50) {
-        showMessage('🌊 Ombak menerjang, tapi plastik masih terlalu alot! Panaskan dulu dengan Panas Matahari (UV) minimal 50% agar getas.', 'error');
+        speakMika('waveEarly');
+        showMessage('🌊 Plastiknya masih kuat! Jemur dulu pakai Matahari.', 'error');
       } else {
         const damage = uvExposure >= 100 ? 50 : 35;
         setBottleIntegrity(prev => {
@@ -598,7 +679,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
           if (next <= 0) {
             triggerBreak();
           } else {
-            showMessage(`💥 Ombak meretakkan plastik yang getas! Fisik tersisa ${next}%. Geser ombak lagi sampai hancur!`, 'success');
+            showMessage(`💥 Retak! Tinggal ${next}%. Hantam lagi!`, 'success');
           }
           return next;
         });
@@ -619,7 +700,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     if (phaseRef.current === 'breaking' || phaseRef.current === 'complete') return;
     setLabPhase('breaking');
     playSound('break');
-    showMessage('💥 Hancur menjadi jutaan mikroplastik!', 'success');
+    speakMika('broken');
+    showMessage('💥 Pecah jadi serpihan sangat kecil!', 'success');
     const colors = ['#90caf9', '#80cbc4', '#ce93d8', '#fff176', '#ef9a9a', '#a5d6a7'];
     particlesRef.current = Array.from({ length: 150 }, () => ({
       x: 0.5, y: 0.5,
@@ -630,7 +712,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       opacity: 1,
       color: colors[Math.floor(Math.random() * colors.length)],
     }));
-  }, []);
+  }, [speakMika]);
 
   useEffect(() => {
     if (labPhase !== 'breaking') return;
@@ -686,7 +768,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
   };
 
   return (
-    <div className="w-full h-full font-[family-name:var(--font-inter)] relative flex flex-col items-center justify-start max-w-5xl mx-auto py-6">
+    <div className="w-full h-full font-[family-name:var(--font-inter)] relative flex flex-col items-center justify-start max-w-5xl mx-auto py-2 md:py-6">
 
       {/* ── PHASE 1: VIDEO TAYANGAN AWAL ── */}
       <AnimatePresence mode="wait">
@@ -696,36 +778,36 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-3xl mx-auto flex flex-col gap-6 mt-4"
+            className="w-full max-w-3xl mx-auto flex flex-col gap-3 [@media(min-height:720px)]:gap-5 md:gap-6 md:mt-4"
           >
             <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#6bff8f]/10 border border-[#6bff8f]/30 text-[#6bff8f] text-xs font-bold uppercase tracking-widest mb-3 shadow-sm">
+              <div className="hidden [@media(min-height:720px)]:inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#6bff8f]/10 border border-[#6bff8f]/30 text-[#6bff8f] text-xs font-bold uppercase tracking-widest mb-3 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-[#6bff8f] animate-pulse" />
-                Tahap 2 · Uji Pelapukan
+                Uji Pelapukan
               </div>
-              <h1 className="text-3xl md:text-4xl font-extrabold text-white font-[family-name:var(--font-outfit)] leading-tight mb-2 drop-shadow-md">
+              <h1 className="text-2xl [@media(min-height:720px)]:text-3xl md:text-4xl font-extrabold text-white font-[family-name:var(--font-outfit)] leading-tight mb-1 md:mb-2 drop-shadow-md">
                 Tahap 2: Pelapukan Plastik
               </h1>
               <p className="text-blue-100 text-sm md:text-base font-medium max-w-xl mx-auto">
-                Tonton penjelasan singkat di bawah ini sebelum kamu memulai uji laboratorium.
+                Tonton videonya dulu, lalu coba sendiri di lab.
               </p>
             </div>
 
             {/* Video Player - Soft Glass Frame with YouTube option */}
-            <div className="p-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
+            <div className="md:p-2 md:bg-white/10 md:backdrop-blur-xl md:border md:border-white/20 rounded-3xl md:shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
               <YouTubePlayer url={videoUrl} title="Video Pelapukan Mikroplastik" />
             </div>
 
             {/* Button Lanjut */}
-            <div className="flex justify-center mt-2 mb-16">
+            <div className="flex justify-center md:mt-2 md:mb-16">
               <motion.button
                 onClick={() => {
-                  setHasWatched(true);
-                  playVoiceInstruction();
+                  goToStep('lab');
+                  speakMika('intro');
                 }}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="relative inline-flex items-center justify-center gap-3 px-10 py-4 font-extrabold text-[#3b2313] text-xl font-[family-name:var(--font-outfit)] transition-all"
+                className="relative inline-flex items-center justify-center gap-2 md:gap-3 px-9 py-3 md:px-10 md:py-4 font-extrabold text-[#3b2313] text-lg md:text-xl font-[family-name:var(--font-outfit)] transition-all"
                 style={{
                   background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                   border: '3px solid #8e4912',
@@ -749,20 +831,20 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="w-full flex flex-col gap-6"
+            className="w-full flex flex-col gap-2 md:gap-6 h-[calc(100dvh-7.75rem)] md:h-auto"
           >
             {/* Object Selection Tabs & Direct Navigation to Evaluation */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
-              <div className="flex flex-wrap gap-2 md:gap-3 justify-center sm:justify-start flex-1">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-3 w-full shrink-0">
+              <div className="grid grid-cols-5 gap-1.5 w-full md:flex md:flex-wrap md:gap-3 md:justify-start md:flex-1">
                 {PLASTIC_OBJECTS.map(item => {
                   const isTested = testedObjects.includes(item.id);
                   return (
                     <button
                       key={item.id}
                       onClick={() => handleSelectObject(item.id)}
-                      className={`flex flex-col items-center gap-1 px-3.5 py-2 md:px-5 md:py-3 rounded-2xl md:rounded-3xl transition-all border-2 relative ${
+                      className={`flex flex-col items-center gap-0.5 md:gap-1 px-0.5 py-1.5 md:px-5 md:py-3 rounded-xl md:rounded-3xl transition-all border-2 relative ${
                         selectedObject === item.id 
-                          ? 'bg-gradient-to-b from-white to-[#e4f1f9] border-[#6bff8f] text-[#083b54] shadow-[0_0_20px_rgba(107,255,143,0.4)] scale-105 z-10 font-bold' 
+                          ? 'bg-gradient-to-b from-white to-[#e4f1f9] border-[#6bff8f] text-[#083b54] shadow-[0_0_20px_rgba(107,255,143,0.4)] md:scale-105 z-10 font-bold' 
                           : 'bg-white/10 backdrop-blur-md border-white/20 text-white/90 hover:bg-white/20 hover:text-white hover:scale-105'
                       }`}
                     >
@@ -771,8 +853,9 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                           ✓
                         </span>
                       )}
-                      <span className="text-2xl md:text-3xl">{item.emoji}</span>
-                      <span className="text-[10px] md:text-xs font-extrabold font-[family-name:var(--font-outfit)]">{item.label}</span>
+                      <span className="text-xl md:text-3xl leading-none">{item.emoji}</span>
+                      <span className="text-[11px] md:hidden font-bold leading-tight font-[family-name:var(--font-outfit)]">{item.label.split(' ')[0]}</span>
+                      <span className="hidden md:inline text-xs font-extrabold font-[family-name:var(--font-outfit)]">{item.label}</span>
                     </button>
                   );
                 })}
@@ -781,22 +864,22 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
               {/* Tombol Menuju Evaluasi */}
               <button
                 onClick={() => {
-                  setScreen('evaluation');
+                  goToStep('evaluation');
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl font-extrabold text-xs sm:text-sm text-[#3b2313] transition-all shadow-xl active:scale-95 border-2 border-[#8e4912] flex-shrink-0"
+                className={`${testedObjects.length > 0 ? 'inline-flex' : 'hidden md:inline-flex'} w-full md:w-auto justify-center items-center gap-2 px-5 py-2 md:py-3 rounded-xl md:rounded-2xl font-extrabold text-sm text-[#3b2313] transition-all shadow-xl active:scale-95 border-2 border-[#8e4912] flex-shrink-0`}
                 style={{
                   background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                 }}
               >
                 <span className="material-symbols-outlined text-base">assignment</span>
-                <span>Lembar Evaluasi {testedObjects.length > 0 ? `(${testedObjects.length}/5 Teruji)` : ''}</span>
+                <span>Lanjut ke Evaluasi {testedObjects.length > 0 ? `(${testedObjects.length}/5 dicoba)` : ''}</span>
                 <span className="material-symbols-outlined text-sm">arrow_forward</span>
               </button>
             </div>
 
             {/* The Lab Area - Spacious Water Aquarium Container */}
-            <div className="w-full min-h-[760px] sm:min-h-[840px] md:min-h-[920px] rounded-[32px] md:rounded-[40px] overflow-hidden shadow-2xl relative flex flex-col justify-between border-[3px] md:border-[4px] border-white/40 bg-gradient-to-b from-[#87CEEB] to-[#004c6e] transition-all duration-700">
+            <div className="w-full flex-1 min-h-0 md:flex-none md:min-h-[920px] rounded-3xl md:rounded-[40px] overflow-hidden shadow-2xl relative flex flex-col justify-between border-[3px] md:border-[4px] border-white/40 bg-gradient-to-b from-[#87CEEB] to-[#004c6e] transition-all duration-700">
               
               {/* Gelombang Laut Berjalan */}
               <div className="absolute inset-0 pointer-events-none opacity-40">
@@ -835,7 +918,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     initial={{ y: -20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm"
+                    className="absolute top-14 md:top-20 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm"
                   >
                     <div className={`px-4 py-2 md:px-6 md:py-2.5 rounded-2xl md:rounded-full shadow-lg backdrop-blur-md border-2 text-center text-xs md:text-sm font-bold ${
                       messageType === 'error' ? 'bg-white/95 border-[#ba1a1a] text-[#ba1a1a]' :
@@ -849,55 +932,57 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
               </AnimatePresence>
 
               {/* Top HUD Bar */}
-              <div className="relative z-20 w-full px-3 pt-3 sm:px-6 sm:pt-5 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="relative z-20 w-full px-2.5 pt-2.5 sm:px-6 sm:pt-5 flex items-center justify-between gap-2 shrink-0">
                 {/* Left Controls */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => setShowOceanSampleModal(true)}
-                    title="Mengapa Laut Menjadi Sampel Utama?"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-[#006591] text-xs font-bold border border-[#006591]/30 shadow-md transition-all active:scale-95"
+                    title="Kenapa pakai sampel laut?"
+                    aria-label="Kenapa pakai sampel laut?"
+                    className="flex items-center justify-center gap-1.5 min-w-10 h-10 md:px-3 rounded-full bg-white/90 hover:bg-white text-[#006591] text-xs font-bold border border-[#006591]/30 shadow-md transition-all active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-base text-[#006591]">help</span>
-                    <span className="hidden sm:inline">Kenapa Sampel Laut?</span>
-                    <span className="sm:hidden">Sampel Laut</span>
+                    <span className="material-symbols-outlined text-xl text-[#006591]">help</span>
+                    <span className="hidden md:inline">Kenapa Sampel Laut?</span>
                   </button>
                   <button
-                    onClick={playVoiceInstruction}
-                    title="Dengarkan Suara Panduan Mika"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold shadow-md transition-all active:scale-95 ${
+                    onClick={toggleVoiceGuide}
+                    title={isSpeaking ? 'Hentikan suara Mika' : 'Dengarkan Mika'}
+                    aria-label={isSpeaking ? 'Hentikan suara Mika' : 'Dengarkan Mika'}
+                    className={`flex items-center justify-center gap-1.5 min-w-10 h-10 md:px-3 rounded-full border text-xs font-bold shadow-md transition-all active:scale-95 ${
                       isSpeaking 
                         ? 'bg-[#6bff8f] text-[#083b54] border-[#006e2f] animate-pulse ring-2 ring-[#6bff8f]' 
                         : 'bg-white/90 backdrop-blur-md border-[#006591]/30 text-[#006591] hover:bg-[#006591] hover:text-white'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-base animate-pulse">
+                    <span className="material-symbols-outlined text-xl">
                       {isSpeaking ? 'volume_up' : 'record_voice_over'}
                     </span>
-                    <span>{isSpeaking ? 'Mika Berbicara...' : 'Suara Panduan Mika'}</span>
+                    <span className="hidden md:inline">{isSpeaking ? 'Mika berbicara...' : 'Dengarkan Mika'}</span>
                   </button>
                   <button
                     onClick={handleResetCurrent}
-                    title="Reset Kondisi Objek Saat Ini"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-[#006591] text-xs font-bold border border-[#006591]/30 shadow-md transition-all active:scale-95"
+                    title="Ulangi dari awal"
+                    aria-label="Ulangi dari awal"
+                    className="flex items-center justify-center gap-1.5 min-w-10 h-10 md:px-3 rounded-full bg-white/90 hover:bg-white text-[#006591] text-xs font-bold border border-[#006591]/30 shadow-md transition-all active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-base text-[#006591]">restart_alt</span>
-                    <span className="hidden sm:inline">Reset Objek</span>
+                    <span className="material-symbols-outlined text-xl text-[#006591]">restart_alt</span>
+                    <span className="hidden md:inline">Ulangi</span>
                   </button>
                 </div>
 
                 {/* Right Indicators */}
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="bg-white/85 backdrop-blur-sm border border-white rounded-xl md:rounded-2xl px-3 py-1.5 md:px-4 md:py-2 w-28 md:w-36 shadow-sm">
-                    <p className="text-[#006591] text-[10px] md:text-xs font-bold uppercase tracking-wider mb-0.5 md:mb-1 flex justify-between">
-                      <span>Sinar UV</span> <span>{uvExposure}%</span>
+                <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 justify-end">
+                  <div className="bg-white/85 backdrop-blur-sm border border-white rounded-xl md:rounded-2xl px-2 py-1.5 md:px-4 md:py-2 min-w-0 flex-1 md:flex-none md:w-36 shadow-sm">
+                    <p className="text-[#006591] text-[11px] md:text-xs font-bold mb-0.5 md:mb-1 flex justify-between gap-1">
+                      <span>Rapuh</span> <span>{uvExposure}%</span>
                     </p>
                     <div className="w-full bg-[#c9e6ff] h-2 md:h-2.5 rounded-full overflow-hidden shadow-inner">
                       <motion.div className="h-full bg-[#f0a345]" animate={{ width: `${uvExposure}%` }} />
                     </div>
                   </div>
-                  <div className="bg-white/85 backdrop-blur-sm border border-white rounded-xl md:rounded-2xl px-3 py-1.5 md:px-4 md:py-2 w-28 md:w-36 shadow-sm">
-                    <p className="text-[#006e2f] text-[10px] md:text-xs font-bold uppercase tracking-wider mb-0.5 md:mb-1 flex justify-between">
-                      <span>Fisik</span> <span>{bottleIntegrity}%</span>
+                  <div className="bg-white/85 backdrop-blur-sm border border-white rounded-xl md:rounded-2xl px-2 py-1.5 md:px-4 md:py-2 min-w-0 flex-1 md:flex-none md:w-36 shadow-sm">
+                    <p className="text-[#006e2f] text-[11px] md:text-xs font-bold mb-0.5 md:mb-1 flex justify-between gap-1">
+                      <span>Utuh</span> <span>{bottleIntegrity}%</span>
                     </p>
                     <div className="w-full bg-[#c9e6ff] h-2 md:h-2.5 rounded-full overflow-hidden shadow-inner">
                       <motion.div className="h-full bg-[#6bff8f]" animate={{ width: `${bottleIntegrity}%` }} />
@@ -907,7 +992,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
               </div>
 
               {/* Canvas Area (Central Focus) */}
-              <div className="flex-1 relative flex items-center justify-center py-6 sm:py-10 my-auto min-h-[380px] sm:min-h-[460px] md:min-h-[520px]">
+              <div className="flex-1 min-h-0 relative flex items-center justify-center md:py-10 md:my-auto md:min-h-[520px]">
                 
                 {/* Visual Effects Render */}
                 {activeEffect === 'uv' && (
@@ -952,7 +1037,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                   <motion.div 
                     animate={labPhase === 'lab' ? { y: [0, -14, 0], rotate: [-1, 1, -1] } : {}} 
                     transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-                    className="relative z-10 flex items-center justify-center p-2"
+                    className="absolute inset-2 md:relative md:inset-auto z-10 flex items-center justify-center md:p-2"
                   >
                     <PlasticSVG objectId={selectedObject} uvExposure={uvExposure} breaking={labPhase === 'breaking'} />
                   </motion.div>
@@ -963,42 +1048,42 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.8 }} 
                     animate={{ opacity: 1, scale: 1 }} 
-                    className="flex flex-col items-center z-20 text-center max-w-md mx-4 p-6 sm:p-8 bg-[#083b54]/95 backdrop-blur-xl border-3 border-[#6bff8f] rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                    className="flex flex-col items-center z-20 text-center max-w-md mx-3 p-4 md:p-8 bg-[#083b54]/95 backdrop-blur-xl border-3 border-[#6bff8f] rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                   >
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#6bff8f]/20 border-2 border-[#6bff8f] flex items-center justify-center text-4xl sm:text-5xl mb-3 shadow-xl animate-bounce">
+                    <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-[#6bff8f]/20 border-2 border-[#6bff8f] flex items-center justify-center text-3xl md:text-5xl mb-2 md:mb-3 shadow-xl animate-bounce">
                       🎉
                     </div>
                     <h3 className="font-extrabold font-[family-name:var(--font-outfit)] text-white text-2xl sm:text-3xl drop-shadow-md">
-                      Berhasil Hancur!
+                      Berhasil pecah!
                     </h3>
                     <p className="text-[#6bff8f] font-bold text-sm sm:text-base mt-1 drop-shadow-sm">
-                      {obj.label} ({obj.type}) telah pecah menjadi mikroplastik!
+                      {obj.label} jadi mikroplastik!
                     </p>
                     <p className="text-blue-100 text-xs sm:text-sm mt-2 leading-relaxed">
-                      Sinar UV matahari memutus rantai polimer hingga getas, kemudian hantaman ombak memecahnya jadi jutaan serpihan kecil di lautan.
+                      Matahari membuat plastik rapuh, lalu ombak memecahnya jadi serpihan sangat kecil. Serpihan ini tetap ada di laut, lho!
                     </p>
 
                     {/* Dua Pilihan Interaksi: Coba Uji Lagi ATAU Lanjut ke Halaman Evaluasi */}
-                    <div className="flex flex-col sm:flex-row items-center gap-3 mt-6 w-full">
+                    <div className="flex flex-row items-stretch gap-2 md:gap-3 mt-3 md:mt-6 w-full">
                       <button
                         onClick={handleResetCurrent}
-                        className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs sm:text-sm border border-white/30 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
+                        className="flex-1 min-h-12 py-2 px-2 md:px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs sm:text-sm border border-white/30 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
                       >
                         <span className="material-symbols-outlined text-base">replay</span>
-                        <span>Uji Coba Lagi</span>
+                        <span>Coba lagi</span>
                       </button>
                       <button
                         onClick={() => {
-                          setScreen('evaluation');
+                          goToStep('evaluation');
                           window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        className="w-full sm:flex-1 py-3 px-4 rounded-xl font-extrabold text-xs sm:text-sm text-[#3b2313] transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"
+                        className="flex-1 min-h-12 py-2 px-2 md:px-4 rounded-xl font-extrabold text-sm text-[#3b2313] transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"
                         style={{
                           background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                           border: '2px solid #8e4912',
                         }}
                       >
-                        <span>Halaman Evaluasi</span>
+                        <span>Evaluasi</span>
                         <span className="material-symbols-outlined text-base">arrow_forward</span>
                       </button>
                     </div>
@@ -1014,48 +1099,31 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     initial={{ y: 40, opacity: 0 }} 
                     animate={{ y: 0, opacity: 1 }} 
                     exit={{ y: 40, opacity: 0 }}
-                    className="relative z-20 w-full p-2.5 sm:p-4 flex flex-col items-center bg-white/15 backdrop-blur-md border-t border-white/30"
+                    className="relative z-20 w-full p-2 sm:p-4 flex flex-col items-center bg-white/15 backdrop-blur-md border-t border-white/30 shrink-0"
                   >
-                    {/* Petunjuk Banner Interaktif dengan Avatar Mika */}
-                    <div className="w-[96%] max-w-2xl mx-auto mb-2.5 sm:mb-3 px-3 py-2 sm:px-4 sm:py-2.5 bg-[#083b54]/95 backdrop-blur-md border-2 border-[#f0a345] rounded-2xl shadow-xl flex items-center gap-2.5 sm:gap-3.5">
-                      <img 
-                        src="/mika.webp" 
-                        alt="Mika" 
-                        className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0 drop-shadow-md animate-bounce" 
+                    {/* Petunjuk satu kalimat dari Mika sesuai langkah saat ini */}
+                    <div className="w-full max-w-2xl mx-auto mb-2 px-2.5 py-1.5 sm:py-2.5 bg-[#083b54]/95 border-2 border-[#f0a345] rounded-2xl shadow-xl flex items-center gap-2">
+                      <img
+                        src="/mika.webp"
+                        alt="Mika"
+                        className={`w-9 h-9 sm:w-12 sm:h-12 object-contain flex-shrink-0 drop-shadow-md ${isSpeaking ? 'animate-bounce' : ''}`}
                       />
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <span className="text-[#6bff8f] text-[10px] sm:text-xs font-extrabold uppercase tracking-wider font-[family-name:var(--font-outfit)] flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">arrow_upward</span>
-                            Petunjuk Eksperimen
-                          </span>
-                          {uvExposure === 0 && (
-                            <span className="text-[10px] font-bold text-amber-200 bg-amber-950/80 px-2 py-0.5 rounded-full border border-amber-400/50">
-                              Langkah 1: Seret ☀️ Panas UV
-                            </span>
-                          )}
-                          {uvExposure > 0 && uvExposure < 100 && (
-                            <span className="text-[10px] font-bold text-sky-200 bg-sky-950/80 px-2 py-0.5 rounded-full border border-sky-400/50">
-                              Langkah 2: UV {uvExposure}% · Mulai Hantam 🌊 Ombak
-                            </span>
-                          )}
-                          {uvExposure >= 100 && bottleIntegrity > 0 && (
-                            <span className="text-[10px] font-bold text-emerald-200 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-400/50 animate-pulse">
-                              Langkah 3: Rapuh! Seret 🌊 Ombak sampai hancur
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-white text-[11px] sm:text-xs font-semibold leading-tight line-clamp-2">
-                          Seret (<span className="text-[#6bff8f] font-bold">drag</span>) atau klik 3 media di bawah ke objek di atas. <span className="text-[#f0a345] font-extrabold">Coba geser terus berulang kali sampai objek hancur pecah!</span>
-                        </p>
-                      </div>
+                      <p className="flex-1 min-w-0 text-left text-white text-sm font-semibold leading-snug">
+                        {uvExposure === 0
+                          ? 'Seret ☀️ Matahari ke plastiknya!'
+                          : uvExposure < 50
+                          ? 'Bagus! Jemur lagi biar makin rapuh ☀️'
+                          : bottleIntegrity === 100
+                          ? 'Mulai rapuh! Hantam pakai 🌊 Ombak!'
+                          : 'Terus hantam sampai pecah! 🌊'}
+                      </p>
                     </div>
 
                     {/* 3 Tool Tiles */}
                     <div className="flex justify-center gap-2 sm:gap-4 md:gap-6 w-full">
-                      <ToolTile id="uv" icon="wb_sunny" label="Panas Matahari" desc="(UV)" color="from-[#fff3d4] to-[#fde08b]" textColor="text-[#b27b00]" onDragEnd={handleDragEnd} onClick={() => handleApplyTool('uv')} />
-                      <ToolTile id="wave" icon="waves" label="Abrasi Pantai" desc="(Ombak)" color="from-[#e4f1f9] to-[#c9e6ff]" textColor="text-[#006591]" onDragEnd={handleDragEnd} onClick={() => handleApplyTool('wave')} />
-                      <ToolTile id="bacteria" icon="coronavirus" label="Biodegradasi" desc="(Bakteri)" color="from-[#e6f4ea] to-[#c8e6c9]" textColor="text-[#006e2f]" onDragEnd={handleDragEnd} onClick={() => handleApplyTool('bacteria')} />
+                      <ToolTile id="uv" icon="wb_sunny" label="Matahari" desc="Sinar UV" color="from-[#fff3d4] to-[#fde08b]" textColor="text-[#b27b00]" onDragEnd={handleDragEnd} onClick={() => handleApplyTool('uv')} />
+                      <ToolTile id="wave" icon="waves" label="Ombak" desc="Abrasi" color="from-[#e4f1f9] to-[#c9e6ff]" textColor="text-[#006591]" onDragEnd={handleDragEnd} onClick={() => handleApplyTool('wave')} />
+                      <ToolTile id="bacteria" icon="coronavirus" label="Bakteri" desc="Biodegradasi" color="from-[#e6f4ea] to-[#c8e6c9]" textColor="text-[#006e2f]" onDragEnd={handleDragEnd} onClick={() => handleApplyTool('bacteria')} />
                     </div>
                   </motion.div>
                 )}
@@ -1299,14 +1367,14 @@ function ToolTile({ id, icon, label, desc, color, textColor, onDragEnd, onClick 
       whileDrag={{ scale: 1.14, zIndex: 50, rotate: id === 'uv' ? -4 : 4 }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className={`w-22 h-22 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl sm:rounded-3xl flex flex-col items-center justify-center gap-1 cursor-grab active:cursor-grabbing shadow-md bg-gradient-to-br ${color} border-2 sm:border-[3px] border-white hover:shadow-xl transition-all select-none flex-shrink-0`}
+      className={`flex-1 max-w-32 h-[4.25rem] md:flex-none md:w-32 md:h-32 md:max-w-none rounded-2xl md:rounded-3xl flex flex-col items-center justify-center md:gap-1 cursor-grab active:cursor-grabbing touch-none shadow-md bg-gradient-to-br ${color} border-2 md:border-[3px] border-white hover:shadow-xl transition-all select-none`}
     >
-      <span className={`material-symbols-outlined ${textColor} text-3xl sm:text-4xl md:text-5xl pointer-events-none`}>{icon}</span>
+      <span className={`material-symbols-outlined ${textColor} text-3xl md:text-5xl pointer-events-none`}>{icon}</span>
       <div className="text-center px-1 pointer-events-none">
-        <div className={`text-[11px] sm:text-xs md:text-sm font-extrabold ${textColor} leading-tight`}>{label}</div>
-        <div className={`text-[9px] sm:text-[10px] font-bold ${textColor} opacity-80`}>{desc}</div>
+        <div className={`text-[13px] md:text-sm font-extrabold ${textColor} leading-tight`}>{label}</div>
+        <div className={`hidden md:block text-[10px] font-bold ${textColor} opacity-80`}>{desc}</div>
       </div>
-      <div className="text-[8px] sm:text-[9px] font-extrabold text-black/50 uppercase tracking-tighter bg-black/5 px-2.5 py-0.5 rounded-full mt-0.5">
+      <div className="hidden md:block text-[9px] font-extrabold text-black/50 uppercase tracking-tighter bg-black/5 px-2.5 py-0.5 rounded-full mt-0.5">
         Seret / Klik
       </div>
     </motion.div>

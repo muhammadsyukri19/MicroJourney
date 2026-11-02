@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
@@ -21,6 +21,18 @@ export default function Tahap2() {
   const [guestModalOpen, setGuestModalOpen] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
+  // Tombol kembali mengikuti riwayat: lab -> video -> pengantar -> halaman sebelumnya
+  useEffect(() => {
+    const onPopState = () => setPhase(window.history.state?.stage2Step ? 'main' : 'intro');
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  function startMain() {
+    window.history.pushState({ ...window.history.state, stage2Step: 'video' }, '');
+    setPhase('main');
+  }
+
   function handleComplete() {
     completeStage(2);
     if (!currentUser) {
@@ -41,14 +53,14 @@ export default function Tahap2() {
       {/* Intro Phase (takes full screen with hero-bg) */}
       <AnimatePresence>
         {phase === 'intro' && (
-          <div className="relative w-full overflow-hidden min-h-screen h-[100vh] bg-[#083b54]">
+          <div className="relative w-full overflow-hidden h-[100dvh] bg-[#083b54]">
             <StageIntro
               title="Pelapukan Plastik di Alam"
               description="Satu botol plastik butuh 450 tahun untuk terurai. Tapi sebelum itu, ia hancur menjadi jutaan partikel mikro yang mencemari laut. Ikuti simulasi interaktifnya!"
               icon="wb_sunny"
               layout="split"
               actionText="Mulai Simulasi"
-              onStart={() => setPhase('main')}
+              onStart={startMain}
             />
           </div>
         )}
@@ -56,7 +68,7 @@ export default function Tahap2() {
 
       {/* Main Lab Phase (Vibrant Ocean Theme + Background Pattern) */}
       {phase === 'main' && (
-        <div className="relative px-4 pt-28 md:pt-32 pb-16 min-h-screen bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] overflow-x-hidden">
+        <div className="relative px-4 pt-24 md:pt-32 pb-3 md:pb-16 min-h-[100dvh] bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] overflow-x-hidden">
           
           {/* Ambient Glowing Blobs & Ocean Wave Pattern */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -79,22 +91,6 @@ export default function Tahap2() {
                 transition={{ duration: 3.5 + (i % 3), repeat: Infinity, delay: i * 0.2, ease: 'easeInOut' }}
               />
             ))}
-          </div>
-
-          <div className="relative z-10 max-w-5xl mx-auto mb-4 flex items-center justify-between">
-            <button
-              onClick={() => setPhase('intro')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md font-bold text-xs transition-all shadow-md active:scale-95"
-            >
-              <span className="material-symbols-outlined text-base">arrow_back</span>
-              <span>Pengantar Tahap 2</span>
-            </button>
-            <button
-              onClick={() => router.push('/journey/tahap-1')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-blue-100 hover:text-white border border-white/15 backdrop-blur-md font-semibold text-xs transition-all shadow-md active:scale-95"
-            >
-              <span>← Tahap 1: AR Scanner</span>
-            </button>
           </div>
 
           <div className="relative z-10">

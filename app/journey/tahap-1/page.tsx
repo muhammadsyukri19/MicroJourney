@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useJourneyStore } from '@/lib/journeyStore';
 import StageIntro from '@/components/stages/StageIntro';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 type Phase = 'init' | 'scanning' | 'detected' | 'pemantik';
 
@@ -26,7 +26,7 @@ export const PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '450 Tahun',
     example: 'Botol air mineral, botol minuman kemasan, botol minyak',
     description:
-      'Mudah mengalami fotooksidasi akibat paparan sinar UV matahari, memicu pelepasan serat dan serpihan mikroplastik halus.',
+      'Kalau sering kena sinar matahari, plastik ini makin rapuh dan melepas serpihan sangat kecil yang disebut mikroplastik.',
     resinClass: '1-PET',
     isMinorityValidationNeeded: false,
   },
@@ -37,7 +37,7 @@ export const PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '20 – 450 Tahun',
     example: 'Cup minuman boba/kopi, gelas air mineral sekali pakai',
     description:
-      'Struktur tipis yang mudah getas saat terjemur, cepat terfragmentasi akibat benturan mekanik air menjadi mikropartikel.',
+      'Plastiknya tipis dan cepat rapuh saat terjemur, lalu mudah pecah menjadi serpihan sangat kecil.',
     resinClass: '5-PP',
     isMinorityValidationNeeded: false,
   },
@@ -48,7 +48,7 @@ export const PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '100 – 450 Tahun',
     example: 'Mangkuk mie instan, wadah thinwall takeaway, kotak bekal',
     description:
-      'Sering terpapar suhu tinggi dan asam lemak yang mempercepat degradasi mikro dan leaching zat aditif pemlastis.',
+      'Sering kena panas dan minyak. Lama-lama plastiknya rusak dan zat kimia di dalamnya bisa ikut terlepas.',
     resinClass: '5-PP',
     isMinorityValidationNeeded: false,
   },
@@ -59,7 +59,7 @@ export const PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '400 – 500 Tahun',
     example: 'Gelas mika bening, botol tumbler keras, toples tebal',
     description:
-      'Plastik kaku keras non-biodegradable yang sangat lambat terurai dan berisiko melepaskan zat bisfenol ke air.',
+      'Plastik keras ini sangat lama terurai dan bisa melepaskan zat kimia bernama bisfenol ke dalam air.',
     resinClass: '7-OTHER',
     isMinorityValidationNeeded: true,
   },
@@ -70,7 +70,7 @@ export const PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '500 Tahun',
     example: 'Wadah silinder tebal, botol bahan kimia, vas sintetis',
     description:
-      'Mengandung klorin dan plasticizer (phthalates) yang sangat persisten dan beracun bagi biota perairan.',
+      'Mengandung klorin dan zat pelentur yang sulit hilang di alam dan beracun bagi makhluk hidup di air.',
     resinClass: '3-PVC',
     isMinorityValidationNeeded: true,
   },
@@ -84,7 +84,7 @@ export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '450 Tahun',
     example: 'Botol air mineral bening, botol minuman ringan, kemasan minyak goreng',
     description:
-      'Mudah mengalami fotooksidasi akibat sinar UV matahari dan melepaskan serpihan mikroplastik saat dipakai berulang atau terjemur.',
+      'Kalau sering terjemur atau dipakai berulang, plastik ini melepas serpihan sangat kecil yang disebut mikroplastik.',
     resinClass: '1-PET',
     isMinorityValidationNeeded: false,
   },
@@ -95,7 +95,7 @@ export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '100 – 500 Tahun',
     example: 'Botol susu buram, botol sampo/deterjen, jeriken plastik tebal',
     description:
-      'Lebih tahan suhu dibanding PET, namun abrasi mekanik dan pelapukan tetap menghasilkan fragmen mikroplastik di perairan.',
+      'Lebih tahan panas daripada PET, tapi kalau terus tergesek dan lapuk tetap pecah menjadi mikroplastik di perairan.',
     resinClass: '2-HDPE',
     isMinorityValidationNeeded: false,
   },
@@ -106,7 +106,7 @@ export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '500+ Tahun',
     example: 'Pipa plastik, blister kemasan obat kaku, lapisan pembungkus tertentu',
     description:
-      'Mengandung klorin dan aditif pemlastis (phthalates) yang berisiko terlepas (leaching) dan bersifat toksik bagi biota.',
+      'Mengandung klorin dan zat pelentur yang bisa terlepas dan berbahaya bagi makhluk hidup.',
     resinClass: '3-PVC',
     isMinorityValidationNeeded: true,
   },
@@ -117,7 +117,7 @@ export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '500 – 1000 Tahun',
     example: 'Kantong kresek fleksibel, plastik pembungkus, botol pencet fleksibel',
     description:
-      'Struktur tipis dan fleksibel sangat mudah robek serta terfragmentasi menjadi lembaran mikroplastik halus.',
+      'Tipis dan lentur, jadi mudah robek menjadi lembaran sangat kecil yang disebut mikroplastik.',
     resinClass: '4-LDPE',
     isMinorityValidationNeeded: false,
   },
@@ -128,7 +128,7 @@ export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '20 – 300 Tahun',
     example: 'Gelas cup minuman, bungkus makanan ringan/keripik, kotak makan thinwall',
     description:
-      'Getas saat terpapar radiasi UV terus-menerus dan melepaskan partikel mikroplastik saat terkena gesekan atau air panas.',
+      'Makin rapuh kalau terus kena sinar matahari, dan bisa melepas mikroplastik saat tergesek atau kena air panas.',
     resinClass: '5-PP',
     isMinorityValidationNeeded: false,
   },
@@ -139,7 +139,7 @@ export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '500+ Tahun',
     example: 'Wadah busa styrofoam, gelas kopi busa, sendok garpu plastik getas',
     description:
-      'Sangat mudah hancur menjadi ribuan butiran mikroplastik ringan yang mengapung dan termakan organisme laut.',
+      'Sangat mudah hancur menjadi ribuan butiran kecil yang mengapung dan bisa termakan hewan laut.',
     resinClass: '6-PS',
     isMinorityValidationNeeded: true,
   },
@@ -150,7 +150,7 @@ export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
     decompositionTime: '400 – 500 Tahun',
     example: 'Botol minum keras polikarbonat, galon tertentu, kemasan sachet berlapis',
     description:
-      'Sulit didaur ulang dan beberapa jenis polikarbonat berisiko melepaskan monomer bisfenol saat terdegradasi.',
+      'Sulit didaur ulang, dan beberapa jenisnya bisa melepaskan zat kimia bernama bisfenol saat mulai rusak.',
     resinClass: '7-OTHER',
     isMinorityValidationNeeded: true,
   },
@@ -172,16 +172,28 @@ export function getPlasticInfo(className: string): PlasticInfo {
     decompositionTime: '200 – 450 Tahun',
     example: 'Kemasan sachet makanan ringan, kemasan plastik berlapis',
     description:
-      'Tersusun dari lapisan polimer berbeda yang sangat sulit didaur ulang dan rentan terburai menjadi mikroplastik di alam.',
+      'Terdiri dari beberapa lapisan plastik, jadi sulit didaur ulang dan mudah hancur menjadi mikroplastik di alam.',
     resinClass: '7-OTHER',
     isMinorityValidationNeeded: true,
   };
 }
 
 // Kandidat wadah target COCO-SSD
-const AUTO_COCO_CLASSES = ['bottle', 'cup', 'bowl', 'vase'] as const;
+const AUTO_COCO_CLASSES = ['bottle', 'cup', 'bowl'] as const;
+// Benda yang jelas bukan sampah. Daftar ini sengaja pendek: COCO sering salah menamai kemasan
+// (gelas busa terbaca "toilet", botol terbaca "vase"), dan siswa memang diminta memotret plastik.
+const NON_WASTE_COCO_CLASSES = ['person', 'cell phone', 'laptop', 'keyboard', 'mouse', 'tv'] as const;
+const NON_WASTE_LABELS: Record<string, string> = {
+  person: 'orang',
+  'cell phone': 'HP',
+  laptop: 'laptop',
+  keyboard: 'keyboard',
+  mouse: 'mouse',
+  tv: 'layar TV',
+};
 
-// 7 Kelas resin MobileNetV2 (alpha=0.50)
+// 7 kelas resin MobileNetV2 (alpha=0.50, exp04_glass); keluaran ke-8 = non-plastik
+const NON_PLASTIC_INDEX = 7;
 const RESIN_CLASSES = [
   '1-PET',
   '2-HDPE',
@@ -195,90 +207,171 @@ const RESIN_CLASSES = [
 const MINORITY_CLASSES = ['3-PVC', '6-PS', '7-OTHER'] as const;
 
 // Ambang batas deteksi & klasifikasi
-const COCO_THRESHOLD = 0.25;
-const RESIN_THRESHOLD = 0.55;
-const CENTER_ROI_SCALE = 0.70;
+const COCO_THRESHOLD = 0.4;
+// Dipilih dari validation exp04. Penolakan non-plastik kini ditangani NON_PLASTIC_REJECT_THRESHOLD,
+// jadi ambang ini hanya menyaring foto yang jenis resinnya sangat tidak jelas.
+const RESIN_THRESHOLD = 0.4;
+// Objek bukan sampah di tengah bingkai dengan skor >= ambang ini langsung ditolak
+const NON_WASTE_COCO_THRESHOLD = 0.5;
+// Foto hanya ditolak bila model cukup yakin non-plastik (dipilih dari validation exp03, dipakai lagi di exp04).
+// Di bawah ini skor resin dinormalkan ulang agar plastik tidak mudah tertolak.
+const NON_PLASTIC_REJECT_THRESHOLD = 0.6;
+// Kotak selebar ini (mis. "tv" sepenuh layar) biasanya salah baca COCO, kecuali orang
+const NON_PLASTIC_MAX_AREA_RATIO = 0.6;
+// Margin konteks di sekitar kotak kandidat wadah saat foto diklasifikasi
+const CANDIDATE_PAD_RATIOS = [0.08, 0.2];
 
 const REJECTED_MATERIAL_STATUS =
-  'Material belum dapat dipastikan. Periksa kode resin pada kemasan.';
+  'AI belum yakin. Coba foto dari sisi lain, atau cari kode segitiga di kemasan.';
 
 const PRODUCTION_RESIN_MODEL_URL = '/models/plastic/model.json';
 const PRODUCTION_COCO_MODEL_URL = '/models/coco-ssd/model.json';
 
-/** Gambar frame AR objek yang dioptimalkan: sudut siku futuristik rapi tanpa tumpang tindih */
-function drawOptimizedObjectFrame(
+// Faktor interpolasi posisi bingkai per frame render (0..1, makin besar makin responsif)
+const BOX_LERP = 0.28;
+
+const COLOR_LOCK = '#6bff8f';
+const COLOR_WARN = '#f0a345';
+
+type Box = [number, number, number, number];
+type CaptureMode = 'live' | 'analyzing' | 'result';
+
+interface OverlayTarget {
+  box: Box | null; // koordinat ruang video
+  kind: 'locking' | 'uncertain' | 'none';
+  label: string;
+  isCenterFallback: boolean;
+}
+
+interface VisibleRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  scale: number; // px layar per px video (object-cover)
+}
+
+/** Area video yang benar-benar terlihat di layar ketika memakai object-cover */
+function getVisibleRegion(video: HTMLVideoElement): VisibleRegion {
+  const vw = video.videoWidth || 640;
+  const vh = video.videoHeight || 480;
+  const cw = video.clientWidth || vw;
+  const ch = video.clientHeight || vh;
+  const scale = Math.max(cw / vw, ch / vh);
+  const w = Math.min(vw, cw / scale);
+  const h = Math.min(vh, ch / scale);
+  return { x: (vw - w) / 2, y: (vh - h) / 2, w, h, scale };
+}
+
+/** ROI tengah yang selalu berada di area terlihat (tidak terpotong di layar potret) */
+function getCenterRoi(region: VisibleRegion): Box {
+  // Jangan lebih sempit dari ini: crop terlalu rapat membuat plastik terbaca sebagai tekstur latar
+  const side = Math.round(Math.min(region.w, region.h) * 0.72);
+  const x = Math.round(region.x + (region.w - side) / 2);
+  const y = Math.round(region.y + (region.h - side) / 2);
+  return [x, y, side, side];
+}
+
+/** ctx.roundRect dengan fallback untuk WebView/Safari lama */
+function roundRectPath(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
   h: number,
-  color: string,
-  isLocked: boolean
+  r: number
 ) {
-  const cornerLen = Math.max(12, Math.min(w, h) * 0.22);
-  const radius = 8;
-
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = isLocked ? 3 : 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  if (isLocked) {
-    ctx.shadowColor = 'rgba(107, 255, 143, 0.7)';
-    ctx.shadowBlur = 10;
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, w, h, r);
   } else {
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-    ctx.shadowBlur = 4;
+    ctx.rect(x, y, w, h);
   }
+}
 
-  // Soft translucent fill inside object frame
-  ctx.fillStyle = isLocked ? 'rgba(107, 255, 143, 0.06)' : 'rgba(255, 255, 255, 0.03)';
-  ctx.fillRect(x, y, w, h);
+/** Potongan persegi di sekitar objek sebagai JPEG data URL untuk kartu hasil scan */
+function cropToDataUrl(source: HTMLCanvasElement, box: Box): string | null {
+  const [x, y, w, h] = box;
+  const side = Math.min(source.width, source.height, Math.round(Math.max(w, h) * 1.15));
+  const sx = Math.max(0, Math.min(source.width - side, Math.round(x + w / 2 - side / 2)));
+  const sy = Math.max(0, Math.min(source.height - side, Math.round(y + h / 2 - side / 2)));
+  const out = document.createElement('canvas');
+  out.width = out.height = 320;
+  const ctx = out.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(source, sx, sy, side, side, 0, 0, 320, 320);
+  return out.toDataURL('image/jpeg', 0.85);
+}
 
-  // Top-Left corner
+function lerpBox(from: Box, to: Box, t: number): Box {
+  return [
+    from[0] + (to[0] - from[0]) * t,
+    from[1] + (to[1] - from[1]) * t,
+    from[2] + (to[2] - from[2]) * t,
+    from[3] + (to[3] - from[3]) * t,
+  ];
+}
+
+function drawCorners(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  cornerLen: number,
+  radius: number
+) {
+  const r = Math.min(radius, cornerLen * 0.6);
   ctx.beginPath();
+  // Kiri atas
   ctx.moveTo(x, y + cornerLen);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.lineTo(x + cornerLen, y);
-  ctx.stroke();
-
-  // Top-Right corner
-  ctx.beginPath();
+  // Kanan atas
   ctx.moveTo(x + w - cornerLen, y);
-  ctx.lineTo(x + w - radius, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
   ctx.lineTo(x + w, y + cornerLen);
-  ctx.stroke();
-
-  // Bottom-Right corner
-  ctx.beginPath();
+  // Kanan bawah
   ctx.moveTo(x + w, y + h - cornerLen);
-  ctx.lineTo(x + w, y + h - radius);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
   ctx.lineTo(x + w - cornerLen, y + h);
-  ctx.stroke();
-
-  // Bottom-Left corner
-  ctx.beginPath();
+  // Kiri bawah
   ctx.moveTo(x + cornerLen, y + h);
-  ctx.lineTo(x + radius, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
   ctx.lineTo(x, y + h - cornerLen);
   ctx.stroke();
+}
 
-  // Subtle Center Target Crosshair on the object
-  const cx = x + w / 2;
-  const cy = y + h / 2;
-  const crossSize = 5;
+/** Label pill kecil di atas bingkai (ukuran teks konsisten di layar berapa pun skala video) */
+function drawTag(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  color: string,
+  s: number,
+  maxX: number
+) {
+  ctx.save();
+  ctx.font = `700 ${12 * s}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+  const padX = 8 * s;
+  const h = 22 * s;
+  const w = ctx.measureText(text).width + padX * 2;
+  const tx = Math.max(4 * s, Math.min(x, maxX - w - 4 * s));
+  const ty = Math.max(4 * s, y - h - 6 * s);
+  ctx.fillStyle = 'rgba(6, 41, 59, 0.85)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5 * s;
   ctx.beginPath();
-  ctx.moveTo(cx - crossSize, cy);
-  ctx.lineTo(cx + crossSize, cy);
-  ctx.moveTo(cx, cy - crossSize);
-  ctx.lineTo(cx, cy + crossSize);
+  roundRectPath(ctx, tx, ty, w, h, h / 2);
+  ctx.fill();
   ctx.stroke();
-
+  ctx.fillStyle = color;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, tx + padX, ty + h / 2 + 0.5 * s);
   ctx.restore();
 }
 
@@ -290,6 +383,15 @@ interface ScanFeedbackState {
   isMinority: boolean;
   message: string;
 }
+
+const INITIAL_SCAN_CARD: ScanFeedbackState = {
+  status: 'scanning',
+  cocoLabel: 'Mencari objek...',
+  resinClass: null,
+  confidence: null,
+  isMinority: false,
+  message: 'Arahkan kamera ke sampah plastik sampai masuk bingkai, lalu tekan Scan.',
+};
 
 // Singleton cache & preload promise di level modul agar model hanya dimuat 1x dan instan saat dibuka kembali
 let cachedTfModule: typeof import('@tensorflow/tfjs') | null = null;
@@ -337,8 +439,8 @@ async function loadModelsAsync() {
   const loadResinPromise = (async () => {
     if (cachedResinModel) return cachedResinModel;
     const loadedResin = await tfModule.loadGraphModel(PRODUCTION_RESIN_MODEL_URL);
-    // Warmup tensor 1 pass
-    const warmIn = tfModule.zeros([1, 224, 224, 3], 'float32');
+    // Warmup tensor 1 pass (batch 2 = crop + versi cermin, sama seperti saat analisis foto)
+    const warmIn = tfModule.zeros([2, 224, 224, 3], 'float32');
     const warmOut = loadedResin.predict(warmIn) as import('@tensorflow/tfjs').Tensor;
     await warmOut.data();
     warmIn.dispose();
@@ -347,6 +449,10 @@ async function loadModelsAsync() {
   })();
 
   const [cocoModel, resinModel] = await Promise.all([loadCocoPromise, loadResinPromise]);
+  // Warmup COCO-SSD agar tombol Scan pertama tidak menunggu kompilasi shader
+  const warmFrame = tfModule.zeros([300, 300, 3], 'int32') as import('@tensorflow/tfjs').Tensor3D;
+  await cocoModel.detect(warmFrame);
+  warmFrame.dispose();
   cachedCocoModel = cocoModel;
   cachedResinModel = resinModel;
 
@@ -373,12 +479,26 @@ export default function Tahap1() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const procCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
-  const animRef = useRef<number>(0);
+  const renderRafRef = useRef<number>(0);
   const activeRef = useRef(false);
-  const isInferringRef = useRef(false);
-  const lockProgressRef = useRef(0);
+  const sessionRef = useRef(0);
+  const lockTimeoutRef = useRef<number | null>(null);
+  const captureModeRef = useRef<CaptureMode>('live');
+  const phaseRef = useRef<Phase>('init');
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // State overlay AR (dibaca loop render, ditulis loop inferensi — tanpa re-render React)
+  const overlayTargetRef = useRef<OverlayTarget>({
+    box: null,
+    kind: 'none',
+    label: '',
+    isCenterFallback: false,
+  });
+  const displayBoxRef = useRef<Box | null>(null);
+  const boxAlphaRef = useRef(0);
 
   // Model references
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -388,25 +508,28 @@ export default function Tahap1() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resinModelRef = useRef<any>(null);
 
-  const [phase, setPhase] = useState<Phase>('init');
+  const [phase, setPhaseState] = useState<Phase>('init');
+  const setPhase = useCallback((p: Phase) => {
+    phaseRef.current = p;
+    setPhaseState(p);
+  }, []);
   const [detectedPlasticInfo, setDetectedPlasticInfo] = useState<PlasticInfo>(
     RESIN_PLASTIC_DATA['1-PET']
   );
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [modelLoading, setModelLoading] = useState(false);
-  const [lockProgress, setLockProgress] = useState(0);
-  const [isTargetFocused, setIsTargetFocused] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [showAnswerHint, setShowAnswerHint] = useState(false);
+  const answerRef = useRef<HTMLTextAreaElement>(null);
+  const [captureMode, setCaptureModeState] = useState<CaptureMode>('live');
+  const setCaptureMode = useCallback((mode: CaptureMode) => {
+    captureModeRef.current = mode;
+    setCaptureModeState(mode);
+  }, []);
 
-  // Real-time scan feedback card state
-  const [scanCard, setScanCard] = useState<ScanFeedbackState>({
-    status: 'scanning',
-    cocoLabel: 'Mencari objek...',
-    resinClass: null,
-    confidence: null,
-    isMinority: false,
-    message: 'Arahkan kamera ke sampah plastik di sekitarmu',
-  });
+  // Kartu hasil scan
+  const [scanCard, setScanCard] = useState<ScanFeedbackState>(INITIAL_SCAN_CARD);
 
   const playScanPing = useCallback((type: 'lock' | 'beep') => {
     try {
@@ -414,7 +537,12 @@ export default function Tahap1() {
         window.AudioContext ||
         (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      // Pakai satu AudioContext bersama (browser membatasi jumlah AudioContext)
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AudioCtx();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -435,6 +563,9 @@ export default function Tahap1() {
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
         osc.start();
         osc.stop(ctx.currentTime + 0.4);
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate?.([40, 30, 80]);
+        }
       }
     } catch {
       // Audio context ignore error
@@ -443,9 +574,14 @@ export default function Tahap1() {
 
   const stopCamera = useCallback(() => {
     activeRef.current = false;
-    if (animRef.current) {
-      cancelAnimationFrame(animRef.current);
-      animRef.current = 0;
+    sessionRef.current++;
+    if (renderRafRef.current) {
+      cancelAnimationFrame(renderRafRef.current);
+      renderRafRef.current = 0;
+    }
+    if (lockTimeoutRef.current) {
+      window.clearTimeout(lockTimeoutRef.current);
+      lockTimeoutRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -454,13 +590,22 @@ export default function Tahap1() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    const canvas = overlayRef.current;
+    canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
 
-  useEffect(() => () => stopCamera(), [stopCamera]);
+  useEffect(
+    () => () => {
+      stopCamera();
+      audioCtxRef.current?.close().catch(() => {});
+      audioCtxRef.current = null;
+    },
+    [stopCamera]
+  );
 
   // Preload model AI di background saat user masuk ke Tahap 1 (di layar pembuka StageIntro)
   useEffect(() => {
-    preloadModels();
+    preloadModels().catch(() => {});
   }, []);
 
   async function ensureModelsLoaded() {
@@ -471,77 +616,416 @@ export default function Tahap1() {
     return loaded;
   }
 
-  // Preprocessing: tf.slice + resizeBilinear([224, 224]) float32 [0..255] (embedded Rescaling di graph)
+  // Preprocessing: crop ke canvas kecil -> resizeBilinear([224, 224]) float32 [0..255]
+  // (Rescaling sudah tertanam di graph). Hanya area crop yang diunggah ke GPU, bukan full frame.
   const classifyCropTensor = useCallback(
     (
       sourceCanvas: HTMLCanvasElement,
-      cropBox: [number, number, number, number]
-    ): {
-      validCrop: boolean;
-      topClass: string | null;
-      topScore: number | null;
-    } => {
+      cropBox: Box
+    ): number[] | null => {
       const tf = tfRef.current;
       const resinModel = resinModelRef.current;
-      const [cx1, cy1, cw, ch] = cropBox;
+      const [cx1, cy1, cw, ch] = cropBox.map(v => Math.round(v)) as Box;
 
-      if (!tf || !resinModel || cw < 8 || ch < 8) {
-        return { validCrop: false, topClass: null, topScore: null };
-      }
+      if (!tf || !resinModel || cw < 8 || ch < 8) return null;
 
-      const ctx = sourceCanvas.getContext('2d');
-      if (!ctx) return { validCrop: false, topClass: null, topScore: null };
+      if (!cropCanvasRef.current) cropCanvasRef.current = document.createElement('canvas');
+      const crop = cropCanvasRef.current;
+      if (crop.width !== cw) crop.width = cw;
+      if (crop.height !== ch) crop.height = ch;
+      const cctx = crop.getContext('2d', { willReadFrequently: true });
+      if (!cctx) return null;
+      cctx.drawImage(sourceCanvas, cx1, cy1, cw, ch, 0, 0, cw, ch);
 
-      // Periksa variansi luminansi
-      const sampleW = Math.min(cw, 64);
-      const sampleH = Math.min(ch, 64);
-      const imgData = ctx.getImageData(cx1, cy1, sampleW, sampleH).data;
+      // Periksa variansi luminansi di seluruh area crop (bukan hanya pojok kiri atas)
+      const imgData = cctx.getImageData(0, 0, cw, ch).data;
+      const step = Math.max(4, Math.floor(imgData.length / 4 / 1024)) * 4;
       let sumLum = 0;
       let sumSqLum = 0;
       let count = 0;
-      for (let i = 0; i < imgData.length; i += 16) {
+      for (let i = 0; i < imgData.length; i += step) {
         const lum = 0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2];
         sumLum += lum;
         sumSqLum += lum * lum;
         count++;
       }
-      if (count === 0) return { validCrop: false, topClass: null, topScore: null };
+      if (count === 0) return null;
       const meanLum = sumLum / count;
       const varianceLum = sumSqLum / count - meanLum * meanLum;
-      if (varianceLum < 1.0) {
-        return { validCrop: false, topClass: null, topScore: null };
-      }
+      if (varianceLum < 1.0) return null;
 
-      const probs: number[] = tf.tidy(() => {
-        const frameTensor = tf.browser.fromPixels(sourceCanvas);
-        const cropped = tf.slice(frameTensor, [cy1, cx1, 0], [ch, cw, 3]);
-        const resized = tf.image.resizeBilinear(cropped, [224, 224], false).toFloat();
-        const batched = tf.expandDims(resized, 0);
+      // Rata-rata prediksi crop dan versi cerminnya agar hasil satu foto lebih stabil
+      return tf.tidy(() => {
+        const cropTensor = tf.browser.fromPixels(crop);
+        const resized = tf.image.resizeBilinear(cropTensor, [224, 224], false).toFloat();
+        const batched = tf.stack([resized, tf.reverse(resized, 1)]);
         const outTensor = resinModel.predict(batched);
-        return Array.from(outTensor.dataSync());
+        return Array.from(outTensor.mean(0).dataSync()) as number[];
       });
-
-      let maxIdx = 0;
-      for (let i = 1; i < probs.length; i++) {
-        if (probs[i] > probs[maxIdx]) maxIdx = i;
-      }
-
-      return {
-        validCrop: true,
-        topClass: RESIN_CLASSES[maxIdx],
-        topScore: probs[maxIdx],
-      };
     },
     []
   );
 
+  /** Loop render 60fps: menggambar bingkai bidik, sapuan laser saat analisis, dan bingkai objek */
+  const drawOverlayFrame = useCallback(() => {
+    const video = videoRef.current;
+    const canvas = overlayRef.current;
+    if (!video || !canvas || video.readyState < 2) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+    // Ubah ukuran canvas hanya bila dimensi berubah (mengubah ukuran tiap frame = flicker & boros)
+    if (canvas.width !== vw) canvas.width = vw;
+    if (canvas.height !== vh) canvas.height = vh;
+    ctx.clearRect(0, 0, vw, vh);
+
+    const region = getVisibleRegion(video);
+    const s = 1 / region.scale; // 1px layar dalam satuan px video
+    const roi = getCenterRoi(region);
+    const now = performance.now();
+    const target = overlayTargetRef.current;
+    const isLockedPhase = phaseRef.current === 'detected';
+
+    const hasObjectBox = Boolean(target.box && !target.isCenterFallback && target.kind !== 'none');
+    const roiActive = target.isCenterFallback && target.kind !== 'none';
+
+    // ── Bingkai bidik tengah (viewfinder) ──
+    {
+      const [rx, ry, rw, rh] = roi;
+      const roiColor = roiActive ? (target.kind === 'locking' ? COLOR_LOCK : COLOR_WARN) : '#ffffff';
+      ctx.save();
+      ctx.globalAlpha = hasObjectBox ? 0.25 : roiActive ? 0.95 : 0.7;
+      ctx.strokeStyle = roiColor;
+      ctx.lineWidth = 3 * s;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 6 * s;
+      drawCorners(ctx, rx, ry, rw, rh, Math.min(rw, rh) * 0.14, 14 * s);
+
+      // Sapuan laser naik-turun di dalam bingkai bidik
+      if (!hasObjectBox && !isLockedPhase && captureModeRef.current === 'analyzing') {
+        const t = (Math.sin(now / 700) + 1) / 2;
+        const ly = ry + 10 * s + t * (rh - 20 * s);
+        const grad = ctx.createLinearGradient(rx, 0, rx + rw, 0);
+        grad.addColorStop(0, 'rgba(107,255,143,0)');
+        grad.addColorStop(0.5, 'rgba(107,255,143,0.85)');
+        grad.addColorStop(1, 'rgba(107,255,143,0)');
+        ctx.shadowColor = COLOR_LOCK;
+        ctx.shadowBlur = 10 * s;
+        ctx.fillStyle = grad;
+        ctx.fillRect(rx + 8 * s, ly - 1 * s, rw - 16 * s, 2 * s);
+        // Jejak cahaya tipis di belakang laser
+        const trail = ctx.createLinearGradient(0, ly, 0, ly + (Math.cos(now / 700) > 0 ? -1 : 1) * 40 * s);
+        trail.addColorStop(0, 'rgba(107,255,143,0.12)');
+        trail.addColorStop(1, 'rgba(107,255,143,0)');
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = trail;
+        const dir = Math.cos(now / 700) > 0 ? -1 : 1;
+        ctx.fillRect(rx + 8 * s, dir < 0 ? ly - 40 * s : ly, rw - 16 * s, 40 * s);
+      }
+
+      ctx.restore();
+
+      if (roiActive && target.label) {
+        drawTag(ctx, target.label, rx, ry, roiColor, s, vw);
+      }
+    }
+
+    // ── Bingkai objek dinamis (dihaluskan + fade in/out) ──
+    if (hasObjectBox && target.box) {
+      displayBoxRef.current = displayBoxRef.current
+        ? lerpBox(displayBoxRef.current, target.box, BOX_LERP)
+        : target.box;
+      boxAlphaRef.current = Math.min(1, boxAlphaRef.current + 0.15);
+    } else {
+      boxAlphaRef.current = Math.max(0, boxAlphaRef.current - 0.08);
+      if (boxAlphaRef.current === 0) displayBoxRef.current = null;
+    }
+
+    const db = displayBoxRef.current;
+    if (db && boxAlphaRef.current > 0) {
+      const [x, y, w, h] = db;
+      const color = target.kind === 'uncertain' ? COLOR_WARN : COLOR_LOCK;
+      const locked = isLockedPhase;
+      const pulse = locked ? 0.5 + 0.5 * Math.sin(now / 120) : 0;
+
+      ctx.save();
+      ctx.globalAlpha = boxAlphaRef.current;
+
+      // Isi transparan lembut
+      ctx.fillStyle = target.kind === 'uncertain' ? 'rgba(240,163,69,0.06)' : 'rgba(107,255,143,0.07)';
+      ctx.beginPath();
+      roundRectPath(ctx, x, y, w, h, 12 * s);
+      ctx.fill();
+
+      // Garis tipis penuh + sudut tebal
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = boxAlphaRef.current * 0.35;
+      ctx.lineWidth = 1 * s;
+      ctx.beginPath();
+      roundRectPath(ctx, x, y, w, h, 12 * s);
+      ctx.stroke();
+
+      ctx.globalAlpha = boxAlphaRef.current;
+      ctx.lineWidth = (locked ? 4 : 3) * s;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = color;
+      ctx.shadowBlur = (locked ? 14 + pulse * 10 : 8) * s;
+      drawCorners(ctx, x, y, w, h, Math.max(14 * s, Math.min(w, h) * 0.2), 12 * s);
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+
+      if (target.label) {
+        ctx.save();
+        ctx.globalAlpha = boxAlphaRef.current;
+        drawTag(ctx, target.label, x, y, color, s, vw);
+        ctx.restore();
+      }
+    }
+  }, []);
+
+  /** Memotret frame kamera saat tombol Scan ditekan, lalu: COCO-SSD -> crop -> klasifikasi resin */
+  const analyzeCapture = useCallback(async () => {
+    const video = videoRef.current;
+    const cocoModel = cocoModelRef.current;
+    if (!video || !cocoModel || video.readyState < 2) return;
+    if (phaseRef.current !== 'scanning' || captureModeRef.current !== 'live') return;
+    const session = sessionRef.current;
+
+    const vw = video.videoWidth || 640;
+    const vh = video.videoHeight || 480;
+
+    if (!procCanvasRef.current) procCanvasRef.current = document.createElement('canvas');
+    const procCanvas = procCanvasRef.current;
+    if (procCanvas.width !== vw) procCanvas.width = vw;
+    if (procCanvas.height !== vh) procCanvas.height = vh;
+    const procCtx = procCanvas.getContext('2d');
+    if (!procCtx) return;
+
+    // Bekukan tampilan pada frame yang dipotret
+    video.pause();
+    procCtx.drawImage(video, 0, 0, vw, vh);
+    setCaptureMode('analyzing');
+    playScanPing('beep');
+
+    const showResult = (card: ScanFeedbackState, target: OverlayTarget) => {
+      overlayTargetRef.current = target;
+      setScanCard(card);
+      setCaptureMode('result');
+    };
+
+    try {
+      // Beri kesempatan UI menampilkan status sebelum inferensi berjalan
+      await new Promise(r => setTimeout(r, 50));
+
+      const region = getVisibleRegion(video);
+      const roi = getCenterRoi(region);
+
+      const preds: Array<{ bbox: Box; class: string; score: number }> = await cocoModel.detect(
+        procCanvas,
+        6,
+        0.2
+      );
+      if (session !== sessionRef.current) return;
+
+      // Abaikan deteksi yang sebagian besar berada di luar area layar yang terlihat
+      const visiblePreds = preds.filter(p => {
+        const [bx, by, bw, bh] = p.bbox;
+        const ix = Math.max(0, Math.min(bx + bw, region.x + region.w) - Math.max(bx, region.x));
+        const iy = Math.max(0, Math.min(by + bh, region.y + region.h) - Math.max(by, region.y));
+        return (ix * iy) / Math.max(1, bw * bh) >= 0.5;
+      });
+
+      // Cari kandidat wadah plastik COCO-SSD
+      const plasticCandidate = visiblePreds
+        .filter(
+          p =>
+            (AUTO_COCO_CLASSES as readonly string[]).includes(p.class.toLowerCase()) &&
+            p.score >= COCO_THRESHOLD
+        )
+        .sort((a, b) => b.score - a.score)[0];
+
+      // Benda bukan sampah (orang, laptop, dll.) yang menutupi titik tengah bingkai
+      const roiCenterX = roi[0] + roi[2] / 2;
+      const roiCenterY = roi[1] + roi[3] / 2;
+      const centralNonPlastic = visiblePreds
+        .filter(
+          p =>
+            (NON_WASTE_COCO_CLASSES as readonly string[]).includes(p.class.toLowerCase()) &&
+            p.score >= NON_WASTE_COCO_THRESHOLD &&
+            (p.class.toLowerCase() === 'person' ||
+              p.bbox[2] * p.bbox[3] <= region.w * region.h * NON_PLASTIC_MAX_AREA_RATIO) &&
+            roiCenterX >= p.bbox[0] &&
+            roiCenterX <= p.bbox[0] + p.bbox[2] &&
+            roiCenterY >= p.bbox[1] &&
+            roiCenterY <= p.bbox[1] + p.bbox[3]
+        )
+        .sort((a, b) => b.score - a.score)[0];
+
+      if (!plasticCandidate && centralNonPlastic) {
+        showResult(
+          {
+            status: 'non_plastic',
+            cocoLabel: centralNonPlastic.class,
+            resinClass: null,
+            confidence: Math.round(centralNonPlastic.score * 100),
+            isMinority: false,
+            message: `Itu terlihat seperti ${NON_WASTE_LABELS[centralNonPlastic.class.toLowerCase()]}. Arahkan kamera ke sampah plastik, ya.`,
+          },
+          { box: null, kind: 'none', label: '', isCenterFallback: false }
+        );
+        return;
+      }
+
+      // Tanpa kandidat wadah (mis. sachet/bungkus), nilai area bingkai bidik tengah
+      const isCenterFallback = !plasticCandidate;
+      const evaluatedBox: Box = plasticCandidate ? plasticCandidate.bbox : roi;
+      const evalLabel = plasticCandidate ? plasticCandidate.class : 'Kemasan Plastik';
+
+      const [bx, by, bw, bh] = evaluatedBox;
+      const x1 = Math.max(0, Math.floor(bx));
+      const y1 = Math.max(0, Math.floor(by));
+      const x2 = Math.min(vw, Math.ceil(bx + bw));
+      const y2 = Math.min(vh, Math.ceil(by + bh));
+      const rawW = x2 - x1;
+      const rawH = y2 - y1;
+      const displayBox: Box = [x1, y1, rawW, rawH];
+
+      // Rata-ratakan beberapa margin crop; satu foto tidak punya frame lain sebagai pembanding
+      const padRatios = isCenterFallback ? [0] : CANDIDATE_PAD_RATIOS;
+      const allProbs: number[][] = [];
+      for (const padRatio of padRatios) {
+        const padX = Math.round(rawW * padRatio);
+        const padY = Math.round(rawH * padRatio);
+        const cx1 = Math.max(0, x1 - padX);
+        const cy1 = Math.max(0, y1 - padY);
+        const cx2 = Math.min(vw, x2 + padX);
+        const cy2 = Math.min(vh, y2 + padY);
+        const probs = classifyCropTensor(procCanvas, [
+          cx1,
+          cy1,
+          Math.max(1, cx2 - cx1),
+          Math.max(1, cy2 - cy1),
+        ]);
+        if (probs) allProbs.push(probs);
+      }
+
+      let topClass: string | null = null;
+      let topScore: number | null = null;
+      let looksNonPlastic = false;
+      if (allProbs.length > 0) {
+        const meanProbs = allProbs[0].map(
+          (_, i) => allProbs.reduce((sum, probs) => sum + probs[i], 0) / allProbs.length
+        );
+        const nonPlasticProb = meanProbs[NON_PLASTIC_INDEX];
+        looksNonPlastic = nonPlasticProb >= NON_PLASTIC_REJECT_THRESHOLD;
+        let maxIdx = 0;
+        for (let i = 1; i < RESIN_CLASSES.length; i++) {
+          if (meanProbs[i] > meanProbs[maxIdx]) maxIdx = i;
+        }
+        topClass = RESIN_CLASSES[maxIdx];
+        topScore = meanProbs[maxIdx] / Math.max(1e-6, 1 - nonPlasticProb);
+      }
+
+      // Pesannya sengaja lunak: model kadang keliru menolak plastik sungguhan
+      if (looksNonPlastic) {
+        showResult(
+          {
+            status: 'uncertain',
+            cocoLabel: evalLabel,
+            resinClass: null,
+            confidence: null,
+            isMinority: false,
+            message: 'Belum terlihat seperti plastik. Pastikan seluruh benda masuk bingkai, lalu foto ulang.',
+          },
+          { box: displayBox, kind: 'uncertain', label: 'Belum yakin', isCenterFallback }
+        );
+        return;
+      }
+
+      if (topClass && topScore !== null && topScore >= RESIN_THRESHOLD) {
+        const info = getPlasticInfo(topClass);
+        const conf = Math.round(topScore * 100);
+        setDetectedPlasticInfo(prev => (prev === info ? prev : info));
+        setCapturedPhoto(cropToDataUrl(procCanvas, displayBox));
+        overlayTargetRef.current = {
+          box: displayBox,
+          kind: 'locking',
+          label: info.name,
+          isCenterFallback,
+        };
+        setScanCard({
+          status: 'detected',
+          cocoLabel: evalLabel,
+          resinClass: topClass,
+          confidence: conf,
+          isMinority: (MINORITY_CLASSES as readonly string[]).includes(topClass),
+          message: 'Plastik ditemukan!',
+        });
+        setCaptureMode('result');
+        playScanPing('lock');
+        setPhase('detected');
+        lockTimeoutRef.current = window.setTimeout(() => {
+          stopCamera();
+          setPhase('pemantik');
+        }, 1500);
+        return;
+      }
+
+      showResult(
+        {
+          status: 'uncertain',
+          cocoLabel: evalLabel,
+          resinClass: topClass,
+          confidence: topScore !== null ? Math.round(topScore * 100) : null,
+          isMinority: false,
+          message: isCenterFallback
+            ? 'AI belum yakin. Pastikan seluruh benda masuk bingkai dan cahaya cukup, lalu foto ulang.'
+            : REJECTED_MATERIAL_STATUS,
+        },
+        { box: displayBox, kind: 'uncertain', label: 'Belum yakin', isCenterFallback }
+      );
+    } catch (err) {
+      console.warn('Analisis foto gagal:', err);
+      if (session !== sessionRef.current) return;
+      showResult(
+        {
+          status: 'uncertain',
+          cocoLabel: '',
+          resinClass: null,
+          confidence: null,
+          isMinority: false,
+          message: 'Foto gagal dianalisis. Silakan foto ulang.',
+        },
+        { box: null, kind: 'none', label: '', isCenterFallback: false }
+      );
+    }
+  }, [classifyCropTensor, playScanPing, setCaptureMode, setPhase, stopCamera]);
+
+  function retakePhoto() {
+    overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
+    displayBoxRef.current = null;
+    boxAlphaRef.current = 0;
+    setScanCard(INITIAL_SCAN_CARD);
+    setCaptureMode('live');
+    videoRef.current?.play().catch(() => {});
+  }
+
   async function startCamera() {
+    stopCamera();
+    const session = ++sessionRef.current;
     setCameraError(null);
+    setPhase('scanning');
     setModelLoading(true);
-    setLockProgress(0);
-    lockProgressRef.current = 0;
+    setCaptureMode('live');
+    overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
+    displayBoxRef.current = null;
+    boxAlphaRef.current = 0;
+    setScanCard(INITIAL_SCAN_CARD);
     activeRef.current = true;
-    setIsTargetFocused(false);
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -550,271 +1034,38 @@ export default function Tahap1() {
         );
       }
 
-      // Jalankan inisialisasi stream kamera dan pemuatan model AI secara paralel
-      const cameraStreamPromise = navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      // Kamera & model dimuat paralel; video ditampilkan secepatnya selagi model masih dimuat
+      const modelsPromise = ensureModelsLoaded();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+        },
       });
 
-      const [stream, { cocoModel }] = await Promise.all([
-        cameraStreamPromise,
-        ensureModelsLoaded(),
-      ]);
-
-      streamRef.current = stream;
-      if (!videoRef.current) return;
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-      setPhase('scanning');
-      setModelLoading(false);
-
-      async function detect() {
-        if (!activeRef.current || !videoRef.current || !overlayRef.current) return;
-        const video = videoRef.current;
-        const canvas = overlayRef.current;
-        const ctx = canvas.getContext('2d');
-
-        if (!ctx || video.readyState < 2 || isInferringRef.current) {
-          if (activeRef.current) {
-            animRef.current = requestAnimationFrame(detect);
-          }
-          return;
-        }
-
-        const vw = video.videoWidth || 640;
-        const vh = video.videoHeight || 480;
-        canvas.width = vw;
-        canvas.height = vh;
-        ctx.clearRect(0, 0, vw, vh);
-
-        if (!procCanvasRef.current) {
-          procCanvasRef.current = document.createElement('canvas');
-        }
-        const procCanvas = procCanvasRef.current;
-        procCanvas.width = vw;
-        procCanvas.height = vh;
-        const procCtx = procCanvas.getContext('2d');
-        if (!procCtx) return;
-        procCtx.drawImage(video, 0, 0, vw, vh);
-
-        // Center ROI rectangle
-        const roiSide = Math.round(Math.min(vw, vh) * CENTER_ROI_SCALE);
-        const roiX = Math.max(0, Math.round((vw - roiSide) / 2));
-        const roiY = Math.max(0, Math.round((vh - roiSide) / 2));
-
-        isInferringRef.current = true;
-        try {
-          const preds: Array<{
-            bbox: [number, number, number, number];
-            class: string;
-            score: number;
-          }> = await cocoModel.detect(procCanvas, 6, 0.20);
-
-          if (!activeRef.current) return;
-
-          // Cek apakah ada objek non-plastik dominan (mis. orang/wajah)
-          const nonPlasticPerson = preds.find(
-            p =>
-              ['person', 'cell phone', 'laptop', 'mouse'].includes(p.class.toLowerCase()) &&
-              p.score >= 0.50
-          );
-
-          // Cari kandidat wadah plastik
-          const plasticCandidate = preds
-            .filter(
-              p =>
-                (AUTO_COCO_CLASSES as readonly string[]).includes(p.class.toLowerCase()) &&
-                p.score >= COCO_THRESHOLD
-            )
-            .sort((a, b) => b.score - a.score)[0];
-
-          let evaluatedBox: [number, number, number, number] | null = null;
-          let evalLabel = 'Auto Detektor';
-          let padRatio = 0.08;
-
-          if (plasticCandidate) {
-            evaluatedBox = plasticCandidate.bbox;
-            evalLabel = plasticCandidate.class;
-            padRatio = 0.08;
-          } else if (!nonPlasticPerson) {
-            // Jika COCO-SSD tidak menemukan wadah kaku, namun di tengah ada kemasan plastik fleksibel/sachet
-            evaluatedBox = [roiX, roiY, roiSide, roiSide];
-            evalLabel = 'Center-Target';
-            padRatio = 0.0;
-          }
-
-          if (evaluatedBox && !nonPlasticPerson) {
-            const [bx, by, bw, bh] = evaluatedBox;
-            const x1 = Math.max(0, Math.floor(bx));
-            const y1 = Math.max(0, Math.floor(by));
-            const x2 = Math.min(vw, Math.ceil(bx + bw));
-            const y2 = Math.min(vh, Math.ceil(by + bh));
-            const rawW = x2 - x1;
-            const rawH = y2 - y1;
-
-            const padX = Math.round(rawW * padRatio);
-            const padY = Math.round(rawH * padRatio);
-            const cx1 = Math.max(0, x1 - padX);
-            const cy1 = Math.max(0, y1 - padY);
-            const cx2 = Math.min(vw, x2 + padX);
-            const cy2 = Math.min(vh, y2 + padY);
-            const cw = Math.max(1, cx2 - cx1);
-            const ch = Math.max(1, cy2 - cy1);
-
-            const cropRes = classifyCropTensor(procCanvas, [cx1, cy1, cw, ch]);
-            const topClass = cropRes.topClass;
-            const topScore = cropRes.topScore;
-            const isAccepted = Boolean(
-              cropRes.validCrop && topClass && topScore !== null && topScore >= RESIN_THRESHOLD
-            );
-            const isMinority = Boolean(
-              topClass && (MINORITY_CLASSES as readonly string[]).includes(topClass)
-            );
-
-            // Cek apakah posisi objek berada di area tengah target
-            const boxCenterX = x1 + rawW / 2;
-            const boxCenterY = y1 + rawH / 2;
-            const inCenter =
-              Math.abs(boxCenterX - vw / 2) <= vw * 0.32 &&
-              Math.abs(boxCenterY - vh / 2) <= vh * 0.32;
-
-            setIsTargetFocused(inCenter && isAccepted);
-
-            if (isAccepted && topClass && topScore !== null) {
-              const info = getPlasticInfo(topClass);
-              setDetectedPlasticInfo(info);
-
-              // Batasi koordinat frame agar selalu berada di zona aman kamera (tidak menimpa navbar atau card bawah)
-              const safeTop = Math.round(vh * 0.16);
-              const safeBottom = Math.round(vh * 0.72);
-              const safeLeft = Math.round(vw * 0.06);
-              const safeRight = Math.round(vw * 0.94);
-
-              const clampX1 = Math.max(safeLeft, Math.min(safeRight - 40, x1));
-              const clampY1 = Math.max(safeTop, Math.min(safeBottom - 40, y1));
-              const clampX2 = Math.min(safeRight, Math.max(clampX1 + 40, x1 + rawW));
-              const clampY2 = Math.min(safeBottom, Math.max(clampY1 + 40, y1 + rawH));
-
-              if (inCenter) {
-                lockProgressRef.current = Math.min(100, lockProgressRef.current + 12);
-                setLockProgress(lockProgressRef.current);
-
-                if (lockProgressRef.current % 36 === 0) {
-                  playScanPing('beep');
-                }
-
-                const isLocked = lockProgressRef.current >= 100;
-
-                // Gambar frame sudut AR hijau neon yang presisi tanpa menabrak UI
-                drawOptimizedObjectFrame(
-                  ctx,
-                  clampX1,
-                  clampY1,
-                  clampX2 - clampX1,
-                  clampY2 - clampY1,
-                  '#6bff8f',
-                  isLocked
-                );
-
-                setScanCard({
-                  status: 'detected',
-                  cocoLabel: evalLabel,
-                  resinClass: topClass,
-                  confidence: Math.round(topScore * 100),
-                  isMinority,
-                  message: isLocked
-                    ? `✓ ${info.name.toUpperCase()} TERKUNCI (100%)`
-                    : `Menilai ${info.name} di sasaran (${lockProgressRef.current}%)...`,
-                });
-
-                if (isLocked && activeRef.current) {
-                  playScanPing('lock');
-                  setPhase('detected');
-                  setTimeout(() => {
-                    stopCamera();
-                    setPhase('pemantik');
-                  }, 1500);
-                  return;
-                }
-              } else {
-                // Objek terdeteksi tetapi belum di tengah -> frame sudut oranye halus
-                if (lockProgressRef.current > 0) {
-                  lockProgressRef.current = Math.max(0, lockProgressRef.current - 4);
-                  setLockProgress(lockProgressRef.current);
-                }
-
-                drawOptimizedObjectFrame(
-                  ctx,
-                  clampX1,
-                  clampY1,
-                  clampX2 - clampX1,
-                  clampY2 - clampY1,
-                  '#f0a345',
-                  false
-                );
-
-                setScanCard({
-                  status: 'scanning',
-                  cocoLabel: evalLabel,
-                  resinClass: topClass,
-                  confidence: Math.round(topScore * 100),
-                  isMinority,
-                  message: `Arahkan ${info.name} ke tengah bingkai sasaran ⊙`,
-                });
-              }
-            } else {
-              // Skor classifier di bawah ambang batas (ragu / material belum dipastikan)
-              if (lockProgressRef.current > 0) {
-                lockProgressRef.current = Math.max(0, lockProgressRef.current - 6);
-                setLockProgress(lockProgressRef.current);
-              }
-
-              setScanCard({
-                status: 'uncertain',
-                cocoLabel: evalLabel,
-                resinClass: topClass || null,
-                confidence: topScore ? Math.round(topScore * 100) : null,
-                isMinority: false,
-                message: REJECTED_MATERIAL_STATUS,
-              });
-            }
-          } else {
-            // Objek bukan plastik atau layar kosong
-            setIsTargetFocused(false);
-            if (lockProgressRef.current > 0) {
-              lockProgressRef.current = Math.max(0, lockProgressRef.current - 6);
-              setLockProgress(lockProgressRef.current);
-            }
-
-            if (nonPlasticPerson) {
-              setScanCard({
-                status: 'non_plastic',
-                cocoLabel: nonPlasticPerson.class,
-                resinClass: null,
-                confidence: Math.round(nonPlasticPerson.score * 100),
-                isMinority: false,
-                message: `AI melihat "${nonPlasticPerson.class}". Objek ini bukan sampah plastik.`,
-              });
-            } else {
-              setScanCard({
-                status: 'scanning',
-                cocoLabel: 'Mencari objek...',
-                resinClass: null,
-                confidence: null,
-                isMinority: false,
-                message: 'Arahkan botol, gelas, atau kemasan plastik ke tengah sasaran',
-              });
-            }
-          }
-        } finally {
-          isInferringRef.current = false;
-        }
-
-        if (activeRef.current) {
-          animRef.current = requestAnimationFrame(detect);
-        }
+      if (session !== sessionRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
       }
-      detect();
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(() => {});
+      }
+      const renderLoop = () => {
+        if (!activeRef.current || session !== sessionRef.current) return;
+        drawOverlayFrame();
+        renderRafRef.current = requestAnimationFrame(renderLoop);
+      };
+      renderRafRef.current = requestAnimationFrame(renderLoop);
+
+      await modelsPromise;
+      if (session !== sessionRef.current) return;
+      setModelLoading(false);
     } catch (err: unknown) {
+      if (session !== sessionRef.current) return;
+      stopCamera();
       setCameraError(err instanceof Error ? err.message : 'Akses kamera ditolak');
       setModelLoading(false);
     }
@@ -828,12 +1079,41 @@ export default function Tahap1() {
   function selectSimulatedSample(sample: PlasticInfo) {
     stopCamera();
     setCameraError(null);
+    setCapturedPhoto(null);
     setDetectedPlasticInfo(sample);
     setPhase('pemantik');
   }
 
+  // Info polimer yang ditampilkan di kartu HUD hanya bila AI benar-benar memiliki kandidat resin
+  const hudInfo =
+    scanCard.status === 'detected' && scanCard.resinClass
+      ? getPlasticInfo(scanCard.resinClass)
+      : null;
+
+  const statusTone =
+    phase === 'detected' || scanCard.status === 'detected'
+      ? 'lock'
+      : scanCard.status === 'uncertain'
+      ? 'warn'
+      : scanCard.status === 'non_plastic'
+      ? 'error'
+      : 'idle';
+
+  const statusLabel =
+    phase === 'detected'
+      ? 'Plastik terdeteksi'
+      : modelLoading
+      ? 'Menyiapkan AI'
+      : captureMode === 'analyzing'
+      ? 'Menganalisis foto'
+      : scanCard.status === 'non_plastic'
+      ? 'Bukan sampah plastik'
+      : scanCard.status === 'uncertain'
+      ? 'AI belum yakin'
+      : 'Siap memotret';
+
   return (
-    <div className="relative w-full overflow-hidden min-h-screen h-[100vh] bg-[#06293b]">
+    <div className="relative w-full overflow-hidden h-[100dvh] bg-[#06293b]">
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover"
@@ -849,11 +1129,11 @@ export default function Tahap1() {
       <AnimatePresence>
         {phase === 'init' && !cameraError && (
           <StageIntro
-            title="Tahap 1: AR Scanner Plastik"
-            description="Arahkan kamera ke sampah plastik di sekitarmu (botol plastik, gelas cup, atau kemasan makanan). AI AR Scanner akan mendeteksi jenis polimer dan potensinya menjadi mikroplastik."
+            title="Tahap 1: Scanner Plastik"
+            description="Cari sampah plastik di sekitarmu, seperti botol, gelas, atau bungkus jajan. Arahkan kamera, lalu tekan Scan. AI akan menebak jenis plastiknya."
             icon="qr_code_scanner"
             layout="centered"
-            actionText="Aktifkan Kamera AI"
+            actionText="Buka Kamera"
             onStart={startCamera}
           />
         )}
@@ -883,289 +1163,284 @@ export default function Tahap1() {
         </div>
       )}
 
-      {/* Real-time Scanning HUD: Bersih, Rapi, Bebas Tabrakan Elemen */}
+      {/* Real-time Scanning HUD */}
       {(phase === 'scanning' || phase === 'detected') && (
-        <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-between p-4 sm:p-5">
-          {/* TOP SECTION: Slim floating status pill di bawah navbar kayu */}
-          <div className="w-full flex justify-center pt-20 sm:pt-22">
+        <div className="absolute inset-0 pointer-events-none z-20">
+          {/* Vignette halus agar HUD & bingkai lebih terbaca di atas video */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(6,41,59,0.55)_100%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[#06293b]/80 to-transparent" />
+
+          {/* Overlay memuat model AI (kamera sudah tampil di belakangnya) */}
+          <AnimatePresence>
+            {modelLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#06293b]/60 backdrop-blur-[2px]"
+              >
+                <div className="relative w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-4 border-white/15" />
+                  <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#6bff8f] animate-spin" />
+                  <span className="absolute inset-0 flex items-center justify-center material-symbols-outlined text-[#6bff8f] text-2xl">
+                    neurology
+                  </span>
+                </div>
+                <p className="text-white font-bold text-sm font-[family-name:var(--font-outfit)]">
+                  Menyiapkan kamera &amp; model AI…
+                </p>
+                <p className="text-white/60 text-xs">Hanya perlu beberapa detik</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Kilatan sukses saat target terkunci */}
+          <AnimatePresence>
+            {phase === 'detected' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_center,rgba(107,255,143,0.28),transparent_65%)]"
+              >
+                <motion.div
+                  initial={{ scale: 0.4, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 320, damping: 18 }}
+                  className="w-20 h-20 rounded-full bg-[#006e2f]/90 border-2 border-[#6bff8f] shadow-[0_0_40px_rgba(107,255,143,0.6)] flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined text-[#6bff8f] text-5xl">check</span>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Pill status ringkas — diletakkan di bawah header kayu (h-28) */}
+          <div className="absolute top-[7.5rem] inset-x-0 flex justify-center px-4">
             <div
-              className={`px-4 py-1.5 rounded-full backdrop-blur-md border shadow-lg flex items-center gap-2 transition-all ${
-                isTargetFocused
+              className={`px-3.5 py-1.5 rounded-full backdrop-blur-md border shadow-lg flex items-center gap-2 transition-colors duration-300 ${
+                statusTone === 'lock'
                   ? 'bg-[#006e2f]/85 border-[#6bff8f]/60 text-[#6bff8f]'
+                  : statusTone === 'warn'
+                  ? 'bg-[#3b2313]/80 border-[#f0a345]/60 text-[#f0a345]'
+                  : statusTone === 'error'
+                  ? 'bg-[#410002]/80 border-[#ff8a80]/60 text-[#ffb4ab]'
                   : 'bg-[#083b54]/80 border-white/20 text-white/90'
               }`}
             >
-              <span
-                className={`w-2 h-2 rounded-full shrink-0 ${
-                  isTargetFocused ? 'bg-[#6bff8f] animate-ping' : 'bg-[#f0a345]'
-                }`}
-              />
-              <span className="text-xs font-semibold font-[family-name:var(--font-outfit)] truncate max-w-[80vw]">
-                {modelLoading
-                  ? 'Menyiapkan Model AI...'
-                  : isTargetFocused
-                  ? `✓ ${detectedPlasticInfo.name} Terfokus di Sasaran`
-                  : scanCard.message}
+              <span className="relative flex w-2 h-2 shrink-0">
+                {(statusTone === 'lock' || statusTone === 'idle') && (
+                  <span className="absolute inline-flex w-full h-full rounded-full bg-current opacity-60 animate-ping" />
+                )}
+                <span className="relative inline-flex w-2 h-2 rounded-full bg-current" />
+              </span>
+              <span className="text-xs font-bold font-[family-name:var(--font-outfit)]">
+                {statusLabel}
               </span>
             </div>
           </div>
 
-          {/* CENTER VIEWPORT: Optimized AR Viewfinder Reticle (Bebas tumpuk di tengah) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 sm:w-64 sm:h-64 pointer-events-none transition-all duration-300">
-            {/* 4 Sleek Neon Corner Brackets */}
-            <div
-              className={`absolute top-0 left-0 w-7 h-7 border-t-4 border-l-4 rounded-tl-2xl transition-all duration-300 ${
-                isTargetFocused
-                  ? 'border-[#6bff8f] shadow-[0_0_20px_#6bff8f]'
-                  : 'border-[#6bff8f]/70 shadow-[0_0_10px_rgba(107,255,143,0.3)]'
-              }`}
-            />
-            <div
-              className={`absolute top-0 right-0 w-7 h-7 border-t-4 border-r-4 rounded-tr-2xl transition-all duration-300 ${
-                isTargetFocused
-                  ? 'border-[#6bff8f] shadow-[0_0_20px_#6bff8f]'
-                  : 'border-[#6bff8f]/70 shadow-[0_0_10px_rgba(107,255,143,0.3)]'
-              }`}
-            />
-            <div
-              className={`absolute bottom-0 left-0 w-7 h-7 border-b-4 border-l-4 rounded-bl-2xl transition-all duration-300 ${
-                isTargetFocused
-                  ? 'border-[#6bff8f] shadow-[0_0_20px_#6bff8f]'
-                  : 'border-[#6bff8f]/70 shadow-[0_0_10px_rgba(107,255,143,0.3)]'
-              }`}
-            />
-            <div
-              className={`absolute bottom-0 right-0 w-7 h-7 border-b-4 border-r-4 rounded-br-2xl transition-all duration-300 ${
-                isTargetFocused
-                  ? 'border-[#6bff8f] shadow-[0_0_20px_#6bff8f]'
-                  : 'border-[#6bff8f]/70 shadow-[0_0_10px_rgba(107,255,143,0.3)]'
-              }`}
-            />
-
-            {/* Center Focus Reticle */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className={`w-3.5 h-3.5 border-t-2 border-l-2 transition-all duration-300 ${
-                  isTargetFocused
-                    ? 'border-[#6bff8f] scale-125'
-                    : 'border-[#6bff8f]/40'
-                }`}
-              />
-            </div>
-
-            {/* Subtle Scanning Radar / Laser Beam */}
-            <div
-              className={`absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-[#6bff8f] to-transparent shadow-[0_0_12px_#6bff8f] transition-opacity duration-300 ${
-                phase === 'scanning' ? 'animate-pulse opacity-80' : 'opacity-0'
-              }`}
-              style={{
-                animation: 'scanLaser 2.4s ease-in-out infinite alternate',
-              }}
-            />
-          </div>
-
-          {/* BOTTOM SECTION: Hero Information Card (Tertata rapi di bagian bawah) */}
-          <div className="w-full flex flex-col items-center pb-4 sm:pb-6 pointer-events-auto">
-            <div className="w-[min(94vw,440px)] bg-[#083b54]/92 backdrop-blur-md border border-[#6bff8f]/35 rounded-2xl p-3.5 shadow-2xl text-white transition-all duration-300">
-              {/* Header Status Bar */}
-              <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-white/10 text-xs">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`w-2 h-2 rounded-full shrink-0 ${
-                      scanCard.status === 'detected'
-                        ? 'bg-[#6bff8f] animate-ping'
-                        : scanCard.status === 'uncertain'
-                        ? 'bg-[#f0a345]'
-                        : scanCard.status === 'non_plastic'
-                        ? 'bg-[#ba1a1a]'
-                        : 'bg-[#6bff8f]/80 animate-pulse'
-                    }`}
-                  />
-                  <span className="font-extrabold uppercase tracking-wider font-[family-name:var(--font-outfit)] text-[11px]">
-                    {phase === 'detected'
-                      ? '✓ TARGET TERKUNCI'
-                      : scanCard.status === 'detected'
-                      ? 'PLASTIK TERDETEKSI'
-                      : scanCard.status === 'non_plastic'
-                      ? 'BUKAN SAMPAH PLASTIK'
-                      : scanCard.status === 'uncertain'
-                      ? 'MATERIAL BELUM DIPASTIKAN'
-                      : 'MEMINDAI OBJEK'}
-                  </span>
-                </div>
-                {scanCard.confidence !== null && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#6bff8f]/20 text-[#6bff8f] border border-[#6bff8f]/40 font-[family-name:var(--font-mono)]">
-                    Indikatif {scanCard.confidence}%
-                  </span>
-                )}
+          {/* Kartu informasi bawah */}
+          <div className="absolute inset-x-0 bottom-0 flex flex-col items-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pointer-events-auto">
+            <div className="w-[min(100%,440px)] bg-[#083b54]/90 backdrop-blur-md border border-white/15 rounded-2xl p-3.5 shadow-2xl text-white">
+              {/* Pesan panduan utama */}
+              <div className="flex items-center justify-between gap-2">
+                <p
+                  className={`text-[15px] font-semibold leading-snug min-w-0 ${
+                    statusTone === 'warn'
+                      ? 'text-[#ffd7a8]'
+                      : statusTone === 'error'
+                      ? 'text-[#ffb4ab]'
+                      : 'text-white'
+                  }`}
+                >
+                  {modelLoading
+                    ? 'Kamera aktif. Model AI sedang dimuat…'
+                    : captureMode === 'analyzing'
+                    ? 'AI sedang memeriksa foto…'
+                    : scanCard.message}
+                </p>
               </div>
 
-              {/* Main Polymer Information Row */}
-              <div className="flex items-start gap-3">
-                <div className="w-11 h-11 rounded-xl bg-[#006591]/60 border border-[#6bff8f]/30 flex flex-col items-center justify-center shrink-0 text-white shadow-inner">
-                  <span className="text-[9px] font-black font-[family-name:var(--font-mono)] text-[#6bff8f]">
-                    {detectedPlasticInfo.resinClass?.split('-')[0] || '1'}
-                  </span>
-                  <span className="material-symbols-outlined text-lg text-[#6bff8f] -mt-1">
-                    recycling
-                  </span>
-                </div>
+              <AnimatePresence mode="wait" initial={false}>
+                {hudInfo ? (
+                  <motion.div
+                    key={`info-${scanCard.resinClass}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    className="flex items-start gap-3 mt-2.5 pt-2.5 border-t border-white/10"
+                  >
+                    <div className="w-11 h-11 rounded-xl bg-[#006591]/60 border border-[#6bff8f]/30 flex flex-col items-center justify-center shrink-0 shadow-inner">
+                      <span className="text-[10px] font-black font-[family-name:var(--font-mono)] text-[#6bff8f] leading-none">
+                        {hudInfo.resinClass?.split('-')[0] || '7'}
+                      </span>
+                      <span className="material-symbols-outlined text-lg text-[#6bff8f] leading-none">
+                        recycling
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div>
+                        <p className="font-[family-name:var(--font-outfit)] font-bold text-[15px] leading-snug">
+                          {hudInfo.name}
+                        </p>
+                        <p className="text-[13px] font-semibold text-[#f0a345] mt-0.5">
+                          Terurai dalam {hudInfo.decompositionTime.toLowerCase()}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="font-[family-name:var(--font-outfit)] font-bold text-sm text-white truncate">
-                      {detectedPlasticInfo.name}
-                    </p>
-                    <span className="text-[10px] font-bold text-[#f0a345] shrink-0 font-[family-name:var(--font-mono)]">
-                      {detectedPlasticInfo.decompositionTime}
-                    </span>
-                  </div>
-                  <p className="text-[11px] font-medium text-white/80 truncate">
-                    Polimer: {detectedPlasticInfo.polymer}
-                  </p>
-                  <p className="text-[10px] text-white/60 line-clamp-1 mt-0.5 leading-snug">
-                    {detectedPlasticInfo.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Minority Class Validation Warning */}
+              {/* Peringatan kelas minoritas */}
               {scanCard.isMinority && scanCard.status === 'detected' && (
-                <p className="mt-2 text-[10px] text-amber-200 bg-amber-950/60 border border-amber-400/40 rounded-lg px-2.5 py-0.5">
-                  ⚠ Data latih terbatas — cek kode daur ulang fisik pada kemasan.
+                <p className="mt-2 text-xs text-amber-200 bg-amber-950/60 border border-amber-400/40 rounded-lg px-2.5 py-1.5">
+                  AI masih jarang melihat plastik jenis ini. Cek kode segitiga di kemasan, ya.
                 </p>
               )}
 
-              {/* Live Lock Progress Bar */}
-              {lockProgress > 0 && (
-                <div className="mt-2 pt-2 border-t border-white/10">
-                  <div className="flex justify-between text-[10px] font-bold text-[#6bff8f] mb-1 font-[family-name:var(--font-mono)]">
-                    <span>
-                      {phase === 'detected' ? 'INVESTIGASI TERKUNCI' : 'MENGUNCI INVESTIGASI'}
-                    </span>
-                    <span>{lockProgress}%</span>
-                  </div>
-                  <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-[#f0a345] to-[#6bff8f] rounded-full transition-all duration-150"
-                      style={{ width: `${lockProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* Subtle Fallback link for Demo/Testing without physical plastic */}
-            <div className="text-center mt-1.5">
+            {/* Tombol potret: foto dianalisis hanya setelah ditekan siswa */}
+            {phase === 'scanning' && !modelLoading && (
+              <button
+                onClick={captureMode === 'result' ? retakePhoto : analyzeCapture}
+                disabled={captureMode === 'analyzing'}
+                className="mt-3 w-[min(100%,440px)] min-h-14 flex items-center justify-center gap-2 bg-[#6bff8f] hover:bg-[#4ee876] disabled:opacity-60 text-[#06293b] text-lg font-extrabold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
+              >
+                <span className="material-symbols-outlined text-2xl">
+                  {captureMode === 'result' ? 'refresh' : 'photo_camera'}
+                </span>
+                {captureMode === 'analyzing'
+                  ? 'Menganalisis…'
+                  : captureMode === 'result'
+                  ? 'Foto Ulang'
+                  : 'Scan'}
+              </button>
+            )}
+
+            {/* Tautan simulasi untuk demo tanpa sampel plastik fisik */}
+            {phase === 'scanning' && (
               <button
                 onClick={() => selectSimulatedSample(PLASTIC_DATA.bottle)}
-                className="text-white/50 hover:text-white text-[11px] underline font-medium transition-colors"
+                className="mt-1 min-h-11 px-3 text-white/80 hover:text-white text-[13px] underline font-medium transition-colors"
               >
-                Uji sampel simulasi (Botol PET)
+                Tidak ada sampah plastik? Pakai contoh botol
               </button>
-            </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Pemantik Modal (Investigation Sheet) */}
+
+      {/* Kartu hasil: muat satu layar HP; kotak jawaban mengisi sisa ruang. Gulir hanya saat keyboard terbuka. */}
       {phase === 'pemantik' && (
-        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-white border-2 border-[#e4f1f9] rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl my-auto">
-            <div className="flex justify-center mb-3">
-              <div className="w-14 h-14 bg-[#6bff8f]/20 border border-[#006e2f]/30 rounded-full flex items-center justify-center shadow-lg shadow-[#006e2f]/10">
-                <span className="material-symbols-outlined text-[#006e2f] text-3xl">verified</span>
-              </div>
-            </div>
-
-            <p className="text-xs font-[family-name:var(--font-mono)] text-[#006e2f] font-extrabold uppercase tracking-widest text-center mb-1">
-              {detectedPlasticInfo.name} Terdeteksi ✓
-            </p>
-
-            {/* Indicative Visual Prediction Badge */}
-            <div className="mb-3 text-center">
-              <span className="inline-block bg-[#e8f5e9] border border-[#006e2f]/30 text-[#006e2f] text-[11px] font-extrabold px-3 py-1 rounded-full">
-                Prediksi Visual Indikatif: {detectedPlasticInfo.code}
-              </span>
-              <p className="text-[10px] text-[#6e7881] mt-1 leading-snug">
-                Hasil ini merupakan prediksi visual indikatif, bukan verifikasi komposisi kimia.
-              </p>
-            </div>
-
-            {/* Dynamic Card Polimer Edukatif */}
-            <div className="bg-[#f2f8fa] border-2 border-[#d0e5f2] rounded-2xl p-3.5 mb-4 text-left">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-[#006591] text-white tracking-wider font-[family-name:var(--font-mono)]">
-                  {detectedPlasticInfo.code}
-                </span>
-                <span className="text-[11px] font-bold text-[#ba1a1a] flex items-center gap-1 font-[family-name:var(--font-mono)]">
-                  <span className="material-symbols-outlined text-sm">schedule</span>
-                  Urai: {detectedPlasticInfo.decompositionTime}
-                </span>
+        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center sm:p-6">
+          <div className="bg-white w-full max-w-md h-[100dvh] sm:h-[min(640px,92dvh)] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-2 flex flex-col">
+              {/* Hasil */}
+              <div className="flex items-center gap-3 shrink-0">
+                {capturedPhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- data URL hasil potret kamera
+                  <img
+                    src={capturedPhoto}
+                    alt={`Foto ${detectedPlasticInfo.name} hasil scan`}
+                    className="w-16 h-16 [@media(min-height:720px)]:w-24 [@media(min-height:720px)]:h-24 object-cover rounded-xl border-2 border-[#006e2f]/30 shrink-0"
+                  />
+                ) : (
+                  <div className="w-16 h-16 [@media(min-height:720px)]:w-24 [@media(min-height:720px)]:h-24 bg-[#6bff8f]/20 border border-[#006e2f]/30 rounded-xl flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-[#006e2f] text-4xl">recycling</span>
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <h2 className="font-[family-name:var(--font-outfit)] text-xl [@media(min-height:720px)]:text-2xl font-bold leading-tight text-[#083b54]">
+                    Kamu menemukan plastik!
+                  </h2>
+                  <p className="mt-0.5 text-sm font-semibold leading-snug text-[#006e2f]">
+                    {detectedPlasticInfo.name}
+                  </p>
+                </div>
               </div>
 
-              <p className="text-xs font-extrabold text-[#083b54] mb-1 font-[family-name:var(--font-outfit)]">
-                Polimer: {detectedPlasticInfo.polymer}
-              </p>
+              {/* Dua fakta utama */}
+              <div className="grid grid-cols-2 gap-2 mt-2.5 [@media(min-height:720px)]:mt-4 shrink-0">
+                <div className="bg-[#f2f8fa] rounded-xl px-2 py-1.5 [@media(min-height:720px)]:py-3 text-center">
+                  <p className="text-xs text-[#4b5563]">Kode daur ulang</p>
+                  <p className="text-sm font-bold text-[#006591] leading-snug font-[family-name:var(--font-outfit)]">
+                    {detectedPlasticInfo.code.replace(/^KODE /, '')}
+                  </p>
+                </div>
+                <div className="bg-[#fdf1ef] rounded-xl px-2 py-1.5 [@media(min-height:720px)]:py-3 text-center">
+                  <p className="text-xs text-[#4b5563]">Lama terurai</p>
+                  <p className="text-sm font-bold text-[#ba1a1a] leading-snug font-[family-name:var(--font-outfit)]">
+                    {detectedPlasticInfo.decompositionTime}
+                  </p>
+                </div>
+              </div>
 
-              <p className="text-[11px] text-[#4b5563] leading-relaxed">
+              <p className="mt-2 [@media(min-height:720px)]:mt-4 text-sm [@media(min-height:720px)]:text-[15px] text-[#3e4850] leading-snug shrink-0">
                 {detectedPlasticInfo.description}
               </p>
-            </div>
-
-            <h3 className="font-[family-name:var(--font-outfit)] text-lg sm:text-xl font-bold text-center mb-3 text-[#083b54]">
-              Pertanyaan Pemantik
-            </h3>
-
-            <div className="bg-[#f8fafc] border-l-4 border-[#006591] rounded-xl p-4 mb-4">
-              <p className="text-[#3e4850] text-xs sm:text-sm leading-relaxed italic font-medium">
-                &ldquo;Bagaimana mungkin benda padat sintetis seperti{' '}
-                <strong className="text-[#083b54] not-italic">
-                  {detectedPlasticInfo.name.toLowerCase()}
-                </strong>{' '}
-                ini bisa menembus dan menetap di dalam usus manusia — sedangkan tubuh kita dirancang
-                untuk mencerna makanan?&rdquo;
+              <p className="mt-1 text-xs text-[#6e7881] leading-snug shrink-0">
+                Ini tebakan AI. Untuk memastikan, cari kode segitiga di kemasan.
               </p>
+
+              {/* Pertanyaan */}
+              <div className="mt-2.5 pt-2.5 [@media(min-height:720px)]:mt-4 [@media(min-height:720px)]:pt-4 border-t border-[#e4eff4] flex-1 min-h-[9.5rem] flex flex-col">
+                <p className="text-sm [@media(min-height:720px)]:text-[15px] font-semibold text-[#083b54] leading-snug shrink-0">
+                  Plastik itu benda padat. Kok bisa masuk dan menetap di usus kita, ya?
+                </p>
+                <label htmlFor="hipotesis" className="mt-1.5 text-sm text-[#3e4850] shrink-0">
+                  <span className="font-bold text-[#083b54]">Apa tebakanmu?</span>{' '}
+                  {showAnswerHint ? (
+                    <span role="alert" className="font-semibold text-[#ba1a1a]">
+                      Tulis dulu, ya.
+                    </span>
+                  ) : (
+                    <span className="text-[#6e7881]">Tidak harus benar.</span>
+                  )}
+                </label>
+                <textarea
+                  id="hipotesis"
+                  ref={answerRef}
+                  value={lkpdAnswers.lkpdStep1}
+                  onChange={e => {
+                    setLkpdAnswer('lkpdStep1', e.target.value);
+                    setShowAnswerHint(false);
+                  }}
+                  placeholder="Menurut saya, plastik bisa masuk ke tubuh karena..."
+                  aria-invalid={showAnswerHint}
+                  className={`mt-1 w-full flex-1 min-h-16 max-h-56 p-2.5 bg-[#f8fafc] border-2 rounded-xl text-base leading-snug outline-none resize-none transition-colors focus:border-[#006591] ${
+                    showAnswerHint ? 'border-[#ba1a1a]' : 'border-[#e4eff4]'
+                  }`}
+                />
+              </div>
             </div>
 
-            <div className="mb-5">
-              <label className="block text-xs font-bold text-[#083b54] mb-1.5 uppercase font-[family-name:var(--font-outfit)]">
-                Tuliskan Hipotesis Awalmu (LKPD Tahap 1)
-              </label>
-              <textarea
-                value={lkpdAnswers.lkpdStep1}
-                onChange={e => setLkpdAnswer('lkpdStep1', e.target.value)}
-                placeholder={`Menurut saya, ${detectedPlasticInfo.name.toLowerCase()} bisa masuk ke tubuh karena...`}
-                className="w-full h-24 p-3 bg-[#f8fafc] border-2 border-[#e4eff4] rounded-xl text-sm font-medium focus:border-[#006591] focus:ring-0 outline-none resize-none transition-all"
-              />
-            </div>
-
-            <p className="text-[#6e7881] text-xs text-center mb-5">
-              Pikirkan jawabannya. Mulai investigasi untuk membuktikannya di Tahap 2.
-            </p>
-
-            <div className="flex flex-col gap-2.5">
+            <div className="shrink-0 px-4 pt-2 pb-[max(0.625rem,env(safe-area-inset-bottom))] border-t border-[#e4eff4] bg-white flex gap-2">
+              <button
+                onClick={() => {
+                  setShowAnswerHint(false);
+                  startCamera();
+                }}
+                className="min-h-12 px-3 bg-slate-100 text-[#006591] font-semibold rounded-xl text-sm flex items-center justify-center gap-1 shrink-0 font-[family-name:var(--font-outfit)]"
+              >
+                <span className="material-symbols-outlined text-lg">refresh</span> Foto ulang
+              </button>
               <button
                 onClick={() => {
                   if (!lkpdAnswers.lkpdStep1.trim()) {
-                    alert('Harap isi hipotesis awalmu sebelum melanjutkan!');
+                    setShowAnswerHint(true);
+                    answerRef.current?.focus();
                     return;
                   }
                   proceed();
                 }}
-                className="w-full bg-[#006591] hover:bg-[#004c6e] text-white font-bold py-3.5 rounded-xl text-base sm:text-lg transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-[#006591]/30 font-[family-name:var(--font-outfit)]"
+                className="flex-1 min-h-12 bg-[#006591] hover:bg-[#004c6e] text-white font-bold rounded-xl text-base transition-transform active:scale-95 flex items-center justify-center gap-1.5 font-[family-name:var(--font-outfit)]"
               >
-                Mulai Investigasi <span className="material-symbols-outlined">arrow_forward</span>
-              </button>
-              <button
-                onClick={() => {
-                  startCamera();
-                  setPhase('scanning');
-                }}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-[#006591] font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 font-[family-name:var(--font-outfit)]"
-              >
-                <span className="material-symbols-outlined text-base">refresh</span> Scan Ulang
-                Objek
+                Lanjutkan <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </button>
             </div>
           </div>

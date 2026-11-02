@@ -31,7 +31,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
   const isGuestBlockedPath = isGuest && currentId > 2;
 
   return (
-    <div className="min-h-screen bg-[#f7f9fb] flex flex-col font-[family-name:var(--font-inter)] relative">
+    <div className="min-h-[100dvh] bg-[#f7f9fb] flex flex-col font-[family-name:var(--font-inter)] relative">
       <GuestLimitModal
         isOpen={isGuestBlockedPath}
         onClose={() => router.push('/journey')}
@@ -45,7 +45,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
 
         <div className="relative max-w-5xl mx-auto px-4 h-28 flex items-center justify-between pointer-events-auto">
 
-          {/* Back & Map Navigation Buttons - Wooden Theme */}
+          {/* Satu tombol kembali - Wooden Theme */}
           <div className="flex items-center gap-2 z-20">
             {isDashboard ? (
               <button
@@ -61,52 +61,23 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                 <span className="hidden sm:inline">Beranda</span>
               </button>
             ) : (
-              <>
-                {/* Back to Previous Stage button if stage > 1 */}
-                {currentId > 1 ? (
-                  <button
-                    onClick={() => {
-                      const prevPath = STAGES.find(s => s.id === currentId - 1)?.path || '/journey';
-                      router.push(prevPath);
-                    }}
-                    title={`Kembali ke Tahap ${currentId - 1}`}
-                    className="relative flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
-                    style={{
-                      background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
-                      boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    <span className="material-symbols-outlined text-lg">arrow_back</span>
-                    <span className="hidden sm:inline">Tahap {currentId - 1}</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => router.push('/journey')}
-                    title="Kembali ke Peta Ekspedisi"
-                    className="relative flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
-                    style={{
-                      background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
-                      boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    <span className="material-symbols-outlined text-lg">arrow_back</span>
-                    <span className="hidden sm:inline">Peta</span>
-                  </button>
-                )}
-
-                {/* Map button shortcut */}
-                <button
-                  onClick={() => router.push('/journey')}
-                  title="Buka Peta Ekspedisi"
-                  className="relative flex items-center justify-center w-9 h-9 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313]"
-                  style={{
-                    background: 'linear-gradient(to bottom, #fff8ec, #f0a345)',
-                    boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.3)'
-                  }}
-                >
-                  <span className="material-symbols-outlined text-xl font-bold">map</span>
-                </button>
-              </>
+              <button
+                onClick={() => {
+                  // Halaman yang dibuka langsung tidak punya riwayat, jadi kembali ke peta
+                  if (window.history.length > 1) router.back();
+                  else router.push('/journey');
+                }}
+                title="Kembali ke halaman sebelumnya"
+                aria-label="Kembali ke halaman sebelumnya"
+                className="relative flex items-center justify-center gap-1 w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
+                style={{
+                  background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
+                  boxShadow: 'inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 4px 8px rgba(0,0,0,0.3)'
+                }}
+              >
+                <span className="material-symbols-outlined text-lg">arrow_back</span>
+                <span className="hidden sm:inline">Kembali</span>
+              </button>
             )}
           </div>
 

@@ -1,5 +1,5 @@
 {
-  "model_name": "mobilenetv2_050_plastic_resin_deploy",
+  "model_name": "mobilenetv2_050_plastic_nonplastic_deploy",
   "backbone": "MobileNetV2 (alpha=0.50)",
   "input_shape": [
     224,
@@ -18,7 +18,8 @@
     "4-LDPE",
     "5-PP",
     "6-PS",
-    "7-OTHER"
+    "7-OTHER",
+    "8-NON_PLASTIC"
   ],
   "class_to_index": {
     "1-PET": 0,
@@ -27,6 +28,7 @@
     "4-LDPE": 3,
     "5-PP": 4,
     "6-PS": 5,
-    "7-OTHER": 6
+    "7-OTHER": 6,
+    "8-NON_PLASTIC": 7
   }
 }
