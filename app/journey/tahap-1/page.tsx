@@ -6,22 +6,18 @@ import StageIntro from '@/components/stages/StageIntro';
 import { useStageBack } from '@/lib/stageBack';
 import {
   classifyCrop,
-  detectBin,
   detectObjects,
   releaseFrame,
-  startBinDetector,
   startScannerAI,
   stopScannerAI,
 } from '@/lib/plasticScannerClient';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { ARItemKind } from '@/components/stages/tahap1/AnchoredLabelAR';
 
-type Phase = 'init' | 'scanning' | 'identified' | 'findBin' | 'disposed' | 'pemantik';
+type Phase = 'init' | 'scanning' | 'identified' | 'disposed' | 'pemantik';
 
 interface PlasticInfo {
   name: string;
-  kind: ARItemKind;
   polymer: string;
   decompositionTime: string;
   description: string;
@@ -47,15 +43,14 @@ const PP_FACTS = {
 
 // Bahan plastik tidak bisa dipastikan dari tampilannya, jadi polimer diambil dari jenis benda yang dikenali kamera
 const OBJECT_PLASTIC_INFO: Record<'bottle' | 'cup' | 'bowl', PlasticInfo> = {
-  bottle: { name: 'Botol plastik', kind: 'bottle', ...PET_FACTS },
-  cup: { name: 'Gelas plastik', kind: 'cup', ...PP_FACTS },
-  bowl: { name: 'Wadah plastik', kind: 'bowl', ...PP_FACTS },
+  bottle: { name: 'Botol plastik', ...PET_FACTS },
+  cup: { name: 'Gelas plastik', ...PP_FACTS },
+  bowl: { name: 'Wadah plastik', ...PP_FACTS },
 };
 
 // Kemasan yang tidak dikenali kamera, seperti kresek atau styrofoam: tebakan jenis dari model terlalu sering keliru
 const PACKAGING_PLASTIC_INFO: PlasticInfo = {
   name: 'Kemasan plastik',
-  kind: 'packaging',
   polymer: 'Cek kode segitiga, bila ada',
   decompositionTime: 'Puluhan sampai ratusan tahun',
   description: 'Plastik tidak benar-benar hilang. Ia pecah menjadi serpihan kecil yang disebut mikroplastik.',
@@ -101,13 +96,6 @@ const RECHECK_AFTER_FRAMES = 10;
 const DETECT_INTERVAL_MS = 150;
 const FRAME_LONG_SIDE = 640;
 const MANUAL_SCAN_DELAY_MS = 5000;
-
-// Deteksi tempat sampah: ambang dipilih dari validation detektor (lihat experiments/bin_dataset)
-const BIN_SCORE = 0.4;
-const BIN_STABLE_FRAMES = 3;
-const BIN_LOST_FRAMES = 4;
-const BIN_INTERVAL_MS = 200;
-const BIN_FALLBACK_MS = 12000;
 
 // Ambang batas klasifikasi
 // Dipilih dari validation exp04. Penolakan non-plastik kini ditangani NON_PLASTIC_REJECT_THRESHOLD,
@@ -318,7 +306,6 @@ const INITIAL_SCAN_CARD: ScanFeedbackState = {
 };
 
 let stopAiTimer = 0;
-const BIN_LABEL_DETAILS = ['Sudah masuk? Tekan tombol di bawah.'];
 
 const AnchoredLabelAR = dynamic(() => import('@/components/stages/tahap1/AnchoredLabelAR'), { ssr: false });
 
@@ -364,16 +351,12 @@ export default function Tahap1() {
   const answerRef = useRef<HTMLTextAreaElement>(null);
   const [showManualScan, setShowManualScan] = useState(false);
   const [manualChecking, setManualChecking] = useState(false);
-  const [binSeen, setBinSeen] = useState(false);
-  const [binVisible, setBinVisible] = useState(false);
-  const [binFallback, setBinFallback] = useState(false);
   const [arUnavailable, setArUnavailable] = useState(false);
   const arUnavailableRef = useRef(false);
   const markArUnavailable = useCallback(() => {
     arUnavailableRef.current = true;
     setArUnavailable(true);
   }, []);
-  const [binDebug, setBinDebug] = useState<string | null>(null);
 
   // Kartu hasil scan
   const [scanCard, setScanCard] = useState<ScanFeedbackState>(INITIAL_SCAN_CARD);
@@ -475,11 +458,7 @@ export default function Tahap1() {
     if (canvas.height !== vh) canvas.height = vh;
 
     // Saat konten 3D tampil, bingkai 2D disembunyikan supaya tidak terlihat seperti kotak deteksi biasa
-    if (
-      phaseRef.current === 'findBin' ||
-      phaseRef.current === 'disposed' ||
-      (phaseRef.current === 'identified' && !arUnavailableRef.current)
-    ) {
+    if (phaseRef.current === 'disposed' || (phaseRef.current === 'identified' && !arUnavailableRef.current)) {
       staticOverlayKeyRef.current = null;
       ctx.clearRect(0, 0, vw, vh);
       return;
@@ -845,104 +824,11 @@ export default function Tahap1() {
     setManualChecking(true);
   }
 
-  /** Mencari tempat sampah selama siswa berjalan; kotak hanya ditampilkan bila posisinya stabil */
-  const runBinScan = useCallback(async (session: number) => {
-    let hits = 0;
-    let misses = 0;
-    let errors = 0;
-    let lastBox: Box | null = null;
-    // Buka dengan ?debug=1 untuk melihat skor detektor langsung di HP
-    const debug = new URLSearchParams(window.location.search).has('debug');
-    while (activeRef.current && session === sessionRef.current && phaseRef.current === 'findBin') {
-      const started = performance.now();
-      const video = videoRef.current;
-      if (!document.hidden && video && video.readyState >= 2) {
-        try {
-          const vw = video.videoWidth || 640;
-          const vh = video.videoHeight || 480;
-          const frameScale = Math.min(1, FRAME_LONG_SIDE / Math.max(vw, vh));
-          if (!procCanvasRef.current) procCanvasRef.current = document.createElement('canvas');
-          const frame = procCanvasRef.current;
-          const frameW = Math.round(vw * frameScale);
-          const frameH = Math.round(vh * frameScale);
-          if (frame.width !== frameW) frame.width = frameW;
-          if (frame.height !== frameH) frame.height = frameH;
-          frame.getContext('2d')?.drawImage(video, 0, 0, frameW, frameH);
-
-          const result = await detectBin(await createImageBitmap(frame));
-          if (session !== sessionRef.current || phaseRef.current !== 'findBin') return;
-          errors = 0;
-          if (debug && result) {
-            const area = ((result.bbox[2] * result.bbox[3]) / (frameW * frameH)) * 100;
-            setBinDebug(`skor ${result.score.toFixed(2)} (ambang ${BIN_SCORE}) · luas ${area.toFixed(0)}% · ${Math.round(performance.now() - started)} ms`);
-          }
-
-          const found = result && result.score >= BIN_SCORE ? (result.bbox.map(v => v / frameScale) as Box) : null;
-          const box = found && isMostlyVisible(found, getVisibleRegion(video)) ? found : null;
-          if (box) {
-            hits = lastBox && boxOverlap(lastBox, box) > 0.1 ? hits + 1 : 1;
-            misses = 0;
-            lastBox = box;
-            if (hits >= BIN_STABLE_FRAMES) {
-              trackedBoxRef.current = box;
-              setBinVisible(true);
-              setBinSeen(true);
-            }
-          } else {
-            misses++;
-            // Sebelum tampil harus terdeteksi berturut-turut, supaya salah baca sesaat tidak memunculkan cincin
-            if (!trackedBoxRef.current || misses >= BIN_LOST_FRAMES) {
-              hits = 0;
-              lastBox = null;
-            }
-            if (misses >= BIN_LOST_FRAMES) {
-              trackedBoxRef.current = null;
-              setBinVisible(false);
-            }
-          }
-        } catch (err) {
-          console.warn('Deteksi tempat sampah gagal pada frame ini:', err);
-          if (++errors >= 3) {
-            setBinFallback(true);
-            return;
-          }
-        }
-      }
-      const wait = Math.max(0, BIN_INTERVAL_MS - (performance.now() - started));
-      await new Promise(resolve => setTimeout(resolve, wait));
-    }
-  }, []);
-
-  function goFindBin() {
-    const session = sessionRef.current;
-    trackedBoxRef.current = null;
-    overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
-    setBinSeen(false);
-    setBinVisible(false);
-    setBinFallback(false);
-    setPhase('findBin');
-    startBinDetector()
-      .then(() => runBinScan(session))
-      .catch(err => {
-        // Tanpa detektor siswa tetap bisa lanjut lewat tombol konfirmasi
-        console.warn('Detektor tempat sampah gagal dimuat:', err);
-        if (session === sessionRef.current) setBinFallback(true);
-      });
-  }
-
-  // Tombol cadangan muncul bila tempat sampah tidak terdeteksi cukup lama
-  useEffect(() => {
-    if (phase !== 'findBin' || binSeen) return;
-    const timer = window.setTimeout(() => setBinFallback(true), BIN_FALLBACK_MS);
-    return () => window.clearTimeout(timer);
-  }, [phase, binSeen]);
-
   function confirmDisposed() {
     setPlasticDisposal({
       plasticName: detectedPlasticInfo.name,
       resinClass: detectedPlasticInfo.resinClass ?? null,
       disposedAt: new Date().toISOString(),
-      binDetected: binSeen,
     });
     playScanPing('lock');
     setPhase('disposed');
@@ -961,9 +847,6 @@ export default function Tahap1() {
     manualScanRef.current = false;
     setManualChecking(false);
     setShowManualScan(false);
-    setBinSeen(false);
-    setBinVisible(false);
-    setBinFallback(false);
     trackedBoxRef.current = null;
     lockStateRef.current = { streak: 0, streakBox: null, kinds: [], cooldown: 0, misses: 0, errors: 0 };
     staticOverlayKeyRef.current = null;
@@ -1020,7 +903,7 @@ export default function Tahap1() {
 
   // Hasil -> scan ulang -> layar pembuka -> peta
   useStageBack(() => {
-    if (phase === 'pemantik' || phase === 'identified' || phase === 'findBin' || phase === 'disposed') {
+    if (phase === 'pemantik' || phase === 'identified' || phase === 'disposed') {
       startCamera();
       return true;
     }
@@ -1056,13 +939,11 @@ export default function Tahap1() {
   );
 
   // Konten 3D sudah membawa info dan instruksinya, jadi kartu layar hanya dipakai bila 3D tidak tampil
-  const arShowing = !arUnavailable && (phase === 'identified' || (phase === 'findBin' && binVisible));
+  const arShowing = !arUnavailable && phase === 'identified';
 
   const statusTone =
-    phase === 'identified' || phase === 'disposed' || (phase === 'findBin' && binVisible)
+    phase === 'identified' || phase === 'disposed'
       ? 'lock'
-      : phase === 'findBin'
-      ? 'idle'
       : scanCard.status === 'uncertain'
       ? 'warn'
       : scanCard.status === 'non_plastic'
@@ -1072,12 +953,8 @@ export default function Tahap1() {
   const statusLabel =
     phase === 'identified'
       ? 'Terlihat seperti plastik'
-      : phase === 'findBin'
-      ? binVisible
-        ? 'Tempat sampah ditemukan'
-        : 'Cari tempat sampah'
       : phase === 'disposed'
-      ? 'Terima kasih!'
+      ? 'Hore!'
       : modelLoading
       ? 'Menyiapkan AI'
       : manualChecking
@@ -1139,39 +1016,22 @@ export default function Tahap1() {
         </div>
       )}
 
-      {/* Papan info, lencana kode, dan instruksi 3D yang menempel pada sampah plastik */}
-      {phase === 'identified' && (
+      {/* Papan info, lencana kode, dan instruksi 3D yang menempel pada sampah plastik, lalu konfeti perayaan */}
+      {(phase === 'identified' || phase === 'disposed') && (
         <AnchoredLabelAR
-          key="plastic"
-          variant="plastic"
           videoRef={videoRef}
           boxRef={trackedBoxRef}
           title={detectedPlasticInfo.name}
           details={labelDetails}
           instruction="Buang ke tempat sampah!"
           recycleCode={detectedPlasticInfo.resinClass?.split('-')[0]}
-          onUnavailable={markArUnavailable}
-        />
-      )}
-
-      {/* Cincin dan petunjuk 3D yang menempel pada tempat sampah, lalu konfeti perayaan */}
-      {((phase === 'findBin' && binSeen) || phase === 'disposed') && (
-        <AnchoredLabelAR
-          key="bin"
-          variant="bin"
-          videoRef={videoRef}
-          boxRef={trackedBoxRef}
-          title="Tempat sampah ditemukan!"
-          details={BIN_LABEL_DETAILS}
-          instruction="Masukkan sampah di sini"
-          itemKind={detectedPlasticInfo.kind}
           celebrate={phase === 'disposed'}
           onUnavailable={markArUnavailable}
         />
       )}
 
       {/* Real-time Scanning HUD */}
-      {(phase === 'scanning' || phase === 'identified' || phase === 'findBin' || phase === 'disposed') && (
+      {(phase === 'scanning' || phase === 'identified' || phase === 'disposed') && (
         <div className="absolute inset-0 pointer-events-none z-20">
           {/* Vignette halus agar HUD & bingkai lebih terbaca; dilepas saat konten 3D tampil agar kamera terlihat apa adanya */}
           {!arShowing && (
@@ -1179,12 +1039,6 @@ export default function Tahap1() {
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(6,41,59,0.55)_100%)]" />
               <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[#06293b]/80 to-transparent" />
             </>
-          )}
-
-          {binDebug && (
-            <div className="absolute top-[10rem] inset-x-0 flex justify-center px-4">
-              <p className="px-2 py-1 rounded bg-black/70 text-[11px] font-[family-name:var(--font-mono)] text-[#6bff8f]">{binDebug}</p>
-            </div>
           )}
 
           {/* Overlay memuat model AI (kamera sudah tampil di belakangnya) */}
@@ -1272,12 +1126,8 @@ export default function Tahap1() {
                       : 'text-white'
                   }`}
                 >
-                  {phase === 'findBin'
-                    ? binVisible
-                      ? 'Masukkan sampahmu ke tempat sampah, lalu tekan tombol di bawah.'
-                      : 'Dekati tempat sampah sampai terlihat besar di layar. Perhatikan jalanmu, ya!'
-                    : phase === 'disposed'
-                    ? 'Terima kasih sudah membuang sampah pada tempatnya!'
+                  {phase === 'disposed'
+                    ? 'Hore! Terima kasih sudah mau membuang sampah pada tempatnya.'
                     : modelLoading
                     ? 'Kamera aktif. Model AI sedang dimuat…'
                     : manualChecking
@@ -1326,7 +1176,7 @@ export default function Tahap1() {
                 ) : null}
               </AnimatePresence>
 
-              {arUnavailable && (phase === 'identified' || phase === 'findBin') && (
+              {arUnavailable && phase === 'identified' && (
                 <p className="mt-2 text-xs text-white/70">
                   Tampilan 3D belum didukung di HP ini, tapi kamu tetap bisa lanjut.
                 </p>
@@ -1349,30 +1199,11 @@ export default function Tahap1() {
 
             {phase === 'identified' && (
               <button
-                onClick={goFindBin}
+                onClick={confirmDisposed}
                 className="mt-3 w-[min(100%,440px)] min-h-14 flex items-center justify-center gap-2 bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] text-lg font-extrabold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
               >
                 <span className="material-symbols-outlined text-2xl">delete</span>
                 Saya akan membuangnya
-              </button>
-            )}
-
-            {phase === 'findBin' && !binSeen && binFallback && (
-              <button
-                onClick={confirmDisposed}
-                className="mt-3 w-[min(100%,440px)] min-h-12 flex items-center justify-center gap-2 bg-white/95 text-[#083b54] text-[15px] font-bold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
-              >
-                Tidak terdeteksi? Saya sudah membuangnya
-              </button>
-            )}
-
-            {phase === 'findBin' && binSeen && (
-              <button
-                onClick={confirmDisposed}
-                className="mt-3 w-[min(100%,440px)] min-h-14 flex items-center justify-center gap-2 bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] text-lg font-extrabold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
-              >
-                <span className="material-symbols-outlined text-2xl">check_circle</span>
-                Sudah dibuang
               </button>
             )}
 
@@ -1411,7 +1242,7 @@ export default function Tahap1() {
                 )}
                 <div className="min-w-0">
                   <h2 className="font-[family-name:var(--font-outfit)] text-xl [@media(min-height:720px)]:text-2xl font-bold leading-tight text-[#083b54]">
-                    {capturedPhoto ? 'Sampahmu sudah dibuang!' : 'Kamu menemukan plastik!'}
+                    {capturedPhoto ? 'Hore, terima kasih!' : 'Kamu menemukan plastik!'}
                   </h2>
                   <p className="mt-0.5 text-sm font-semibold leading-snug text-[#006e2f]">
                     {detectedPlasticInfo.name}

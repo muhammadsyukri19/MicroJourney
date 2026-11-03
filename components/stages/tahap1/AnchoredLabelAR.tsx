@@ -3,22 +3,16 @@ import { useEffect, useRef, type RefObject } from 'react';
 
 type Box = [number, number, number, number];
 
-export type ARItemKind = 'bottle' | 'cup' | 'bowl' | 'packaging';
-
 interface AnchoredLabelARProps {
   videoRef: RefObject<HTMLVideoElement | null>;
   /** Kotak objek dalam koordinat video, diperbarui oleh loop deteksi. null bila objek hilang dari kamera */
   boxRef: RefObject<Box | null>;
-  /** plastic: lencana kode daur ulang di samping benda. bin: cincin di dasar dan sampah 3D yang jatuh ke dalamnya */
-  variant: 'plastic' | 'bin';
   title: string;
   details: string[];
   /** Instruksi yang terbaring di permukaan, di depan benda */
   instruction: string;
   /** Isi lencana kode daur ulang; tanda tanya bila kodenya belum diketahui */
   recycleCode?: string;
-  /** Bentuk sampah 3D yang jatuh ke tempat sampah */
-  itemKind?: ARItemKind;
   /** Papan disembunyikan dan konfeti 3D meledak dari posisi benda */
   celebrate?: boolean;
   /** Dipanggil bila tampilan 3D tidak bisa dibuat, misalnya WebGL tidak didukung */
@@ -33,13 +27,6 @@ const SIDE_MARGIN = 12;
 const GROUND_TILT = (55 * Math.PI) / 180;
 const GREEN = '#6bff8f';
 const AMBER = '#f0a345';
-
-// Profil putar sampah 3D: [jari-jari, tinggi]; tinggi benda = 1
-const ITEM_PROFILES: Record<Exclude<ARItemKind, 'packaging'>, [number, number][]> = {
-  bottle: [[0, 0], [0.15, 0], [0.19, 0.03], [0.19, 0.56], [0.15, 0.66], [0.08, 0.78], [0.075, 0.86], [0.085, 0.88], [0.085, 0.92]],
-  cup: [[0, 0], [0.2, 0], [0.31, 0.85], [0.335, 0.87], [0.32, 0.9]],
-  bowl: [[0, 0], [0.2, 0], [0.42, 0.4], [0.46, 0.44]],
-};
 
 function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   const lines: string[] = [];
@@ -57,16 +44,14 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
   return lines;
 }
 
-/** Konten 3D yang menempel pada benda di kamera: papan info, instruksi di permukaan, dan penanda benda */
+/** Konten 3D yang menempel pada sampah di kamera: papan info, lencana kode, dan instruksi di permukaan */
 export default function AnchoredLabelAR({
   videoRef,
   boxRef,
-  variant,
   title,
   details,
   instruction,
   recycleCode,
-  itemKind = 'bottle',
   celebrate = false,
   onUnavailable,
 }: AnchoredLabelARProps) {
@@ -241,103 +226,46 @@ export default function AnchoredLabelAR({
         scene.add(connector, anchorDot, anchorGlow);
 
         // Lencana kode daur ulang: tiga panah melingkar dengan angka di tengah
-        let badge: InstanceType<typeof THREE.Group> | null = null;
-        if (variant === 'plastic') {
-          const arrow = new THREE.Shape();
-          arrow.moveTo(-0.62, -0.66);
-          arrow.lineTo(0.22, -0.66);
-          arrow.lineTo(0.22, -0.86);
-          arrow.lineTo(0.74, -0.5);
-          arrow.lineTo(0.22, -0.14);
-          arrow.lineTo(0.22, -0.34);
-          arrow.lineTo(-0.4, -0.34);
-          arrow.closePath();
-          const arrowGeometry = track(
-            new THREE.ExtrudeGeometry(arrow, { depth: 0.2, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 1 }),
-          );
-          arrowGeometry.translate(0, 0, -0.1);
-          const arrowMaterial = track(new THREE.MeshStandardMaterial({ color: GREEN, emissive: '#1f9d55', emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.15 }));
-          badge = new THREE.Group();
-          for (let i = 0; i < 3; i++) {
-            const part = new THREE.Mesh(arrowGeometry, arrowMaterial);
-            part.rotation.z = (i * Math.PI * 2) / 3;
-            badge.add(part);
-          }
-          const digitCanvas = document.createElement('canvas');
-          digitCanvas.width = digitCanvas.height = 128;
-          const digitCtx = digitCanvas.getContext('2d')!;
-          digitCtx.font = '900 92px system-ui, sans-serif';
-          digitCtx.textAlign = 'center';
-          digitCtx.textBaseline = 'middle';
-          digitCtx.lineWidth = 12;
-          digitCtx.strokeStyle = 'rgba(4, 38, 54, 0.9)';
-          digitCtx.strokeText(recycleCode ?? '?', 64, 68);
-          digitCtx.fillStyle = '#ffffff';
-          digitCtx.fillText(recycleCode ?? '?', 64, 68);
-          const digitTexture = track(new THREE.CanvasTexture(digitCanvas));
-          digitTexture.colorSpace = THREE.SRGBColorSpace;
-          const digit = new THREE.Mesh(
-            track(new THREE.PlaneGeometry(0.86, 0.86)),
-            track(new THREE.MeshBasicMaterial({ map: digitTexture, transparent: true, depthWrite: false })),
-          );
-          digit.position.z = 0.16;
-          badge.add(digit);
-          scene.add(badge);
+        const arrow = new THREE.Shape();
+        arrow.moveTo(-0.62, -0.66);
+        arrow.lineTo(0.22, -0.66);
+        arrow.lineTo(0.22, -0.86);
+        arrow.lineTo(0.74, -0.5);
+        arrow.lineTo(0.22, -0.14);
+        arrow.lineTo(0.22, -0.34);
+        arrow.lineTo(-0.4, -0.34);
+        arrow.closePath();
+        const arrowGeometry = track(
+          new THREE.ExtrudeGeometry(arrow, { depth: 0.2, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 1 }),
+        );
+        arrowGeometry.translate(0, 0, -0.1);
+        const arrowMaterial = track(new THREE.MeshStandardMaterial({ color: GREEN, emissive: '#1f9d55', emissiveIntensity: 0.5, roughness: 0.3, metalness: 0.15 }));
+        const badge = new THREE.Group();
+        for (let i = 0; i < 3; i++) {
+          const part = new THREE.Mesh(arrowGeometry, arrowMaterial);
+          part.rotation.z = (i * Math.PI * 2) / 3;
+          badge.add(part);
         }
-
-        // Penanda tempat sampah: cincin di lantai dan sampah 3D yang jatuh ke dalamnya
-        let binMarks: {
-          ring: InstanceType<typeof THREE.Mesh>;
-          ripple: InstanceType<typeof THREE.Mesh>;
-          rippleMaterial: InstanceType<typeof THREE.MeshBasicMaterial>;
-          ringMaterial: InstanceType<typeof THREE.MeshBasicMaterial>;
-          floorGlow: InstanceType<typeof THREE.Mesh>;
-          floorMaterial: InstanceType<typeof THREE.MeshBasicMaterial>;
-          item: InstanceType<typeof THREE.Group>;
-          itemMaterials: InstanceType<typeof THREE.MeshStandardMaterial>[];
-        } | null = null;
-        if (variant === 'bin') {
-          const ringGeometry = track(new THREE.TorusGeometry(1, 0.03, 10, 64));
-          const makeFlat = (geometry: ConstructorParameters<typeof THREE.Mesh>[0], material: InstanceType<typeof THREE.MeshBasicMaterial>, order: number) => {
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.rotation.x = -GROUND_TILT;
-            mesh.renderOrder = order;
-            scene.add(mesh);
-            return mesh;
-          };
-          // Digambar lebih dulu supaya tulisan pada papan tidak pernah tertutup
-          const ringMaterial = track(new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, depthTest: false, depthWrite: false }));
-          const rippleMaterial = track(new THREE.MeshBasicMaterial({ color: GREEN, transparent: true, depthTest: false, depthWrite: false }));
-          const floorMaterial = track(
-            new THREE.MeshBasicMaterial({ map: glowTexture, color: GREEN, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }),
-          );
-          const floorGlow = makeFlat(track(new THREE.CircleGeometry(1, 40)), floorMaterial, -3);
-          const ring = makeFlat(ringGeometry, ringMaterial, -2);
-          const ripple = makeFlat(ringGeometry, rippleMaterial, -2);
-
-          const body = track(new THREE.MeshStandardMaterial({ color: '#d6f5ff', emissive: '#7fd4ff', emissiveIntensity: 0.35, roughness: 0.15, transparent: true, side: THREE.DoubleSide, flatShading: itemKind === 'packaging' }));
-          const item = new THREE.Group();
-          const itemMaterials = [body];
-          if (itemKind === 'packaging') {
-            const crumple = new THREE.Mesh(track(new THREE.IcosahedronGeometry(0.42, 0)), body);
-            crumple.scale.set(1, 0.6, 0.8);
-            item.add(crumple);
-          } else {
-            const profile = ITEM_PROFILES[itemKind].map(([x, y]) => new THREE.Vector2(x, y));
-            const lathe = new THREE.Mesh(track(new THREE.LatheGeometry(profile, 20)), body);
-            lathe.position.y = -profile[profile.length - 1].y / 2;
-            item.add(lathe);
-            if (itemKind === 'bottle') {
-              const capMaterial = track(new THREE.MeshStandardMaterial({ color: '#2f9de0', roughness: 0.4, transparent: true }));
-              const cap = new THREE.Mesh(track(new THREE.CylinderGeometry(0.09, 0.09, 0.09, 16)), capMaterial);
-              cap.position.y = 0.47;
-              item.add(cap);
-              itemMaterials.push(capMaterial);
-            }
-          }
-          scene.add(item);
-          binMarks = { ring, ripple, rippleMaterial, ringMaterial, floorGlow, floorMaterial, item, itemMaterials };
-        }
+        const digitCanvas = document.createElement('canvas');
+        digitCanvas.width = digitCanvas.height = 128;
+        const digitCtx = digitCanvas.getContext('2d')!;
+        digitCtx.font = '900 92px system-ui, sans-serif';
+        digitCtx.textAlign = 'center';
+        digitCtx.textBaseline = 'middle';
+        digitCtx.lineWidth = 12;
+        digitCtx.strokeStyle = 'rgba(4, 38, 54, 0.9)';
+        digitCtx.strokeText(recycleCode ?? '?', 64, 68);
+        digitCtx.fillStyle = '#ffffff';
+        digitCtx.fillText(recycleCode ?? '?', 64, 68);
+        const digitTexture = track(new THREE.CanvasTexture(digitCanvas));
+        digitTexture.colorSpace = THREE.SRGBColorSpace;
+        const digit = new THREE.Mesh(
+          track(new THREE.PlaneGeometry(0.86, 0.86)),
+          track(new THREE.MeshBasicMaterial({ map: digitTexture, transparent: true, depthWrite: false })),
+        );
+        digit.position.z = 0.16;
+        badge.add(digit);
+        scene.add(badge);
 
         // Konfeti perayaan: bentuk kecil berputar yang menyembur lalu jatuh
         const confettiCount = 180;
@@ -474,11 +402,7 @@ export default function AnchoredLabelAR({
             confetti.instanceMatrix.needsUpdate = true;
           }
 
-          label.group.visible = decal.group.visible = connector.visible = anchorDot.visible = anchorGlow.visible = visible;
-          if (badge) badge.visible = visible;
-          if (binMarks) {
-            binMarks.ring.visible = binMarks.ripple.visible = binMarks.floorGlow.visible = binMarks.item.visible = visible;
-          }
+          label.group.visible = decal.group.visible = connector.visible = anchorDot.visible = anchorGlow.visible = badge.visible = visible;
 
           if (visible) {
             const enter = THREE.MathUtils.smoothstep(presence, 0, 1);
@@ -525,42 +449,12 @@ export default function AnchoredLabelAR({
             decal.group.rotation.set(-GROUND_TILT, 0, 0);
             decal.group.scale.setScalar(pop * smooth.depth);
 
-            if (badge) {
-              const radius = 30 * smooth.depth;
-              const badgeX = Math.max(SIDE_MARGIN + radius, Math.min(viewW - SIDE_MARGIN - radius, smooth.cx + smooth.w / 2 + radius * 0.4));
-              const badgeY = Math.max(labelBottom + radius + 10, topOfObject + smooth.h * 0.25);
-              badge.position.set(toWorldX(badgeX), toWorldY(badgeY) - bob, 48);
-              badge.rotation.set(Math.sin(time * 0.7) * 0.12, Math.sin(time * 1.1) * 0.7 + (1 - enter) * 3, 0);
-              badge.scale.setScalar(radius * enter);
-            }
-
-            if (binMarks) {
-              const baseY = Math.min(viewH - SAFE_BOTTOM - 6, bottomOfObject - smooth.h * 0.04);
-              const baseRadius = Math.max(30, smooth.w * 0.6);
-              const ripplePhase = (time * 0.6) % 1;
-              binMarks.ring.position.set(toWorldX(smooth.cx), toWorldY(baseY), 0);
-              binMarks.ring.scale.setScalar(baseRadius * (1 + Math.sin(time * 4) * 0.025) * enter);
-              binMarks.ringMaterial.opacity = 0.95 * presence;
-              binMarks.ripple.position.copy(binMarks.ring.position);
-              binMarks.ripple.scale.setScalar(baseRadius * (1 + ripplePhase * 0.45) * enter);
-              binMarks.rippleMaterial.opacity = 0.6 * (1 - ripplePhase) * presence;
-              binMarks.floorGlow.position.copy(binMarks.ring.position);
-              binMarks.floorGlow.scale.setScalar(baseRadius * 1.25 * enter);
-              binMarks.floorMaterial.opacity = 0.45 * presence;
-
-              // Sampah 3D jatuh dari balik papan dan menghilang di mulut tempat sampah
-              const cycle = (time % 1.8) / 1.8;
-              const endY = topOfObject + smooth.h * 0.16;
-              const size = THREE.MathUtils.clamp(smooth.w * 0.42, 36, 96);
-              const startY = Math.min(endY - 70, Math.max(labelBottom + size * 0.6, topOfObject - Math.max(90, smooth.h * 0.5)));
-              const fade = Math.min(cycle / 0.15, (1 - cycle) / 0.18, 1);
-              binMarks.item.position.set(toWorldX(smooth.cx + Math.sin(cycle * 3) * 4), toWorldY(THREE.MathUtils.lerp(startY, endY, cycle * cycle)), 12);
-              binMarks.item.rotation.set(Math.sin(time * 1.3) * 0.25, time * 2.4, Math.sin(time * 1.7) * 0.35);
-              binMarks.item.scale.setScalar(size * (1 - 0.35 * THREE.MathUtils.smoothstep(cycle, 0.72, 1)) * enter);
-              binMarks.itemMaterials.forEach(material => {
-                material.opacity = 0.85 * fade * presence;
-              });
-            }
+            const radius = 30 * smooth.depth;
+            const badgeX = Math.max(SIDE_MARGIN + radius, Math.min(viewW - SIDE_MARGIN - radius, smooth.cx + smooth.w / 2 + radius * 0.4));
+            const badgeY = Math.max(labelBottom + radius + 10, topOfObject + smooth.h * 0.25);
+            badge.position.set(toWorldX(badgeX), toWorldY(badgeY) - bob, 48);
+            badge.rotation.set(Math.sin(time * 0.7) * 0.12, Math.sin(time * 1.1) * 0.7 + (1 - enter) * 3, 0);
+            badge.scale.setScalar(radius * enter);
           }
 
           renderer.render(scene, camera);
@@ -587,7 +481,7 @@ export default function AnchoredLabelAR({
       cancelled = true;
       cleanup();
     };
-  }, [videoRef, boxRef, variant, title, details, instruction, recycleCode, itemKind, onUnavailable]);
+  }, [videoRef, boxRef, title, details, instruction, recycleCode, onUnavailable]);
 
   return <div ref={hostRef} className="absolute inset-0 z-[15] pointer-events-none" aria-hidden="true" />;
 }

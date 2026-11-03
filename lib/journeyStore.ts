@@ -5,8 +5,6 @@ export interface PlasticDisposal {
   plasticName: string;
   resinClass: string | null;
   disposedAt: string;
-  /** true bila tempat sampah terlihat oleh AI; false bila siswa memakai tombol konfirmasi cadangan */
-  binDetected: boolean;
 }
 
 export interface LkpdAnswers {
