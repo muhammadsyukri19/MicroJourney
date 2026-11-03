@@ -468,15 +468,17 @@ function PlasticSVG({ objectId, uvExposure, integrity, breaking }: { objectId: s
 interface Props {
   onComplete: () => void;
   videoUrl?: string;
+  /** Siswa kembali dari Tahap 3: langsung ke evaluasi dengan jawaban yang sudah benar */
+  startAtEnd?: boolean;
 }
 
-export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ' }: Props) {
+export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ', startAtEnd = false }: Props) {
   const { lkpdAnswers, setLkpdAnswer } = useJourneyStore();
-  const [hasWatched, setHasWatched] = useState(false);
-  const [screen, setScreen] = useState<'lab' | 'evaluation'>('lab');
+  const [hasWatched, setHasWatched] = useState(startAtEnd);
+  const [screen, setScreen] = useState<'lab' | 'evaluation'>(startAtEnd ? 'evaluation' : 'lab');
   const [labPhase, setLabPhase] = useState<LabPhase>('lab');
   const [selectedObject, setSelectedObject] = useState('bottle');
-  const [testedObjects, setTestedObjects] = useState<string[]>([]);
+  const [testedObjects, setTestedObjects] = useState<string[]>(startAtEnd ? ['bottle'] : []);
   const [uvExposure, setUvExposure] = useState(0);
   const [bottleIntegrity, setBottleIntegrity] = useState(100);
   const [message, setMessage] = useState('');
@@ -484,8 +486,12 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
   const [activeEffect, setActiveEffect] = useState<'uv' | 'wave' | 'bacteria' | null>(null);
   
   // State for evaluation questions
-  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [answers, setAnswers] = useState<Record<number, string>>(() =>
+    startAtEnd ? Object.fromEntries(EVALUATION_QUESTIONS.map(q => [q.id, q.correct])) : {},
+  );
   const [showErrors, setShowErrors] = useState(false);
+  const [focusQuestion, setFocusQuestion] = useState<number | null>(null);
+  const [summaryMissing, setSummaryMissing] = useState(false);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -526,7 +532,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     setLabPhase('lab');
     setMessage('');
     stopVoice();
-    showMessage(`🔄 Sampel objek telah di-reset ke kondisi awal. Silakan uji coba lagi!`, 'info');
+    showMessage(`Sampel objek telah di-reset ke kondisi awal. Silakan uji coba lagi!`, 'info');
   };
 
   const stopVoice = useCallback(() => {
@@ -655,7 +661,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     audioCtxRef.current = null;
   }, []);
 
-  // Evaluasi -> lab -> video
+  // Evaluasi -> hasil lab -> lab -> video
   useStageBack(() => {
     if (hasWatched && screen === 'evaluation') {
       setScreen('lab');
@@ -663,11 +669,13 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     }
     if (hasWatched) {
       stopVoice();
-      // Animasi pecah yang sedang berjalan tidak dilanjutkan
-      if (labPhase === 'breaking') {
+      // Hasil pecah, atau animasi yang sedang berjalan, kembali ke lab
+      if (labPhase !== 'lab') {
         setLabPhase('lab');
         setUvExposure(0);
         setBottleIntegrity(100);
+        setMessage('');
+        return true;
       }
       setHasWatched(false);
       return true;
@@ -750,7 +758,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       setActiveEffect('bacteria');
       playSound('error');
       speakMika('bacteria');
-      showMessage('🦠 Bakteri menyerah! Plastik buatan manusia, jadi tidak bisa ia uraikan.', 'error');
+      showMessage('Bakteri menyerah! Plastik buatan manusia, jadi tidak bisa ia uraikan.', 'error');
     } else if (tool === 'uv') {
       setActiveEffect('uv');
       playSound('uv');
@@ -759,21 +767,21 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
         setUvExposure(prev => {
           const next = Math.min(100, prev + 35);
           if (next >= 100) {
-            showMessage('☀️ Sudah sangat rapuh! Hantam terus pakai Ombak!', 'success');
+            showMessage('Sudah sangat rapuh! Hantam terus pakai Ombak!', 'success');
           } else {
-            showMessage(`☀️ Plastiknya mulai rapuh (${next}%). Terus!`, 'info');
+            showMessage(`Plastiknya mulai rapuh (${next}%). Terus!`, 'info');
           }
           return next;
         });
       } else {
-        showMessage('☀️ Sudah cukup dijemur! Sekarang pakai Ombak!', 'info');
+        showMessage('Sudah cukup dijemur! Sekarang pakai Ombak!', 'info');
       }
     } else if (tool === 'wave') {
       setActiveEffect('wave');
       playSound('wave');
       if (uvExposure < 50) {
         speakMika('waveEarly');
-        showMessage('🌊 Plastiknya masih kuat! Jemur dulu pakai Matahari.', 'error');
+        showMessage('Plastiknya masih kuat! Jemur dulu pakai Matahari.', 'error');
       } else {
         const damage = uvExposure >= 100 ? 50 : 35;
         setBottleIntegrity(prev => {
@@ -781,7 +789,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
           if (next <= 0) {
             triggerBreak();
           } else {
-            showMessage(`💥 Retak! Tinggal ${next}%. Hantam lagi!`, 'success');
+            showMessage(`Retak! Tinggal ${next}%. Hantam lagi!`, 'success');
           }
           return next;
         });
@@ -803,7 +811,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
     setHasBurst(false);
     setLabPhase('breaking');
     stopVoice();
-    showMessage('💥 Pecah jadi serpihan sangat kecil!', 'success');
+    showMessage('Pecah jadi serpihan sangat kecil!', 'success');
     const colors = ['#90caf9', '#80cbc4', '#ce93d8', '#fff176', '#ef9a9a', '#a5d6a7'];
     particlesRef.current = Array.from({ length: 150 }, () => ({
       x: 0.5, y: 0.5,
@@ -868,17 +876,26 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
 
   const obj = PLASTIC_OBJECTS.find(o => o.id === selectedObject)!;
 
-  // Check if all questions are answered and correct
-  const allAnswered = EVALUATION_QUESTIONS.every(q => answers[q.id]);
-  const allCorrect = EVALUATION_QUESTIONS.every(q => answers[q.id] === q.correct);
 
+  /** Soal kosong atau salah pertama langsung dibawa ke tengah layar, begitu juga kesimpulan yang belum diisi */
   const handleSubmitEvaluation = () => {
-    if (allCorrect) {
-      onComplete();
-    } else {
+    const firstProblem = EVALUATION_QUESTIONS.find(q => answers[q.id] !== q.correct);
+    if (firstProblem) {
       setShowErrors(true);
-      showMessage('❌ Masih ada jawaban yang belum tepat. Silakan periksa kembali!', 'error');
+      setSummaryMissing(false);
+      setFocusQuestion(firstProblem.id);
+      document.getElementById(`soal-${firstProblem.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(() => setFocusQuestion(null), 1800);
+      return;
     }
+    if (!lkpdAnswers.lkpdStep2.trim()) {
+      setSummaryMissing(true);
+      const field = document.getElementById('kesimpulan-lkpd');
+      field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      field?.focus({ preventScroll: true });
+      return;
+    }
+    onComplete();
   };
 
   return (
@@ -964,7 +981,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     >
                       {isTested && (
                         <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#006e2f] border-2 border-[#6bff8f] text-white flex items-center justify-center text-[10px] font-extrabold shadow-sm">
-                          ✓
+                          <span className="material-symbols-outlined text-[13px] leading-none">check</span>
                         </span>
                       )}
                       <span className="text-xl md:text-3xl leading-none">{item.emoji}</span>
@@ -1138,9 +1155,9 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                          initial={{ opacity: 1, y: 0, x: 0, scale: 1 }} 
                          animate={{ opacity: 0, y: -80, x: (Math.random()-0.5)*120, scale: 0.5 }} 
                          transition={{ duration: 1.2, ease: "easeOut" }} 
-                         className="absolute text-3xl sm:text-4xl"
+                         className="absolute material-symbols-outlined text-3xl sm:text-4xl text-[#c8e6c9]"
                        >
-                         🦠
+                         coronavirus
                        </motion.div>
                      ))}
                   </motion.div>
@@ -1180,7 +1197,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     className="flex flex-col items-center z-20 text-center max-w-md mx-3 p-4 md:p-8 bg-[#083b54]/95 backdrop-blur-xl border-3 border-[#6bff8f] rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                   >
                     <div className="w-14 h-14 md:w-20 md:h-20 rounded-full bg-[#6bff8f]/20 border-2 border-[#6bff8f] flex items-center justify-center text-3xl md:text-5xl mb-2 md:mb-3 shadow-xl animate-bounce">
-                      🎉
+                      <span className="material-symbols-outlined text-3xl md:text-4xl text-[#6bff8f]">celebration</span>
                     </div>
                     <h3 className="font-extrabold font-[family-name:var(--font-outfit)] text-white text-2xl sm:text-3xl drop-shadow-md">
                       Berhasil pecah!
@@ -1262,12 +1279,12 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                       />
                       <p className="flex-1 min-w-0 text-left text-white text-sm font-semibold leading-snug">
                         {uvExposure === 0
-                          ? 'Seret ☀️ Matahari ke plastiknya!'
+                          ? 'Seret Matahari ke plastiknya!'
                           : uvExposure < 50
-                          ? 'Bagus! Jemur lagi biar makin rapuh ☀️'
+                          ? 'Bagus! Jemur lagi biar makin rapuh.'
                           : bottleIntegrity === 100
-                          ? 'Mulai rapuh! Hantam pakai 🌊 Ombak!'
-                          : 'Terus hantam sampai pecah! 🌊'}
+                          ? 'Mulai rapuh! Hantam pakai Ombak!'
+                          : 'Terus hantam sampai pecah!'}
                       </p>
                     </div>
 
@@ -1293,23 +1310,9 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             exit={{ opacity: 0, y: -20 }}
             className="w-full flex flex-col gap-6 max-w-4xl mx-auto mt-2 mb-20"
           >
-            {/* Top Navigation Bar: Kembali ke Virtual Lab */}
-            <div className="flex flex-wrap items-center justify-between gap-3 w-full bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-white/20 shadow-md">
-              <button
-                onClick={() => {
-                  setScreen('lab');
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 border border-white/30"
-              >
-                <span className="material-symbols-outlined text-base">arrow_back</span>
-                <span>Kembali ke Virtual Lab (Uji Coba Lagi)</span>
-              </button>
-
-              <div className="flex items-center gap-2 text-xs font-bold text-blue-100">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#6bff8f] animate-pulse" />
-                <span>Halaman Evaluasi & LKPD · {testedObjects.length} Sampel Teruji</span>
-              </div>
+            <div className="flex items-center justify-center gap-2 text-xs font-bold text-blue-100">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#6bff8f] animate-pulse" />
+              <span>Halaman Evaluasi &amp; LKPD · {testedObjects.length} Sampel Teruji</span>
             </div>
 
             {/* The Evaluation Container */}
@@ -1340,10 +1343,14 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                 {EVALUATION_QUESTIONS.map((q, index) => {
                   const isAnswered = !!answers[q.id];
                   const isCorrect = answers[q.id] === q.correct;
-                  const showError = showErrors && isAnswered && !isCorrect;
+                  const showError = showErrors && !isCorrect;
 
                   return (
-                    <div key={q.id} className="flex flex-col gap-3">
+                    <div
+                      key={q.id}
+                      id={`soal-${q.id}`}
+                      className={`flex flex-col gap-3 rounded-2xl transition-all duration-300 ${focusQuestion === q.id ? 'ring-2 ring-[#ff8c8c] ring-offset-8 ring-offset-transparent' : ''}`}
+                    >
                       <h3 className="font-bold text-white text-base sm:text-lg flex gap-2">
                         <span className="text-[#6bff8f] font-extrabold">{index + 1}.</span> {q.text}
                       </h3>
@@ -1375,7 +1382,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                       {showError && (
                         <div className="flex items-center gap-2 mt-1 p-2.5 rounded-xl bg-[#ba1a1a]/20 border border-[#ba1a1a]/40 text-[#ff8c8c] text-xs font-bold">
                           <span className="material-symbols-outlined text-sm">info</span>
-                          <span>Jawaban ini kurang tepat. Coba ingat kembali reaksi saat di lab atau klik tombol &apos;Kembali ke Virtual Lab&apos; untuk mencoba ulang!</span>
+                          <span>{isAnswered ? 'Jawaban ini kurang tepat. Coba pilih lagi, atau tekan Kembali di atas untuk mengulang lab.' : 'Soal ini belum dijawab.'}</span>
                         </div>
                       )}
                     </div>
@@ -1392,44 +1399,33 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     Berdasarkan simulasi laboratorium dan pertanyaan di atas, simpulkan bagaimana sampah plastik utuh di alam bisa berakhir menjadi mikroplastik yang mencemari lautan dan membahayakan biota laut.
                   </p>
                   <textarea
+                    id="kesimpulan-lkpd"
                     value={lkpdAnswers.lkpdStep2}
-                    onChange={(e) => setLkpdAnswer('lkpdStep2', e.target.value)}
+                    onChange={(e) => {
+                      setLkpdAnswer('lkpdStep2', e.target.value);
+                      setSummaryMissing(false);
+                    }}
                     placeholder="Contoh: Plastik di alam mengalami pelapukan oleh panas matahari (sinar UV) sehingga ikatan polimernya getas..."
                     className="w-full h-32 p-4 bg-white/10 text-white border-2 border-white/30 rounded-xl text-sm placeholder:text-blue-300/60 focus:border-[#6bff8f] focus:ring-0 outline-none resize-none transition-all leading-relaxed"
                   />
+                  {summaryMissing && (
+                    <p className="mt-2 text-xs font-bold text-[#ff8c8c]">Isi dulu kesimpulanmu sebelum melanjutkan.</p>
+                  )}
                 </div>
               </div>
 
               {/* Navigation Footer */}
-              <div className="mt-8 pt-6 border-t border-white/15 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <button
-                  onClick={() => {
-                    setScreen('lab');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm border border-white/20 transition-all active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-base">arrow_back</span>
-                  <span>Kembali Uji Coba Lab</span>
-                </button>
-
+              <div className="mt-8 pt-6 border-t border-white/15 flex justify-end">
                 <motion.button
-                  onClick={() => {
-                    if (!lkpdAnswers.lkpdStep2.trim()) {
-                      alert('Harap isi kesimpulan analisismu (LKPD) sebelum melanjutkan!');
-                      return;
-                    }
-                    handleSubmitEvaluation();
-                  }}
-                  disabled={!allAnswered}
-                  whileHover={allAnswered ? { scale: 1.05 } : {}}
-                  whileTap={allAnswered ? { scale: 0.95 } : {}}
-                  className="w-full sm:w-auto relative inline-flex items-center justify-center gap-3 px-10 py-4 font-extrabold text-[#3b2313] text-lg font-[family-name:var(--font-outfit)] transition-all disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
+                  onClick={handleSubmitEvaluation}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="w-full sm:w-auto relative inline-flex items-center justify-center gap-3 px-10 py-4 font-extrabold text-[#3b2313] text-lg font-[family-name:var(--font-outfit)] transition-all"
                   style={{
                     background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
                     border: '3px solid #8e4912',
                     borderRadius: '20px',
-                    boxShadow: allAnswered ? 'inset 0 4px 0 rgba(255,255,255,0.3), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.3)' : 'none',
+                    boxShadow: 'inset 0 4px 0 rgba(255,255,255,0.3), inset 0 -4px 0 rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.3)',
                   }}
                 >
                   <span className="absolute left-4 w-2 h-2 rounded-full bg-[#5a2e0a]" />
@@ -1454,7 +1450,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
             >
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🌊</span>
+                  <span className="material-symbols-outlined text-2xl text-[#006591]">waves</span>
                   <h3 className="text-lg sm:text-xl font-bold font-[family-name:var(--font-outfit)] text-[#006591]">
                     Mengapa Laut Menjadi Sampel Utama?
                   </h3>
@@ -1463,27 +1459,27 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                   onClick={() => setShowOceanSampleModal(false)}
                   className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold text-slate-500"
                 >
-                  ✕
+                  <span className="material-symbols-outlined text-lg">close</span>
                 </button>
               </div>
 
               <div className="space-y-3 text-xs sm:text-sm text-[#3e4850] leading-relaxed">
                 <div className="p-3.5 rounded-2xl bg-[#f0f8ff] border border-[#d0e6f7] flex gap-3">
-                  <span className="text-2xl flex-shrink-0">🌊</span>
+                  <span className="material-symbols-outlined text-2xl flex-shrink-0 text-[#006591]">waves</span>
                   <div>
                     <strong className="text-[#083b54] block mb-0.5">1. Muara Akhir Sampah Dunia (Ultimate Sink)</strong>
                     Lebih dari 80% sampah plastik dari daratan terbawa aliran selokan, sungai, dan hujan hingga akhirnya bermuara di lautan lepas.
                   </div>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-[#fff8ed] border border-[#fde3c4] flex gap-3">
-                  <span className="text-2xl flex-shrink-0">☀️</span>
+                  <span className="material-symbols-outlined text-2xl flex-shrink-0 text-[#d27b22]">wb_sunny</span>
                   <div>
                     <strong className="text-[#083b54] block mb-0.5">2. Katalis Pelapukan Alami Terbesar</strong>
                     Di lautan terbuka, plastik terpapar radiasi fotooksidasi UV matahari dan abrasi mekanis hantaman ombak pantai tanpa henti bertahun-tahun.
                   </div>
                 </div>
                 <div className="p-3.5 rounded-2xl bg-[#edf9f0] border border-[#cbeed4] flex gap-3">
-                  <span className="text-2xl flex-shrink-0">🍽️</span>
+                  <span className="material-symbols-outlined text-2xl flex-shrink-0 text-[#006e2f]">restaurant</span>
                   <div>
                     <strong className="text-[#083b54] block mb-0.5">3. Rute Kembali ke Piring Makanan Manusia</strong>
                     Partikel mikroplastik menyerupai plankton, dimakan ikan dan hewan penyaring (kerang), serta mengendap pada penguapan garam laut yang kita konsumsi kembali!

@@ -1,41 +1,16 @@
 'use client';
-import { useStageBack } from '@/lib/stageBack';
-import { useState } from 'react';
+import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
+import { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
-import { ORGANS, Organ } from '@/lib/organs';
+import { FULL_PATH, ORGANS, SOURCES, Organ } from '@/lib/organs';
+import OrganEvidencePanel from '@/components/stages/OrganEvidencePanel';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 
 const MicroplasticAR = dynamic(() => import('@/components/stages/MicroplasticAR'), { ssr: false });
+const OrganViewer3D = dynamic(() => import('@/components/stages/OrganViewer3D'), { ssr: false });
 
 type Phase = 'bridge' | 'organs' | 'lkpd';
-
-const FLOW_PARTICLES = Array.from({ length: 14 }, (_, i) => ({
-  id: i,
-  left: `${18 + Math.random() * 64}%`,
-  delay: `${i * 0.35}s`,
-  dur: `${2.2 + Math.random() * 1.2}s`,
-  color: ['#ba1a1a','#006591','#c39400'][i%3],
-}));
-
-const HOTSPOTS: Record<string, { top: string; left: string; origin: string; scale: number }> = {
-  mouth: { top: '15%', left: '50%', origin: '50% 15%', scale: 2.5 },
-  stomach: { top: '45%', left: '55%', origin: '55% 45%', scale: 2.5 },
-  smallIntestine: { top: '58%', left: '50%', origin: '50% 58%', scale: 2.5 },
-  largeIntestine: { top: '55%', left: '50%', origin: '50% 55%', scale: 2.2 },
-  blood: { top: '35%', left: '48%', origin: '48% 35%', scale: 2.0 },
-};
-
-function HealthBar({ pct, color }: { pct: number; color: string }) {
-  return (
-    <div className="w-full bg-[#eceef0] rounded-full h-3 overflow-hidden">
-      <div className="h-full rounded-full transition-all duration-1000"
-        style={{ width: `${pct}%`, backgroundColor: color,
-          boxShadow: `0 0 8px ${color}60` }} />
-    </div>
-  );
-}
 
 /* ── Organ SVG shapes ── */
 function OrganIllustration({ organId, isActive, isClicked }: { organId: string; isActive: boolean; isClicked: boolean }) {
@@ -114,56 +89,26 @@ function OrganIllustration({ organId, isActive, isClicked }: { organId: string; 
 }
 
 export default function Tahap4() {
-  const router = useRouter();
-  const { totalParticles, selectedFoods, completeStage, setLkpdAnswer, addOrganInteraction, setMostDangerousOrgan, organInteractions, lkpdAnswers } = useJourneyStore();
-  const [phase, setPhase] = useState<Phase>('bridge');
+  const { totalParticles, completeStage, setLkpdAnswer, addOrganInteraction, setMostDangerousOrgan, organInteractions, lkpdAnswers } = useJourneyStore();
+  const returned = useReturnedToStage(4);
+  const [phase, setPhase] = useState<Phase>(returned ? 'lkpd' : 'bridge');
   const [activeOrgan, setActiveOrgan] = useState<Organ | null>(null);
   const [showMicroplastic, setShowMicroplastic] = useState(false);
   const [clickedIds, setClickedIds] = useState<Set<string>>(new Set(organInteractions));
   const [lkpd3q1, setLkpd3q1] = useState(lkpdAnswers.lkpd3q1);
   const [lkpd3q2, setLkpd3q2] = useState(lkpdAnswers.lkpd3q2);
   const [showRefModal, setShowRefModal] = useState(false);
+  const anatomyRef = useRef<HTMLDivElement>(null);
 
-  // Dynamic organ calculation based on student's actual food choices in Tahap 3
-  const ORGANS_DYNAMIC: Organ[] = ORGANS.map((organ) => {
-    if (totalParticles > 0) {
-      const organWeights: Record<string, { pctFactor: number; particleShare: number }> = {
-        mouth:          { pctFactor: 0.04, particleShare: 0.15 },
-        stomach:        { pctFactor: 0.10, particleShare: 0.35 },
-        smallIntestine: { pctFactor: 0.15, particleShare: 0.45 },
-        largeIntestine: { pctFactor: 0.11, particleShare: 0.30 },
-        blood:          { pctFactor: 0.13, particleShare: 0.20 },
-      };
+  const allOrgansDone = ORGANS.every(o => clickedIds.has(o.id));
+  const panelInfo = activeOrgan ?? FULL_PATH;
 
-      const weight = organWeights[organ.id] || { pctFactor: 0.1, particleShare: 0.2 };
-      const calcParticles = Math.round(totalParticles * weight.particleShare);
-      const calculatedPct = Math.max(15, Math.min(95, Math.round(100 - totalParticles * weight.pctFactor)));
-
-      let statusText = organ.statusText;
-      let healthColor = organ.healthColor;
-      if (calculatedPct < 45) {
-        statusText = 'Kritis (Risiko Gangguan Penyerapan)';
-        healthColor = '#EF4444';
-      } else if (calculatedPct < 70) {
-        statusText = 'Dalam Tekanan / Terancam';
-        healthColor = '#F59E0B';
-      } else {
-        statusText = 'Sehat (Fase Awal Saluran Cerna)';
-        healthColor = '#22C55E';
-      }
-
-      return {
-        ...organ,
-        particles: calcParticles,
-        healthPct: calculatedPct,
-        healthColor,
-        statusText,
-      };
+  // Di HP model berada di bawah pilihan, jadi langsung dibawa ke sana
+  function showViewer() {
+    if (window.innerWidth < 768) {
+      window.setTimeout(() => anatomyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     }
-    return organ;
-  });
-
-  const allOrgansDone = ORGANS_DYNAMIC.every(o => clickedIds.has(o.id));
+  }
 
   function handleOrganClick(organ: Organ) {
     setActiveOrgan(organ);
@@ -171,14 +116,20 @@ export default function Tahap4() {
       addOrganInteraction(organ.id);
       setClickedIds(prev => new Set([...prev, organ.id]));
     }
+    showViewer();
+  }
+
+  function handleFullPathClick() {
+    setActiveOrgan(null);
+    showViewer();
   }
 
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
-  // Detail organ ditutup dulu, lalu LKPD -> organ -> pengantar -> Tahap 3
+  // LKPD -> organ -> jalur lengkap -> pengantar -> Tahap 3
   useStageBack(() => {
-    if (activeOrgan) setActiveOrgan(null);
-    else if (phase === 'lkpd') setPhase('organs');
+    if (phase === 'lkpd') setPhase('organs');
+    else if (activeOrgan) setActiveOrgan(null);
     else if (phase === 'organs') setPhase('bridge');
     else return false;
     return true;
@@ -198,7 +149,7 @@ export default function Tahap4() {
   };
 
   return (
-    <div className="min-h-screen pt-24 md:pt-28 pb-16 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white flex flex-col relative overflow-x-hidden">
+    <div className="min-h-screen pt-24 md:pt-28 pb-10 md:pb-16 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white flex flex-col relative overflow-x-hidden">
       {/* Background patterns and glowing Orbs */}
       <div className="absolute inset-0 adventure-map opacity-10 pointer-events-none" />
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#ba1a1a]/20 rounded-full blur-3xl pointer-events-none animate-pulse" />
@@ -221,47 +172,30 @@ export default function Tahap4() {
               </div>
               <div>
                 <h3 className="font-[family-name:var(--font-outfit)] text-xl sm:text-2xl font-extrabold text-white">
-                  Referensi &amp; Dasar Pustaka Ilmiah
+                  Referensi &amp; Kredit Model
                 </h3>
                 <p className="text-white/70 text-xs sm:text-sm font-[family-name:var(--font-mono)]">
-                  Jurnal &amp; Laporan Riset Pendukung Analisis Organ
+                  Sumber isi panel organ. Ketuk judul untuk membuka.
                 </p>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs sm:text-sm">
-              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="font-bold text-[#6bff8f] mb-1">1. Leslie et al. (2022) — Environment International</p>
-                <p className="text-white/80 leading-relaxed">
-                  <em>"Discovery of microplastics in human blood."</em> Pembuktian pertama ditemukannya partikel polimer sintetis (PET, PE, Polistirena) secara fisik di aliran darah manusia.
-                </p>
-              </div>
+            <div className="space-y-2.5 text-xs sm:text-sm">
+              {Object.values(SOURCES).map(source => (
+                <div key={source.doi} className="bg-white/5 border border-white/10 p-3 rounded-xl">
+                  <p className="font-bold text-[#6bff8f] mb-0.5">{source.label}, {source.journal}</p>
+                  <a href={`https://doi.org/${source.doi}`} target="_blank" rel="noreferrer" className="text-white/90 leading-relaxed underline underline-offset-2">
+                    {source.title}
+                  </a>
+                </div>
+              ))}
 
-              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="font-bold text-[#ffdf9a] mb-1">2. Wright &amp; Kelly (2017) — Environ. Sci. Technol.</p>
-                <p className="text-white/80 leading-relaxed">
-                  <em>"Plastic and Human Health: Microplastics in food and body organ systems."</em> Pembuktian translokasi partikel &lt;10μm menembus vili usus halus dan memicu stres oksidatif.
-                </p>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="font-bold text-[#ff8c8c] mb-1">3. Gastroenterology &amp; Lancet Planetary Health (2023)</p>
-                <p className="text-white/80 leading-relaxed">
-                  Resistansi polimer sintetis (PET, Polystirena) terhadap cairan asam pencernaan lambung manusia (pH 1–2).
-                </p>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="font-bold text-[#7dd3fc] mb-1">4. WWF International &amp; UNEP Report (2019/2023)</p>
-                <p className="text-white/80 leading-relaxed">
-                  Studi global estimasi akumulasi ingestif harian mikroplastik dari makanan &amp; minuman pada manusia.
-                </p>
-              </div>
-
-              <div className="bg-white/5 border border-white/10 p-4 rounded-xl">
-                <p className="font-bold text-[#6bff8f] mb-1">5. Zhao et al. / Cornell University (2024)</p>
-                <p className="text-white/80 leading-relaxed">
-                  <em>"Microplastic Human Dietary Uptake Across 109 Countries."</em> Estimasi paparan ingestif harian masyarakat global.
+              <div className="bg-white/5 border border-[#ffdf9a]/40 p-3 rounded-xl">
+                <p className="font-bold text-[#ffdf9a] mb-0.5">Kredit model 3D organ</p>
+                <p className="text-white/90 leading-relaxed">
+                  <a href="http://lifesciencedb.jp/bp3d/info_en/license/index.html" target="_blank" rel="noreferrer" className="underline underline-offset-2">BodyParts3D</a>, Copyright© 2008 Life Science Integrated Database Center, lisensi{' '}
+                  <a href="https://creativecommons.org/licenses/by-sa/2.1/jp/deed.en" target="_blank" rel="noreferrer" className="underline underline-offset-2">CC BY-SA 2.1 Jepang</a>.
+                  Diubah oleh tim MicroJourney: bagian digabung per organ, poligon disederhanakan, diwarnai, dan ditambah partikel ilustratif. Bentuk organ tidak diubah.
                 </p>
               </div>
             </div>
@@ -280,75 +214,58 @@ export default function Tahap4() {
       {phase === 'bridge' && (
         <div className="flex-grow flex flex-col justify-center max-w-7xl mx-auto w-full px-4 sm:px-8 py-4 z-10">
           <div className="w-full">
-            {/* Top Navigation & Title */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-5">
-              <button
-                onClick={() => router.push('/journey/tahap-3')}
-                title="Kembali ke Tahap 3 (Kontaminasi Pangan)"
-                className="w-10 h-10 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md transition-all shadow-sm flex items-center justify-center gap-2 flex-shrink-0"
-              >
-                <span className="material-symbols-outlined text-base">arrow_back</span>
-                <span className="hidden sm:inline">Kembali ke Tahap 3<span className="hidden md:inline"> (Kontaminasi Pangan)</span></span>
-              </button>
-
-              <div className="flex items-center gap-3 text-center md:text-right">
-                <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xl border border-[#ff8c8c]/40 flex items-center justify-center shadow-md flex-shrink-0">
-                  <span className="material-symbols-outlined text-[#ff8c8c] text-xl">biotech</span>
-                </div>
-                <div>
-                  <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-0.5 rounded-full mb-0.5">
-                    <span className="w-2 h-2 rounded-full bg-[#ff8c8c] animate-ping" />
-                    <span className="text-white/90 text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-wider font-semibold">Jembatan Eksperimen</span>
-                  </div>
-                  <h2 className="font-[family-name:var(--font-outfit)] text-xl sm:text-2xl font-extrabold text-white leading-none">
-                    Ingat Eksperimen Tadi?
-                  </h2>
-                </div>
+            <div className="text-center mb-4 md:mb-5">
+              <div className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 px-3 py-0.5 rounded-full mb-1">
+                <span className="material-symbols-outlined text-[#ff8c8c] text-base">biotech</span>
+                <span className="text-white/90 text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-wider font-semibold">Jembatan Eksperimen</span>
               </div>
+              <h2 className="font-[family-name:var(--font-outfit)] text-2xl sm:text-3xl font-extrabold text-white leading-tight">
+                Ingat Eksperimen Tadi?
+              </h2>
             </div>
 
             {/* 2-Column Side-by-Side Grid (No Scroll Layout) */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-6 items-stretch">
               {/* Left Column: Gelas A & B Cards (7 cols) */}
-              <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-white/10 backdrop-blur-xl border border-[#6bff8f]/30 rounded-2xl p-5 text-center shadow-2xl bento-card flex flex-col justify-between">
+              <div className="lg:col-span-7 grid grid-cols-2 gap-3 md:gap-4">
+                <div className="bg-white/10 backdrop-blur-xl border border-[#6bff8f]/30 rounded-2xl p-3 md:p-5 text-center shadow-2xl bento-card flex flex-col justify-between">
                   <div>
-                    <div className="text-5xl mb-2">🥗</div>
-                    <div className="text-lg font-extrabold text-[#6bff8f] mb-1">Gelas A</div>
-                    <div className="text-white/90 text-xs sm:text-sm mb-4">Cuka + daun/kerupuk</div>
+                    <span className="material-symbols-outlined text-4xl md:text-5xl text-[#6bff8f] mb-1">eco</span>
+                    <div className="text-base md:text-lg font-extrabold text-[#6bff8f] mb-0.5">Gelas A</div>
+                    <div className="text-white/90 text-xs sm:text-sm mb-2 md:mb-4">Cuka + daun/kerupuk</div>
                   </div>
-                  <div className="bg-[#6bff8f]/20 border border-[#6bff8f]/40 rounded-xl p-3">
-                    <p className="text-[#6bff8f] text-sm font-extrabold">✓ Melunak &amp; hancur</p>
+                  <div className="bg-[#6bff8f]/20 border border-[#6bff8f]/40 rounded-xl p-2 md:p-3">
+                    <p className="text-[#6bff8f] text-sm font-extrabold">Melunak &amp; hancur</p>
                     <p className="text-white/80 text-xs mt-0.5">Organik = dapat dicerna</p>
                   </div>
                 </div>
 
-                <div className="bg-white/10 backdrop-blur-xl border border-[#ff8c8c]/30 rounded-2xl p-5 text-center shadow-2xl bento-card flex flex-col justify-between">
+                <div className="bg-white/10 backdrop-blur-xl border border-[#ff8c8c]/30 rounded-2xl p-3 md:p-5 text-center shadow-2xl bento-card flex flex-col justify-between">
                   <div>
-                    <div className="text-5xl mb-2">🧴</div>
-                    <div className="text-lg font-extrabold text-[#ff8c8c] mb-1">Gelas B</div>
-                    <div className="text-white/90 text-xs sm:text-sm mb-4">Cuka + potongan plastik</div>
+                    <span className="material-symbols-outlined text-4xl md:text-5xl text-[#ff8c8c] mb-1">water_bottle</span>
+                    <div className="text-base md:text-lg font-extrabold text-[#ff8c8c] mb-0.5">Gelas B</div>
+                    <div className="text-white/90 text-xs sm:text-sm mb-2 md:mb-4">Cuka + potongan plastik</div>
                   </div>
-                  <div className="bg-[#ba1a1a]/30 border border-[#ff8c8c]/40 rounded-xl p-3">
-                    <p className="text-[#ff8c8c] text-sm font-extrabold">✗ Tetap utuh</p>
+                  <div className="bg-[#ba1a1a]/30 border border-[#ff8c8c]/40 rounded-xl p-2 md:p-3">
+                    <p className="text-[#ff8c8c] text-sm font-extrabold">Tetap utuh</p>
                     <p className="text-white/80 text-xs mt-0.5">Plastik = tidak bereaksi</p>
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Question Card + Action Button (5 cols) */}
-              <div className="lg:col-span-5 flex flex-col justify-between gap-4">
-                <div className="bg-white/10 backdrop-blur-xl border-l-4 border-[#6bff8f] rounded-2xl p-5 sm:p-6 shadow-2xl flex-grow flex flex-col justify-center">
-                  <p className="text-white/90 text-base sm:text-lg leading-relaxed">
-                    <strong className="text-white font-bold text-lg sm:text-xl block mb-2">Pertanyaan:</strong>
+              <div className="lg:col-span-5 flex flex-col justify-between gap-3 md:gap-4">
+                <div className="bg-white/10 backdrop-blur-xl border-l-4 border-[#6bff8f] rounded-2xl p-4 sm:p-6 shadow-2xl flex-grow flex flex-col justify-center">
+                  <p className="text-white font-bold text-base sm:text-xl leading-snug">
                     Mengapa plastik tidak hancur meski direndam cairan asam?
-                    <br /><br />
-                    <span className="text-[#6bff8f] font-semibold text-sm sm:text-base">Sekarang kita lihat apa yang terjadi di dalam organ tubuhmu...</span>
+                  </p>
+                  <p className="text-[#6bff8f] font-semibold text-sm sm:text-base mt-2">
+                    Sekarang kita telusuri jalur yang mungkin dilalui, dan apa yang sudah diketahui peneliti.
                   </p>
                 </div>
 
                 <button onClick={() => setPhase('organs')}
-                  className="w-full bg-[linear-gradient(180deg,#f0a345_0%,#d27b22_100%)] hover:brightness-110 text-white font-extrabold py-4 sm:py-5 rounded-2xl text-lg sm:text-xl transition-all flex items-center justify-center gap-3 shadow-[0_6px_0_#9a5310,0_10px_20px_rgba(0,0,0,0.3)] active:translate-y-1 active:shadow-[0_2px_0_#9a5310] flex-shrink-0">
+                  className="w-full bg-[linear-gradient(180deg,#f0a345_0%,#d27b22_100%)] hover:brightness-110 text-[#3b2313] font-extrabold py-4 sm:py-5 rounded-2xl text-base sm:text-xl transition-all flex items-center justify-center gap-3 shadow-[0_6px_0_#9a5310,0_10px_20px_rgba(0,0,0,0.3)] active:translate-y-1 active:shadow-[0_2px_0_#9a5310] flex-shrink-0">
                   <span className="material-symbols-outlined text-2xl sm:text-3xl">visibility</span>
                   Masuk ke Organ Pencernaan
                 </button>
@@ -360,21 +277,16 @@ export default function Tahap4() {
 
       {/* ── Organ interactive ── */}
       {phase === 'organs' && (
-        <div className="flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 gap-6 z-10 flex flex-col">
-          {/* Top Navigation */}
+        <div className={`flex-grow max-w-7xl mx-auto w-full px-4 sm:px-6 py-2 md:py-6 gap-3 md:gap-6 z-10 flex flex-col ${allOrgansDone ? 'pb-24 md:pb-6' : ''}`}>
           <div className="w-full flex items-center justify-between gap-3">
-            <button
-              onClick={() => setPhase('bridge')}
-              title="Kembali ke Pengantar"
-              className="w-10 h-10 sm:w-auto sm:h-auto sm:px-5 sm:py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md transition-all shadow-sm flex items-center justify-center gap-2 flex-shrink-0"
-            >
-              <span className="material-symbols-outlined text-lg">arrow_back</span>
-              <span className="hidden sm:inline">Kembali ke Pengantar</span>
-            </button>
-
+            <p className="text-sm sm:text-base font-bold text-white">
+              Ketuk organ untuk menyelidiki{' '}
+              <span className="text-[#6bff8f] font-[family-name:var(--font-mono)]">{clickedIds.size}/{ORGANS.length}</span>
+            </p>
             <button
               onClick={() => setShowRefModal(true)}
               title="Referensi Ilmiah"
+              aria-label="Referensi Ilmiah"
               className="w-10 h-10 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 rounded-xl bg-[#006591]/60 hover:bg-[#006591] border border-[#6bff8f]/40 text-[#6bff8f] font-bold text-xs sm:text-sm backdrop-blur-md transition-all shadow-md flex items-center justify-center gap-2 flex-shrink-0"
             >
               <span className="material-symbols-outlined text-lg">menu_book</span>
@@ -383,153 +295,90 @@ export default function Tahap4() {
           </div>
 
           {/* 3-Column Layout Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 sm:gap-6 items-stretch">
             {/* Column 1: Left Organ selector (Buttons) */}
             <div className="md:col-span-2 lg:col-span-3 flex flex-col">
-              <p className="text-white/80 text-xs sm:text-sm font-[family-name:var(--font-mono)] mb-3 text-center uppercase tracking-wider font-semibold">Pilih Organ</p>
+              <p className="hidden md:block text-white/80 text-xs sm:text-sm font-[family-name:var(--font-mono)] mb-3 text-center uppercase tracking-wider font-semibold">Pilih Organ</p>
 
-              <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3 p-3 sm:p-4 flex-grow">
-                {ORGANS_DYNAMIC.map(organ => {
+              <div className="relative md:bg-white/10 md:backdrop-blur-xl md:border md:border-white/20 md:rounded-2xl md:shadow-2xl w-full grid grid-cols-3 lg:grid-cols-1 lg:content-start gap-2 sm:gap-3 md:p-4 flex-grow">
+                <button onClick={handleFullPathClick} aria-pressed={!activeOrgan}
+                  className={`relative w-full rounded-xl p-2 sm:p-3 border transition-all duration-200 flex flex-col lg:flex-row items-center gap-1 lg:gap-3 active:scale-95 ${
+                    !activeOrgan ? 'bg-[#006591]/70 border-[#6bff8f] ring-2 ring-[#6bff8f]/40' : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/15'
+                  }`}>
+                  <div className="w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-3xl sm:text-4xl text-[#6bff8f]">route</span>
+                  </div>
+                  <div className="w-full text-center lg:text-left flex-grow min-w-0 text-xs sm:text-sm font-bold text-white">Jalur Lengkap</div>
+                </button>
+                {ORGANS.map(organ => {
                   const isClicked = clickedIds.has(organ.id);
                   const isActive = activeOrgan?.id === organ.id;
                   return (
                     <button key={organ.id} onClick={() => handleOrganClick(organ)}
-                      className={`w-full rounded-xl p-2.5 sm:p-3 border transition-all duration-200 flex items-center gap-2 sm:gap-3 hover:scale-[1.02] active:scale-95 ${
+                      className={`relative w-full rounded-xl p-2 sm:p-3 border transition-all duration-200 flex flex-col lg:flex-row items-center gap-1 lg:gap-3 active:scale-95 ${
                         isActive ? 'bg-[#ba1a1a]/40 border-[#ff8c8c] shadow-[0_0_15px_rgba(255,140,140,0.4)] ring-2 ring-[#ff8c8c]/50'
                         : isClicked ? 'bg-[#006e2f]/30 border-[#6bff8f]/60'
                         : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/15'
                       }`}>
                       {/* Mini organ illustration */}
-                      <div className="w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center flex-shrink-0">
+                      <div className="w-9 h-9 sm:w-12 sm:h-12 flex items-center justify-center flex-shrink-0 [&>svg]:w-full [&>svg]:h-full">
                         <OrganIllustration organId={organ.id} isActive={isActive} isClicked={isClicked} />
                       </div>
-                      <div className="text-left flex-grow min-w-0">
-                        <div className={`text-xs sm:text-sm font-bold flex items-center gap-1 truncate ${isActive ? 'text-[#ff8c8c]' : isClicked ? 'text-[#6bff8f]' : 'text-white'}`}>
+                      <div className="w-full text-center lg:text-left flex-grow min-w-0">
+                        <div className={`text-xs sm:text-sm font-bold flex items-center justify-center lg:justify-start gap-1 ${isActive ? 'text-[#ff8c8c]' : isClicked ? 'text-[#6bff8f]' : 'text-white'}`}>
                           <span className="truncate">{ORGAN_LABELS[organ.id]}</span>
-                          {organ.isKeyOrgan && <span className="text-[#ffdf9a] text-[10px] sm:text-xs flex-shrink-0">★</span>}
-                        </div>
-                        <div className={`text-[10px] sm:text-xs font-[family-name:var(--font-mono)] mt-0.5 ${isActive ? 'text-[#ff8c8c]/90' : 'text-white/70'}`}>
-                          {organ.healthPct}% Paparan
-                        </div>
-                        {/* Mini health bar */}
-                        <div className="w-full bg-black/40 rounded-full h-1 sm:h-1.5 mt-1 overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width:`${organ.healthPct}%`, backgroundColor: organ.healthColor }} />
+                          {organ.isKeyOrgan && <span className="material-symbols-outlined text-[#ffdf9a] text-sm leading-none flex-shrink-0" title="Organ kunci">key</span>}
                         </div>
                       </div>
-                      {isClicked && <span className="material-symbols-outlined text-[#6bff8f] text-base sm:text-lg flex-shrink-0 hidden sm:inline-block">check_circle</span>}
+                      {isClicked && <span className="absolute lg:static top-1 right-1 material-symbols-outlined text-[#6bff8f] text-sm lg:text-lg flex-shrink-0">check_circle</span>}
                     </button>
                   );
                 })}
               </div>
 
-              <p className="text-center text-white/80 text-xs sm:text-sm mt-3 font-[family-name:var(--font-mono)]">
-                {clickedIds.size} / {ORGANS_DYNAMIC.length} organ diinvestigasi
-              </p>
             </div>
 
             {/* Column 2: Info panel (Middle) */}
-            <div className="md:col-span-1 lg:col-span-5 flex flex-col h-full min-h-[350px]">
-              {!activeOrgan ? (
-                <div className="flex-grow flex items-center justify-center bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-6 sm:p-8 text-center min-h-[250px]">
-                  <div className="text-white/80">
-                    <span className="material-symbols-outlined text-5xl sm:text-6xl block mb-3 text-white/40 floating">touch_app</span>
-                    <p className="text-lg sm:text-xl font-bold text-white mb-2">Pilih organ di sebelah kiri</p>
-                    <p className="text-xs sm:text-sm text-white/70 max-w-xs mx-auto leading-relaxed">untuk melihat dampak mikroplastik pada setiap organ pencernaan</p>
+            <div className="order-3 md:order-none md:col-span-1 lg:col-span-4 flex flex-col">
+              <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 sm:p-5 shadow-2xl flex-grow text-white flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+                    {activeOrgan ? (
+                      <OrganIllustration organId={activeOrgan.id} isActive={true} isClicked={false} />
+                    ) : (
+                      <span className="material-symbols-outlined text-4xl text-[#6bff8f]">route</span>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-[family-name:var(--font-outfit)] text-xl sm:text-2xl font-extrabold flex items-center gap-2 text-white">
+                      <span className="truncate">{panelInfo.name}</span>
+                      {activeOrgan?.isKeyOrgan && (
+                        <span className="text-[10px] sm:text-xs bg-[#ffdf9a]/20 border border-[#ffdf9a]/50 text-[#ffdf9a] px-2 py-0.5 rounded-full font-sans flex-shrink-0 inline-flex items-center gap-0.5"><span className="material-symbols-outlined text-xs leading-none">key</span>Kunci</span>
+                      )}
+                    </h3>
+                    {!activeOrgan && totalParticles > 0 && (
+                      <p className="text-xs text-white/75 leading-snug mt-0.5">
+                        Simulasi makananmu di Tahap 3: {totalParticles.toLocaleString('id-ID')} partikel. Ini hitungan ilustrasi, bukan jumlah di dalam tubuhmu.
+                      </p>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-5 sm:p-7 shadow-2xl flex-grow text-white flex flex-col justify-between">
-                  <div>
-                    {/* Header */}
-                    <div className="flex items-start gap-3 sm:gap-4 mb-4 sm:mb-5">
-                      <div className="flex-shrink-0">
-                        <OrganIllustration organId={activeOrgan.id} isActive={true} isClicked={false} />
-                      </div>
-                      <div className="flex-grow min-w-0">
-                        <p className="text-xs font-[family-name:var(--font-mono)] text-white/60 uppercase tracking-wider mb-0.5">Analisis Organ</p>
-                        <h3 className="font-[family-name:var(--font-outfit)] text-xl sm:text-3xl font-extrabold flex items-center gap-2 text-white mb-1 truncate">
-                          <span className="truncate">{activeOrgan.name}</span>
-                          {activeOrgan.isKeyOrgan && (
-                            <span className="text-[10px] sm:text-xs bg-[#ffdf9a]/20 border border-[#ffdf9a]/50 text-[#ffdf9a] px-2 py-0.5 rounded-full font-sans flex-shrink-0">★ Kunci</span>
-                          )}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <span className="font-[family-name:var(--font-mono)] text-xl sm:text-3xl font-black" style={{ color: activeOrgan.healthColor }}>
-                            {activeOrgan.healthPct}%
-                          </span>
-                          <span className="text-white/80 text-xs sm:text-sm">Simulasi Indeks Paparan</span>
-                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
-                            activeOrgan.healthPct >= 70 ? 'bg-[#6bff8f]/20 border-[#6bff8f]/40 text-[#6bff8f]' :
-                            activeOrgan.healthPct >= 45 ? 'bg-[#ffdf9a]/20 border-[#ffdf9a]/40 text-[#ffdf9a]' :
-                            'bg-[#ba1a1a]/40 border-[#ff8c8c]/50 text-[#ff8c8c]'
-                          }`}>
-                            {activeOrgan.statusText}
-                          </span>
-                        </div>
-                        <HealthBar pct={activeOrgan.healthPct} color={activeOrgan.healthColor} />
-                      </div>
-                    </div>
 
-                    {/* Impact */}
-                    <div className="bg-[#ba1a1a]/25 border border-[#ff8c8c]/30 rounded-xl p-3.5 sm:p-5 mb-3.5 sm:mb-4">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="material-symbols-outlined text-[#ff8c8c] text-base sm:text-lg">warning</span>
-                        <p className="text-xs sm:text-sm font-[family-name:var(--font-mono)] text-[#ff8c8c] uppercase tracking-wider font-semibold">Dampak Mikroplastik</p>
-                      </div>
-                      <p className="text-white/95 text-xs sm:text-base leading-relaxed">{activeOrgan.impact}</p>
-                    </div>
+                <OrganEvidencePanel key={panelInfo.name} info={panelInfo} />
 
-                    {/* Sci note */}
-                    <div className="bg-white/10 border-l-4 border-[#6bff8f] rounded-xl p-3.5 sm:p-5 mb-4 sm:mb-5">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="material-symbols-outlined text-[#6bff8f] text-base sm:text-lg">science</span>
-                        <p className="text-xs sm:text-sm font-[family-name:var(--font-mono)] text-[#6bff8f] uppercase tracking-wider font-semibold">Catatan Ilmiah &amp; Pustaka</p>
-                      </div>
-                      <p className="text-white/90 text-xs sm:text-base leading-relaxed">{activeOrgan.sciNote}</p>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
-                    <div className="bg-black/30 border border-white/15 rounded-xl p-3 sm:p-4 text-center">
-                      <div className="font-[family-name:var(--font-mono)] font-bold text-[#ff8c8c] text-lg sm:text-2xl">
-                        +{activeOrgan.particles.toLocaleString()}
-                      </div>
-                      <div className="text-white/70 text-[11px] sm:text-sm mt-0.5">partikel tertahan</div>
-                    </div>
-                    <div className="bg-black/30 border border-white/15 rounded-xl p-3 sm:p-4 text-center">
-                      <div className="font-[family-name:var(--font-mono)] font-bold text-[#ffdf9a] text-lg sm:text-2xl">
-                        {activeOrgan.healthPct < 50 ? '⚠ Kritis' : activeOrgan.healthPct < 70 ? '! Waspada' : '✓ Stabil'}
-                      </div>
-                      <div className="text-white/70 text-[11px] sm:text-sm mt-0.5">status risiko</div>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setShowMicroplastic(true)}
-                    className="mt-3 sm:mt-4 w-full min-h-12 py-2 px-3 rounded-xl bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] font-extrabold text-sm sm:text-base transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"
-                  >
-                    <span className="material-symbols-outlined text-xl">view_in_ar</span>
-                    <span>Lihat bentuk mikroplastik 3D</span>
-                  </button>
-                </div>
-              )}
+                <button
+                  onClick={() => setShowMicroplastic(true)}
+                  className="mt-auto w-full min-h-12 py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/25 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-xl text-[#6bff8f]">category</span>
+                  <span>Lihat bentuk mikroplastik 3D</span>
+                </button>
+              </div>
             </div>
 
-            {/* Column 3: The zooming image (Right) */}
-            <div className="md:col-span-1 lg:col-span-4 flex flex-col">
-              <p className="text-white/80 text-xs sm:text-sm font-[family-name:var(--font-mono)] mb-3 text-center uppercase tracking-wider font-semibold">Live Feed Anatomi</p>
-              <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-2xl w-full h-[280px] sm:h-[380px] lg:h-full min-h-[260px] flex-grow">
-                <div 
-                  className="absolute inset-0 transition-transform duration-700 ease-in-out"
-                  style={{
-                    transform: activeOrgan ? `scale(${HOTSPOTS[activeOrgan.id]?.scale || 1})` : 'scale(1)',
-                    transformOrigin: activeOrgan ? HOTSPOTS[activeOrgan.id]?.origin : 'center center'
-                  }}
-                >
-                  <img src="/organ.png" alt="Anatomi" className="w-full h-full object-cover" />
-                </div>
-              </div>
+            {/* Column 3: Model 3D (Right) */}
+            <div ref={anatomyRef} className="order-2 md:order-none md:col-span-1 lg:col-span-5 flex flex-col scroll-mt-20 md:sticky md:top-24 md:self-start md:h-[calc(100dvh-7.5rem)] md:max-h-[720px]">
+              <OrganViewer3D view={panelInfo.view} paused={showMicroplastic} />
             </div>
           </div>
 
@@ -549,13 +398,6 @@ export default function Tahap4() {
       {/* ── LKPD 3 ── */}
       {phase === 'lkpd' && (
         <div className="flex-grow max-w-2xl mx-auto w-full px-4 sm:px-6 py-8 z-10">
-          <button
-            onClick={() => setPhase('organs')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 mb-5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md transition-all shadow-sm"
-          >
-            <span className="material-symbols-outlined text-base sm:text-lg">arrow_back</span>
-            <span>Kembali ke Anatomi Organ</span>
-          </button>
           <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-6 sm:p-8 mb-6 shadow-2xl text-white">
             <div className="flex items-center gap-2.5 mb-5">
               <span className="bg-[#ba1a1a] text-white text-xs sm:text-sm font-bold px-3 py-1 rounded-md font-[family-name:var(--font-mono)]">LKPD 3</span>
@@ -577,7 +419,7 @@ export default function Tahap4() {
                 </p>
                 <textarea value={lkpd3q2} onChange={e => setLkpd3q2(e.target.value)}
                   className="w-full bg-black/40 border border-white/20 rounded-xl p-4 sm:p-5 text-white placeholder-white/40 text-sm sm:text-base resize-none h-32 focus:outline-none focus:border-[#6bff8f] focus:ring-1 focus:ring-[#6bff8f] transition-colors"
-                  placeholder="Organ yang paling berbahaya adalah usus halus, karena di sinilah partikel <10μm dapat diserap langsung ke dalam darah dan..." />
+                  placeholder="Menurutku organ yang paling perlu diperhatikan adalah ..., karena menurut penelitian yang kubaca ..." />
               </div>
             </div>
           </div>

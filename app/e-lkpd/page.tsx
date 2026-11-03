@@ -28,7 +28,7 @@ const LKPD_DEFS: LkpdDef[] = [
   {
     id: 'lkpd1',
     num: '1',
-    icon: '☀️',
+    icon: 'wb_sunny',
     title: 'Proses Pelapukan Plastik',
     tahap: 'Tahap 2',
     tahapNum: 2,
@@ -48,7 +48,7 @@ const LKPD_DEFS: LkpdDef[] = [
   {
     id: 'lkpd2',
     num: '2',
-    icon: '🍱',
+    icon: 'restaurant',
     title: 'Kontaminasi Pangan Laut',
     tahap: 'Tahap 3',
     tahapNum: 3,
@@ -68,7 +68,7 @@ const LKPD_DEFS: LkpdDef[] = [
   {
     id: 'lkpd3q1',
     num: '3A',
-    icon: '🧪',
+    icon: 'science',
     title: 'Asam Lambung (HCl) & Plastik',
     tahap: 'Tahap 4',
     tahapNum: 4,
@@ -83,7 +83,7 @@ const LKPD_DEFS: LkpdDef[] = [
   {
     id: 'lkpd3q2',
     num: '3B',
-    icon: '🫀',
+    icon: 'favorite',
     title: 'Organ Pencernaan Kritis',
     tahap: 'Tahap 4',
     tahapNum: 4,
@@ -98,7 +98,7 @@ const LKPD_DEFS: LkpdDef[] = [
   {
     id: 'lkpd4',
     num: '4',
-    icon: '🕵️',
+    icon: 'person_search',
     title: 'Sintesis HOTS: Pelaku & Korban',
     tahap: 'Tahap 5',
     tahapNum: 5,
@@ -258,7 +258,7 @@ export default function ELKPDPage() {
                       : 'bg-black/30 border-white/15 text-white/50 hover:border-white/30'
                   }`}
                 >
-                  {isDone ? '✓' : '○'} LKPD {l.num}
+                  <span className="material-symbols-outlined text-sm leading-none align-middle mr-1">{isDone ? 'check_circle' : 'radio_button_unchecked'}</span>LKPD {l.num}
                 </div>
               );
             })}
@@ -301,7 +301,7 @@ export default function ELKPDPage() {
                       className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 border border-white/20"
                       style={{ backgroundColor: lkpd.bgLight }}
                     >
-                      {hasAnswer ? '✅' : lkpd.icon}
+                      <span className="material-symbols-outlined text-2xl" style={{ color: lkpd.color }}>{hasAnswer ? 'check_circle' : lkpd.icon}</span>
                     </div>
 
                     <div className="min-w-0">
@@ -323,7 +323,7 @@ export default function ELKPDPage() {
                       <p className="text-white/70 text-xs truncate mt-0.5">
                         {hasAnswer
                           ? lkpd.type === 'Pilihan Ganda'
-                            ? `Jawaban: Pilihan ${userAnswer.toUpperCase()} — ${isCorrect ? '✓ Benar' : '✗ Perlu Ditinjau'}`
+                            ? `Jawaban: Pilihan ${userAnswer.toUpperCase()} — ${isCorrect ? 'Benar' : 'Perlu Ditinjau'}`
                             : `Terisi (${userAnswer.length} karakter)`
                           : `Belum diisi — Ketuk untuk menjawab / buka ${lkpd.tahap}`}
                       </p>
@@ -341,7 +341,7 @@ export default function ELKPDPage() {
                             : 'bg-[#006591]/60 border-[#7dd3fc] text-[#7dd3fc]'
                         }`}
                       >
-                        {isCorrect === true ? '✓ Selesai' : isCorrect === false ? '✗ Ulas' : '✓ Terisi'}
+                        {isCorrect === true ? 'Selesai' : isCorrect === false ? 'Ulas' : 'Terisi'}
                       </span>
                     )}
                     <span
@@ -392,7 +392,7 @@ export default function ELKPDPage() {
                         {/* Explanation Box */}
                         <div className="bg-white/10 border-l-4 border-[#6bff8f] rounded-2xl p-4 text-xs text-white/90 leading-relaxed">
                           <p className="font-bold text-[#6bff8f] text-[10px] font-[family-name:var(--font-mono)] uppercase mb-1">
-                            💡 Pembahasan &amp; Konsep Sains:
+                            Pembahasan &amp; Konsep Sains:
                           </p>
                           <p>{lkpd.explanation}</p>
                         </div>

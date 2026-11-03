@@ -75,7 +75,7 @@ export default function Stage5LKPD({ onComplete, stageId }: Props) {
                 placeholder="Pada simulasi X-Ray, bahan organik (daun) terlihat melunak dan terurai oleh asam HCl, sedangkan partikel plastik..."
               />
               <p className={`text-xs mt-1 ${answers.observasi.length < 20 ? 'text-orange-500' : 'text-green-600'}`}>
-                {answers.observasi.length < 20 ? `Minimal 20 karakter (${answers.observasi.length} diisi)` : '✓ Cukup'}
+                {answers.observasi.length < 20 ? `Minimal 20 karakter (${answers.observasi.length} diisi)` : 'Cukup'}
               </p>
             </div>
 
@@ -96,7 +96,7 @@ export default function Stage5LKPD({ onComplete, stageId }: Props) {
                 placeholder="Plastik tidak dapat dicerna karena rantai polimernya terbuat dari ikatan karbon sintetis yang sangat kuat. Enzim protease dan HCl dalam lambung hanya..."
               />
               <p className={`text-xs mt-1 ${answers.analisis.length < 20 ? 'text-orange-500' : 'text-green-600'}`}>
-                {answers.analisis.length < 20 ? `Minimal 20 karakter (${answers.analisis.length} diisi)` : '✓ Cukup'}
+                {answers.analisis.length < 20 ? `Minimal 20 karakter (${answers.analisis.length} diisi)` : 'Cukup'}
               </p>
             </div>
 

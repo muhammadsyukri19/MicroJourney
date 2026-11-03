@@ -1,7 +1,6 @@
 export interface Food {
   id: string;
   name: string;
-  icon: string;
   image: string;  // path ke /public/foods/
   particles: number;
   unit: string;
@@ -12,7 +11,6 @@ export const FOODS: Food[] = [
   {
     id: "garam",
     name: "Garam Dapur",
-    icon: "🧂",
     image: "/foods/garam.png",
     particles: 600,
     unit: "sendok makan",
@@ -21,7 +19,6 @@ export const FOODS: Food[] = [
   {
     id: "kerang",
     name: "Kerang / Seafood",
-    icon: "🦪",
     image: "/foods/kerang.png",
     particles: 90,
     unit: "porsi (100g)",
@@ -30,7 +27,6 @@ export const FOODS: Food[] = [
   {
     id: "air_mineral",
     name: "Air Mineral Botol",
-    icon: "🧴",
     image: "/foods/air_mineral.png",
     particles: 240,
     unit: "botol (600ml)",
@@ -39,7 +35,6 @@ export const FOODS: Food[] = [
   {
     id: "cilok",
     name: "Cilok (Wadah Styrofoam)",
-    icon: "🍢",
     image: "/foods/cilok.png",
     particles: 150,
     unit: "porsi",
@@ -48,7 +43,6 @@ export const FOODS: Food[] = [
   {
     id: "es_teh",
     name: "Es Teh Kemasan Plastik",
-    icon: "🥤",
     image: "/foods/es_teh.png",
     particles: 200,
     unit: "gelas cup",

@@ -18,11 +18,15 @@ const SLOTS = [
 
 interface EvidenceBoardProps {
   onUnlock: () => void;
+  /** Siswa kembali dari langkah berikutnya, jadi papan yang sudah lengkap ditampilkan lagi */
+  startSolved?: boolean;
 }
 
-export default function EvidenceBoard({ onUnlock }: EvidenceBoardProps) {
+export default function EvidenceBoard({ onUnlock, startSolved = false }: EvidenceBoardProps) {
   const [shuffledTokens, setShuffledTokens] = useState(TOKENS);
-  const [matched, setMatched] = useState<Record<string, string>>({}); // slotId -> tokenId
+  const [matched, setMatched] = useState<Record<string, string>>(() =>
+    startSolved ? Object.fromEntries(SLOTS.map(slot => [slot.id, slot.accepts])) : {},
+  ); // slotId -> tokenId
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [draggingTokenId, setDraggingTokenId] = useState<string | null>(null);
   const [hoveredSlotId, setHoveredSlotId] = useState<string | null>(null);
@@ -101,17 +105,17 @@ export default function EvidenceBoard({ onUnlock }: EvidenceBoardProps) {
       setMatched(newMatched);
       setSelectedTokenId(null);
       playSound('success');
-      showFeedback(`✅ Tepat! "${token?.label}" berhasil dipasang pada ${slot.title}.`, 'success');
+      showFeedback(`Tepat! "${token?.label}" berhasil dipasang pada ${slot.title}.`, 'success');
 
       if (Object.keys(newMatched).length === SLOTS.length) {
         playSound('unlock');
-        showFeedback('🎉 Luar Biasa! Semua rantai bukti berhasil terhubung!', 'success');
+        showFeedback('Luar biasa! Semua rantai bukti berhasil terhubung!', 'success');
         setTimeout(() => onUnlock(), 800);
       }
     } else {
       playSound('error');
       setErrorShake(tokenId);
-      showFeedback(`❌ Kurang tepat! "${token?.label}" bukan untuk ${slot?.title}. Coba slot lain!`, 'error');
+      showFeedback(`Kurang tepat! "${token?.label}" bukan untuk ${slot?.title}. Coba slot lain!`, 'error');
       setTimeout(() => setErrorShake(null), 500);
     }
   };
@@ -131,7 +135,7 @@ export default function EvidenceBoard({ onUnlock }: EvidenceBoardProps) {
       setSelectedTokenId(null);
     } else {
       setSelectedTokenId(tokenId);
-      showFeedback('👆 Ketuk slot tujuan di atas untuk memasang bukti ini.', 'info');
+      showFeedback('Ketuk slot tujuan di atas untuk memasang bukti ini.', 'info');
     }
   };
 
@@ -140,7 +144,7 @@ export default function EvidenceBoard({ onUnlock }: EvidenceBoardProps) {
     if (selectedTokenId) {
       attemptMatch(selectedTokenId, slotId);
     } else {
-      showFeedback('💡 Ketuk bukti di bawah terlebih dahulu, lalu ketuk slot ini.', 'info');
+      showFeedback('Ketuk bukti di bawah terlebih dahulu, lalu ketuk slot ini.', 'info');
     }
   };
 
@@ -275,7 +279,7 @@ export default function EvidenceBoard({ onUnlock }: EvidenceBoardProps) {
                     className="w-full bg-white/95 backdrop-blur-xs rounded-xl p-1.5 sm:p-2 border border-[#5a300a] shadow-inner flex flex-col items-center justify-center text-center my-auto relative z-10"
                   >
                     <div className="absolute top-1 right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#006e2f] text-white text-[9px] sm:text-[10px] flex items-center justify-center font-bold">
-                      ✓
+                      <span className="material-symbols-outlined text-[10px] leading-none">check</span>
                     </div>
                     <span className="material-symbols-outlined text-lg sm:text-2xl text-[#006591] mb-0.5">
                       {matchedToken.icon}
@@ -384,7 +388,7 @@ export default function EvidenceBoard({ onUnlock }: EvidenceBoardProps) {
                   </span>
 
                   <span className="text-[9px] text-[#648796] font-semibold">
-                    {isSelected ? '✓ Terpilih' : 'Seret atau Ketuk'}
+                    {isSelected ? 'Terpilih' : 'Seret atau Ketuk'}
                   </span>
                 </motion.div>
               );

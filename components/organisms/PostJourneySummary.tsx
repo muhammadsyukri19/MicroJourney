@@ -33,7 +33,6 @@ export default function PostJourneySummary({
     quizWrong,
     lkpdAnswers,
     setLkpdAnswer,
-    reset,
   } = useJourneyStore();
 
   const [driveLink, setDriveLink] = useState(lkpdAnswers.driveLink || '');
@@ -240,7 +239,7 @@ export default function PostJourneySummary({
 
         <SummaryKpiCard
           label="Status Ekspedisi"
-          value="TUNTAS ✓"
+          value="TUNTAS"
           subtitle="6 Tahap Terlampaui"
           icon="task_alt"
           accentColor="#006591"
@@ -283,10 +282,7 @@ export default function PostJourneySummary({
           <div className="pt-2 flex justify-center gap-3">
             <button
               type="button"
-              onClick={() => {
-                reset();
-                router.push('/');
-              }}
+              onClick={() => router.push('/')}
               className="bg-[#006591] hover:bg-[#004c6e] text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-xs"
             >
               Kembali ke Beranda

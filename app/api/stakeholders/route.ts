@@ -12,31 +12,31 @@ export interface StakeholderPair {
 let memoryStore: StakeholderPair[] = [
   {
     id: 'siswa',
-    role: '🧑‍🎓 Siswa / Pelajar',
+    role: 'Siswa / Pelajar',
     task: 'Membawa tumbler & menolak sedotan plastik sekali pakai di kantin',
     impact: 'Duta lingkungan & menekan limbah botol plastik sekali pakai di lingkungan sekolah'
   },
   {
     id: 'pemerintah',
-    role: '🏛️ Pemerintah & Regulator',
+    role: 'Pemerintah & Regulator',
     task: 'Membuat kebijakan larangan kantong plastik & regulasi cukai limbah polimer',
     impact: 'Leverage point hulu terbesar untuk menekan 60% limbah plastik skala nasional'
   },
   {
     id: 'pabrik',
-    role: '🏭 Industri & Produsen',
+    role: 'Industri & Produsen',
     task: 'Mengganti kemasan sintetis berbahan PET/PP dengan bioplastik ramah lingkungan',
     impact: 'Mencegah terbentuknya mikroplastik beracun yang sulit terurai sejak tahap manufaktur'
   },
   {
     id: 'masyarakat',
-    role: '👨‍👩‍👧‍👦 Orang Tua & Keluarga',
+    role: 'Orang Tua & Keluarga',
     task: 'Selalu membawa tas belanja kain sendiri & memilah sampah dari rumah',
     impact: 'Mencegah akumulasi sampah anorganik yang terseret ke muara sungai dan laut'
   },
   {
     id: 'ritel',
-    role: '🏪 Supermarket & Ritel',
+    role: 'Supermarket & Ritel',
     task: 'Menyediakan wadah refill & tidak menyediakan kantong plastik belanja',
     impact: 'Mendorong budaya gaya hidup berkelanjutan pada transaksi belanja harian'
   }

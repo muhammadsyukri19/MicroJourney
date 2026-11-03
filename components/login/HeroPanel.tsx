@@ -70,16 +70,17 @@ export default function HeroPanel() {
         </p>
 
         <div className="flex flex-wrap gap-2 justify-center">
-          {['🔬 AR Scanner', '🌊 Virtual Lab', '📊 E-LKPD'].map((tag) => (
+          {[['biotech', 'AR Scanner'], ['waves', 'Virtual Lab'], ['bar_chart', 'E-LKPD']].map(([icon, tag]) => (
             <span
               key={tag}
-              className="px-3 py-1.5 text-xs font-bold rounded-full"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-full"
               style={{
                 background: 'rgba(0,101,145,0.1)',
                 color: '#006591',
                 border: '1px solid rgba(0,101,145,0.2)',
               }}
             >
+              <span className="material-symbols-outlined text-sm leading-none">{icon}</span>
               {tag}
             </span>
           ))}

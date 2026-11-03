@@ -28,6 +28,9 @@ export default function JourneyDashboard() {
   });
 
   const isGuest = !currentUser;
+  // Progres yang sudah ada dari akun tidak perlu mengulang pre-test
+  const needsPreTest = preTestScore === null && completedStages.length === 0;
+  const nextStage = STAGES.find(stage => !completedStages.includes(stage.id));
 
   useEffect(() => {
     fetchSettings();
@@ -112,11 +115,13 @@ export default function JourneyDashboard() {
             Peta Ekspedisi Mikroplastik
           </h1>
           <p className="text-[#c9e6ff] text-base md:text-lg mb-8 leading-relaxed">
-            Selamat datang, <strong className="text-white font-extrabold">{studentName || currentUser?.name || 'Penjelajah'}</strong>!
-            Di sini kamu akan melalui 6 tahapan misi rahasia untuk mengungkap bahaya plastik bagi bumi kita.
+            Selamat datang, <strong className="text-white font-extrabold">{studentName || currentUser?.name || 'Penjelajah'}</strong>!{' '}
+            {nextStage
+              ? 'Di sini kamu akan melalui 6 tahapan misi rahasia untuk mengungkap bahaya plastik bagi bumi kita.'
+              : 'Keenam tahap sudah kamu selesaikan. Pilih tahap mana saja di bawah untuk mengulangnya.'}
           </p>
 
-          {preTestScore === null ? (
+          {needsPreTest ? (
             <button
               onClick={() => router.push('/journey/pre-test')}
               className="bg-[#006591] hover:bg-[#004c6e] text-white px-8 py-3.5 rounded-full font-extrabold text-lg transition-transform active:scale-95 shadow-md font-[family-name:var(--font-outfit)] inline-flex items-center gap-2"
@@ -126,11 +131,11 @@ export default function JourneyDashboard() {
             </button>
           ) : (
             <button
-              onClick={() => router.push('/journey/tahap-1')}
+              onClick={() => router.push(nextStage?.path ?? '/summary')}
               className="bg-[#6bff8f] hover:bg-[#4be672] text-[#004a1f] px-8 py-3.5 rounded-full font-extrabold text-lg transition-transform active:scale-95 shadow-md font-[family-name:var(--font-outfit)] inline-flex items-center gap-2"
             >
-              <span className="material-symbols-outlined">explore</span>
-              Lanjutkan Misi
+              <span className="material-symbols-outlined">{nextStage ? 'explore' : 'workspace_premium'}</span>
+              {nextStage ? 'Lanjutkan Misi' : 'Lihat Rangkuman'}
             </button>
           )}
         </div>
@@ -162,16 +167,16 @@ export default function JourneyDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {STAGES.map((stage) => {
           const isCompleted = completedStages.includes(stage.id);
-          const isNext = completedStages.length + 1 === stage.id;
+          const isNext = nextStage?.id === stage.id;
           const isGuestBlocked = isGuest && stage.id > 2;
           const isTeacherLocked = stageLocks[stage.id] === false;
-          const isLocked = preTestScore === null || (!isCompleted && !isNext && stage.id !== 1) || isGuestBlocked || isTeacherLocked;
+          const isLocked = needsPreTest || (!isCompleted && !isNext && stage.id !== 1) || isGuestBlocked || isTeacherLocked;
 
           return (
             <div
               key={stage.id}
               onClick={() => {
-                if (preTestScore === null) {
+                if (needsPreTest) {
                   alert('Selesaikan Pre-test terlebih dahulu!');
                   return;
                 }

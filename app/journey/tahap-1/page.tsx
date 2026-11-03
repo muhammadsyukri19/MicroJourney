@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useJourneyStore } from '@/lib/journeyStore';
 import dynamic from 'next/dynamic';
 import StageIntro from '@/components/stages/StageIntro';
-import { useStageBack } from '@/lib/stageBack';
+import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
 import {
   classifyCrop,
   detectObjects,
@@ -309,8 +309,19 @@ let stopAiTimer = 0;
 
 const AnchoredLabelAR = dynamic(() => import('@/components/stages/tahap1/AnchoredLabelAR'), { ssr: false });
 
+/** Hasil scan terakhir, supaya kartu hasil bisa dibuka lagi saat siswa kembali dari Tahap 2 */
+let lastScanResult: { info: PlasticInfo; photo: string | null } | null = null;
+
+function restoreScanResult(disposal: { plasticName: string } | null) {
+  if (lastScanResult) return lastScanResult;
+  const info = [...Object.values(OBJECT_PLASTIC_INFO), PACKAGING_PLASTIC_INFO].find(item => item.name === disposal?.plasticName);
+  return info ? { info, photo: null } : null;
+}
+
 export default function Tahap1() {
-  const { completeStage, lkpdAnswers, setLkpdAnswer, setPlasticDisposal } = useJourneyStore();
+  const { completeStage, lkpdAnswers, setLkpdAnswer, plasticDisposal, setPlasticDisposal } = useJourneyStore();
+  const returned = useReturnedToStage(1);
+  const [restoredScan] = useState(() => (returned ? restoreScanResult(plasticDisposal) : null));
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const procCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -324,7 +335,7 @@ export default function Tahap1() {
   const activeRef = useRef(false);
   const sessionRef = useRef(0);
   const lockTimeoutRef = useRef<number | null>(null);
-  const phaseRef = useRef<Phase>('init');
+  const phaseRef = useRef<Phase>(restoredScan ? 'pemantik' : 'init');
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   // State overlay AR (dibaca loop render, ditulis loop inferensi — tanpa re-render React)
@@ -337,16 +348,16 @@ export default function Tahap1() {
   const displayBoxRef = useRef<Box | null>(null);
   const boxAlphaRef = useRef(0);
 
-  const [phase, setPhaseState] = useState<Phase>('init');
+  const [phase, setPhaseState] = useState<Phase>(restoredScan ? 'pemantik' : 'init');
   const setPhase = useCallback((p: Phase) => {
     phaseRef.current = p;
     setPhaseState(p);
   }, []);
-  const [detectedPlasticInfo, setDetectedPlasticInfo] = useState<PlasticInfo>(OBJECT_PLASTIC_INFO.bottle);
+  const [detectedPlasticInfo, setDetectedPlasticInfo] = useState<PlasticInfo>(restoredScan?.info ?? OBJECT_PLASTIC_INFO.bottle);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [modelLoading, setModelLoading] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(restoredScan?.photo ?? null);
   const [showAnswerHint, setShowAnswerHint] = useState(false);
   const answerRef = useRef<HTMLTextAreaElement>(null);
   const [showManualScan, setShowManualScan] = useState(false);
@@ -918,6 +929,7 @@ export default function Tahap1() {
   });
 
   function proceed() {
+    lastScanResult = { info: detectedPlasticInfo, photo: capturedPhoto };
     completeStage(1);
     setShowCompletionModal(true);
   }

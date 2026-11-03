@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
-import { useStageBack } from '@/lib/stageBack';
+import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
 import { useAuthStore } from '@/lib/authStore';
 import Stage2Weathering from '@/components/stages/Stage2Weathering';
 import StageIntro from '@/components/stages/StageIntro';
@@ -17,7 +17,8 @@ export default function Tahap2() {
   const { completeStage } = useJourneyStore();
   const currentUser = useAuthStore(state => state.currentUser);
   
-  const [phase, setPhase] = useState<Phase>('intro');
+  const returned = useReturnedToStage(2);
+  const [phase, setPhase] = useState<Phase>(returned ? 'main' : 'intro');
   const [videoUrl] = useState('https://www.youtube.com/embed/3D6tIkBV2RM');
   const [guestModalOpen, setGuestModalOpen] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -95,6 +96,7 @@ export default function Tahap2() {
             <Stage2Weathering
               onComplete={handleComplete}
               videoUrl={videoUrl}
+              startAtEnd={returned}
             />
           </div>
         </div>

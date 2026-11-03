@@ -434,7 +434,7 @@ export default function TahapPage() {
                 ))}
               </div>
               <div className="mt-4 p-2 bg-[var(--color-error-container)]/30 rounded-lg text-[10px] text-[var(--color-error)] font-bold text-center">
-                ⚠ Konsentrasi Tinggi Terdeteksi
+                Konsentrasi Tinggi Terdeteksi
               </div>
             </div>
           )}

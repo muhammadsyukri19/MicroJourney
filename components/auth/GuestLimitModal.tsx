@@ -47,7 +47,7 @@ export default function GuestLimitModal({ isOpen, onClose, targetStageTitle }: P
 
           {/* Title */}
           <h3 className="text-2xl font-extrabold text-[#083b54] text-center font-[family-name:var(--font-outfit)] mb-2">
-            Fitur Terkunci untuk Tamu 🔒
+            Fitur Terkunci untuk Tamu
           </h3>
 
           <p className="text-[#527788] text-sm text-center leading-relaxed mb-6">

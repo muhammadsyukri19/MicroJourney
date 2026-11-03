@@ -109,10 +109,10 @@ export default function StudentDetailDrawer({
           <p className="font-bold text-[#006591]">Hasil Kuis Pilihan Ganda</p>
           <div className="flex gap-2">
             <span className="text-emerald-700 font-extrabold bg-emerald-100 px-2.5 py-0.5 rounded-md">
-              ✓ {submission.quizCorrect || 0} Benar
+              {submission.quizCorrect || 0} Benar
             </span>
             <span className="text-red-600 font-extrabold bg-red-100 px-2.5 py-0.5 rounded-md">
-              ✗ {submission.quizWrong || 0} Salah
+              {submission.quizWrong || 0} Salah
             </span>
           </div>
         </div>

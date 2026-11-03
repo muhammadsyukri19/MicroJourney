@@ -5,6 +5,8 @@ import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
 import MikaMascot from '@/components/MikaMascot';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
+import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
+import { stripEmoji } from '@/lib/stripEmoji';
 
 interface StakeholderPair {
   id: string;
@@ -16,25 +18,25 @@ interface StakeholderPair {
 const DEFAULT_MATCH_PAIRS: StakeholderPair[] = [
   {
     id: 'siswa',
-    role: '🧑‍🎓 Siswa / Pelajar',
+    role: 'Siswa / Pelajar',
     task: 'Membawa tumbler & menolak sedotan plastik di kantin',
     impact: 'Duta lingkungan & menekan 80% botol sekali pakai di sekolah'
   },
   {
     id: 'pemerintah',
-    role: '🏛️ Pemerintah & Regulator',
+    role: 'Pemerintah & Regulator',
     task: 'Membuat kebijakan larangan penggunaan plastik sekali pakai & aturan daur ulang',
     impact: 'Leverage point hulu terbesar untuk menekan 60% limbah plastik nasional'
   },
   {
     id: 'pabrik',
-    role: '🏭 Industri & Produsen',
+    role: 'Industri & Produsen',
     task: 'Mengganti kemasan sintetis dengan bioplastik ramah lingkungan',
     impact: 'Mencegah mikroplastik beracun yang sulit terurai sejak tahap manufaktur'
   },
   {
     id: 'masyarakat',
-    role: '👨‍👩‍👧‍👦 Orang Tua & Keluarga',
+    role: 'Orang Tua & Keluarga',
     task: 'Selalu membawa tas belanja kain sendiri & memilah sampah dari rumah',
     impact: 'Mencegah akumulasi sampah anorganik terseret ke saluran drainase dan muara laut'
   },
@@ -46,6 +48,17 @@ const QUICK_PLEDGES = [
   'Ingatkan teman untuk kurangi plastik sekali pakai',
   'Tidak beli minuman kemasan plastik selama seminggu',
 ];
+
+/** Ikon tokoh mengikuti namanya, karena daftar tokoh bisa diubah guru dari dashboard */
+function roleIcon(role: string) {
+  const name = role.toLowerCase();
+  if (/siswa|pelajar/.test(name)) return 'school';
+  if (/pemerintah|regulator/.test(name)) return 'account_balance';
+  if (/industri|produsen|pabrik/.test(name)) return 'factory';
+  if (/orang tua|keluarga|masyarakat/.test(name)) return 'family_restroom';
+  if (/supermarket|ritel|toko/.test(name)) return 'storefront';
+  return 'groups';
+}
 
 // ─── STAKEHOLDER NETWORK GRAPH (FUTURISTIC LASER CONNECTOR) ──────────────────
 function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
@@ -61,12 +74,10 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
 
   // Layout refs to calculate precise laser line SVG paths
   const containerRef = useRef<HTMLDivElement>(null);
-  const roleRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const taskRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const coreRef = useRef<HTMLDivElement | null>(null);
+  const roleRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const taskRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const [laserLines, setLaserLines] = useState<{ id: string; x1: number; y1: number; x2: number; y2: number }[]>([]);
-  const [activeLine, setActiveLine] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
 
   useEffect(() => {
     async function loadPairs() {
@@ -116,20 +127,6 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
 
     setLaserLines(newLines);
 
-    // Dynamic active line if a role is selected but task is not yet chosen
-    if (selectedRoleId && roleRefs.current[selectedRoleId] && coreRef.current) {
-      const rElem = roleRefs.current[selectedRoleId]!;
-      const rRect = rElem.getBoundingClientRect();
-      const cCoreRect = coreRef.current.getBoundingClientRect();
-      setActiveLine({
-        x1: rRect.right - cRect.left,
-        y1: rRect.top + rRect.height / 2 - cRect.top,
-        x2: cCoreRect.left + cCoreRect.width / 2 - cRect.left,
-        y2: cCoreRect.top + cCoreRect.height / 2 - cRect.top,
-      });
-    } else {
-      setActiveLine(null);
-    }
   };
 
   useEffect(() => {
@@ -145,14 +142,14 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
 
       const found = pairsData.find((p) => p.id === rId);
       if (found) {
-        setActiveImpact(`⚡ Peran Dikunci [${found.role}]: ${found.impact || found.task}`);
+        setActiveImpact(`${stripEmoji(found.role)}: ${found.impact || found.task}`);
       }
 
       setSelectedRoleId(null);
       setSelectedTaskId(null);
 
       if (nextConnected.length === pairsData.length) {
-        setTimeout(onComplete, 1400);
+        setTimeout(onComplete, 2400);
       }
     } else {
       setErrorPair({ role: rId, task: tId });
@@ -190,219 +187,163 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
     }
   };
 
+  // Pesan dampak menutupi bagian bawah layar HP, jadi hilang sendiri setelah sempat terbaca
+  useEffect(() => {
+    if (!activeImpact) return;
+    const timer = window.setTimeout(() => setActiveImpact(null), 4500);
+    return () => window.clearTimeout(timer);
+  }, [activeImpact]);
+
   const progressPercent = Math.round((connectedIds.length / (pairsData.length || 1)) * 100);
-  const pollutionLevel = Math.max(0, 100 - progressPercent);
+  const selectedRole = pairsData.find((p) => p.id === selectedRoleId);
+  const instruction = selectedRole
+    ? `Sekarang ketuk tugas untuk ${stripEmoji(selectedRole.role)}.`
+    : selectedTaskId
+    ? 'Sekarang ketuk tokoh yang melakukannya.'
+    : connectedIds.length === pairsData.length
+    ? 'Semua tokoh sudah terhubung!'
+    : 'Ketuk satu tokoh, lalu ketuk tugasnya.';
 
   return (
     <div
       ref={containerRef}
-      className="bg-white/10 backdrop-blur-2xl border border-white/20 rounded-3xl p-4 sm:p-7 shadow-2xl text-white mb-8 relative overflow-hidden"
+      className="bg-white/10 border border-white/20 rounded-3xl p-3 sm:p-7 shadow-2xl text-white mb-8 relative overflow-hidden"
     >
-      {/* Laser Canvas Overlay */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10">
+      {/* Garis penghubung hanya di layar lebar; di HP tokoh dan tugas bersusun, jadi nama tokoh tampil di kartu tugas */}
+      <svg className="hidden md:block absolute inset-0 w-full h-full pointer-events-none z-10">
         <defs>
           <linearGradient id="laserSuccess" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#6bff8f" stopOpacity="0.9" />
             <stop offset="50%" stopColor="#7dd3fc" stopOpacity="1" />
             <stop offset="100%" stopColor="#6bff8f" stopOpacity="0.9" />
           </linearGradient>
-          <linearGradient id="laserActive" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f0a345" stopOpacity="1" />
-            <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.8" />
-          </linearGradient>
-          <filter id="glowLaser" x="-20%" y="-20%" width="140%" height="140%">
+          <filter id="glowLaser" filterUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
-
-        {/* Established Laser Connections */}
-        {laserLines.map((line) => (
-          <g key={line.id}>
-            {/* Outer Glow Path */}
-            <path
-              d={`M ${line.x1} ${line.y1} C ${line.x1 + 60} ${line.y1}, ${line.x2 - 60} ${line.y2}, ${line.x2} ${line.y2}`}
-              stroke="#6bff8f"
-              strokeWidth="6"
-              fill="none"
-              opacity="0.4"
-              filter="url(#glowLaser)"
-            />
-            {/* Core Laser Path with Pulsing Dash */}
-            <path
-              d={`M ${line.x1} ${line.y1} C ${line.x1 + 60} ${line.y1}, ${line.x2 - 60} ${line.y2}, ${line.x2} ${line.y2}`}
-              stroke="url(#laserSuccess)"
-              strokeWidth="3"
-              fill="none"
-              strokeDasharray="8 4"
-              className="animate-[dash_1s_linear_infinite]"
-            />
-          </g>
-        ))}
-
-        {/* Active Selection Pulse Line */}
-        {activeLine && (
-          <path
-            d={`M ${activeLine.x1} ${activeLine.y1} C ${activeLine.x1 + 40} ${activeLine.y1}, ${activeLine.x2 - 40} ${activeLine.y2}, ${activeLine.x2} ${activeLine.y2}`}
-            stroke="url(#laserActive)"
-            strokeWidth="3"
-            fill="none"
-            strokeDasharray="5 3"
-            className="animate-[dash_0.6s_linear_infinite]"
-            filter="url(#glowLaser)"
-          />
-        )}
+        {laserLines.map((line) => {
+          // Gradien tidak tergambar pada garis yang benar-benar datar, jadi ujungnya digeser sedikit
+          const y2 = Math.abs(line.y2 - line.y1) < 1 ? line.y1 + 1 : line.y2;
+          const path = `M ${line.x1} ${line.y1} C ${line.x1 + 60} ${line.y1}, ${line.x2 - 60} ${y2}, ${line.x2} ${y2}`;
+          return (
+            <g key={line.id}>
+              <path d={path} stroke="#6bff8f" strokeWidth="6" fill="none" opacity="0.4" filter="url(#glowLaser)" />
+              <path d={path} stroke="url(#laserSuccess)" strokeWidth="3" fill="none" strokeDasharray="8 4" className="animate-[dash_1s_linear_infinite]" />
+            </g>
+          );
+        })}
       </svg>
 
-      {/* Header Badge */}
-      <div className="text-center mb-5 relative z-20">
-        <span className="bg-[#6bff8f]/20 text-[#6bff8f] text-[10px] font-bold px-3 py-1 rounded-full font-[family-name:var(--font-mono)] uppercase tracking-wider border border-[#6bff8f]/40 inline-flex items-center gap-1.5 shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-[#6bff8f] animate-ping" />
-          <span>SIMULATOR JARINGAN RESPONSIBILITAS EKOLOGI</span>
-        </span>
-        <h2 className="text-xl sm:text-3xl font-extrabold text-white font-[family-name:var(--font-outfit)] leading-tight mt-2">
-          Hubungkan Peran &amp; Tindakan Stakeholder
+      <div className="text-center mb-3 sm:mb-5 relative z-20">
+        <h2 className="text-xl sm:text-3xl font-extrabold text-white font-[family-name:var(--font-outfit)] leading-tight">
+          Siapa Melakukan Apa?
         </h2>
-        <p className="text-xs sm:text-sm text-white/80 mt-1 max-w-lg mx-auto">
-          Ketuk <b>Tokoh Stakeholder</b> di sisi kiri, lalu sambungkan laser energi ke <b>Tugas Lingkungannya</b> di sisi kanan!
-        </p>
+        <p className="text-xs sm:text-sm text-white/80 mt-0.5">Hubungkan tiap tokoh dengan tindakannya untuk melindungi laut.</p>
       </div>
 
-      {/* Central Core Status Node (Ocean Ecosystem Defense) */}
-      <div ref={coreRef} className="bg-black/40 border border-white/20 rounded-2xl p-3.5 mb-6 relative z-20 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="relative w-14 h-14 flex items-center justify-center flex-shrink-0">
-            {/* Outer Circular Progress Ring */}
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-              <path
-                className="text-white/10"
-                strokeWidth="3.5"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-              <path
-                className="text-[#6bff8f] transition-all duration-700"
-                strokeDasharray={`${progressPercent}, 100`}
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                stroke="currentColor"
-                fill="none"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-              />
-            </svg>
-            <span className="material-symbols-outlined text-2xl text-[#6bff8f] absolute">waves</span>
-          </div>
-
-          <div>
-            <p className="text-[10px] font-bold text-white/60 font-[family-name:var(--font-mono)] uppercase tracking-wider">
-              Perisai Ekosistem Samudra
-            </p>
-            <p className="font-[family-name:var(--font-outfit)] font-black text-base sm:text-lg text-white">
-              Daya Pertahanan: <span className="text-[#6bff8f]">{progressPercent}%</span>
-            </p>
-          </div>
+      {/* Kemajuan */}
+      <div className="mb-3 sm:mb-5 relative z-20">
+        <div className="flex items-center justify-between text-xs font-bold mb-1">
+          <span className="flex items-center gap-1 text-white/90">
+            <span className="material-symbols-outlined text-base text-[#7dd3fc]">waves</span>
+            Perisai laut
+          </span>
+          <span className="text-[#6bff8f] font-[family-name:var(--font-mono)]">{connectedIds.length}/{pairsData.length} terhubung</span>
         </div>
-
-        {/* Pollution Meter */}
-        <div className="w-full sm:w-auto flex items-center gap-3 bg-white/5 border border-white/10 px-3.5 py-2 rounded-xl">
-          <div className="text-right">
-            <p className="text-[10px] text-white/60 font-[family-name:var(--font-mono)] uppercase">Tingkat Pencemaran Laut</p>
-            <p className={`font-bold text-xs ${pollutionLevel === 0 ? 'text-[#6bff8f]' : 'text-[#ff8c8c]'}`}>
-              {pollutionLevel === 0 ? '0% (TERSELAMATKAN)' : `${pollutionLevel}% Terpapar Plastik`}
-            </p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
-            <span className={`material-symbols-outlined text-xl ${pollutionLevel === 0 ? 'text-[#6bff8f]' : 'text-[#ff8c8c]'}`}>
-              {pollutionLevel === 0 ? 'verified' : 'warning'}
-            </span>
-          </div>
+        <div className="h-2 rounded-full bg-black/40 overflow-hidden">
+          <div className="h-full rounded-full bg-[#6bff8f] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
 
-      {/* Impact Educational Toast */}
+      <p aria-live="polite" className="mb-3 relative z-20 flex items-center justify-center gap-1.5 rounded-xl bg-[#f0a345]/15 border border-[#f0a345]/40 px-3 py-2 text-xs sm:text-sm font-bold text-[#ffdf9a] text-center">
+        <span className="material-symbols-outlined text-base">touch_app</span>
+        {instruction}
+      </p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-10 relative z-20">
+        {/* Tokoh */}
+        <div>
+          <p className="text-[11px] font-extrabold text-[#ffdf9a] uppercase tracking-wider font-[family-name:var(--font-mono)] mb-1.5">
+            Tokoh
+          </p>
+          <div className="grid grid-cols-3 md:grid-cols-1 gap-1.5 md:gap-2.5">
+            {roles.map((r) => {
+              const isConnected = connectedIds.includes(r.id);
+              const isSelected = selectedRoleId === r.id;
+              const isError = errorPair?.role === r.id;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  ref={(el) => { roleRefs.current[r.id] = el; }}
+                  onClick={() => handleRoleTap(r.id)}
+                  disabled={isConnected}
+                  aria-pressed={isSelected}
+                  className={`min-h-[68px] md:min-h-[60px] p-1.5 md:p-3 rounded-xl border-2 transition-colors font-bold text-[11px] sm:text-sm leading-tight flex flex-col md:flex-row items-center gap-1 md:gap-2.5 text-center md:text-left select-none ${
+                    isConnected
+                      ? 'bg-[#006e2f]/50 border-[#6bff8f]/70 text-[#6bff8f]'
+                      : isError
+                      ? 'bg-[#ba1a1a]/60 border-[#ff8c8c] text-white animate-shake'
+                      : isSelected
+                      ? 'bg-[#7dd3fc] border-[#7dd3fc] text-[#083b54]'
+                      : 'bg-black/30 border-white/20 text-white hover:border-[#7dd3fc] active:scale-95'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-xl md:text-2xl flex-shrink-0">{isConnected ? 'check_circle' : roleIcon(r.role)}</span>
+                  <span>{stripEmoji(r.role)}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tugas */}
+        <div>
+          <p className="text-[11px] font-extrabold text-[#6bff8f] uppercase tracking-wider font-[family-name:var(--font-mono)] mb-1.5">
+            Tugas
+          </p>
+          <div className="flex flex-col gap-1.5 md:gap-2.5">
+            {tasks.map((t) => {
+              const isConnected = connectedIds.includes(t.id);
+              const isSelected = selectedTaskId === t.id;
+              const isError = errorPair?.task === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  ref={(el) => { taskRefs.current[t.id] = el; }}
+                  onClick={() => handleTaskTap(t.id)}
+                  disabled={isConnected}
+                  aria-pressed={isSelected}
+                  className={`min-h-[48px] md:min-h-[60px] px-3 py-2 rounded-xl border-2 transition-colors text-xs sm:text-sm leading-snug text-left select-none ${
+                    isConnected
+                      ? 'bg-[#006e2f]/50 border-[#6bff8f]/70 text-white'
+                      : isError
+                      ? 'bg-[#ba1a1a]/60 border-[#ff8c8c] text-white animate-shake'
+                      : isSelected
+                      ? 'bg-[#7dd3fc] border-[#7dd3fc] text-[#083b54] font-bold'
+                      : 'bg-black/30 border-white/20 text-white/95 hover:border-[#6bff8f] active:scale-[0.98]'
+                  }`}
+                >
+                  {isConnected && (
+                    <span className="block text-[11px] font-extrabold text-[#6bff8f] md:hidden">{stripEmoji(t.role)}</span>
+                  )}
+                  {t.task}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Dampak tindakan; di HP tampil di bawah layar supaya daftar tidak bergeser */}
       {activeImpact && (
-        <div className="bg-[#006e2f]/50 border border-[#6bff8f]/50 rounded-2xl p-3.5 mb-6 flex items-start gap-3 relative z-20 shadow-lg animate-fade-in">
-          <span className="material-symbols-outlined text-[#6bff8f] text-2xl flex-shrink-0">auto_awesome</span>
-          <div>
-            <p className="text-xs font-bold text-[#6bff8f] font-[family-name:var(--font-mono)] uppercase tracking-wider">
-              Dampak Ekologis Terkunci:
-            </p>
-            <p className="text-xs text-white leading-relaxed mt-0.5">{activeImpact}</p>
-          </div>
+        <div role="status" className="fixed md:static inset-x-3 bottom-3 z-40 md:mt-5 bg-[#00391a] md:bg-[#006e2f]/50 border border-[#6bff8f]/60 rounded-2xl p-3 flex items-start gap-2.5 shadow-2xl">
+          <span className="material-symbols-outlined text-[#6bff8f] text-xl flex-shrink-0">eco</span>
+          <p className="text-xs text-white leading-snug">{activeImpact}</p>
         </div>
       )}
-
-      {/* Nodes Interactive Grid */}
-      <div className="grid grid-cols-2 gap-4 sm:gap-8 relative z-20">
-        {/* Kolom Node Stakeholder */}
-        <div className="space-y-3">
-          <p className="text-center text-[11px] font-extrabold text-[#ffdf9a] uppercase tracking-wider font-[family-name:var(--font-mono)] border-b border-white/15 pb-2">
-            1. Node Tokoh Stakeholder
-          </p>
-          {roles.map((r) => {
-            const isConnected = connectedIds.includes(r.id);
-            const isSelected = selectedRoleId === r.id;
-            const isError = errorPair?.role === r.id;
-
-            return (
-              <div
-                key={r.id}
-                ref={(el) => { roleRefs.current[r.id] = el; }}
-                onClick={() => handleRoleTap(r.id)}
-                className={`p-3 sm:p-4 rounded-2xl border transition-all cursor-pointer font-bold text-xs sm:text-sm flex items-center justify-between gap-2 min-h-[75px] select-none ${
-                  isConnected
-                    ? 'bg-[#006e2f]/50 border-[#6bff8f] text-[#6bff8f] opacity-80 cursor-default shadow-[0_0_12px_rgba(107,255,143,0.3)]'
-                    : isError
-                    ? 'bg-[#ba1a1a]/60 border-[#ff8c8c] text-[#ff8c8c] animate-shake'
-                    : isSelected
-                    ? 'bg-[#006591] border-[#7dd3fc] text-[#7dd3fc] shadow-[0_0_20px_rgba(125,211,252,0.6)] scale-[1.03] ring-2 ring-[#7dd3fc]/50'
-                    : 'bg-black/40 border-white/20 hover:border-[#6bff8f]/60 text-white hover:bg-white/10 active:scale-95'
-                }`}
-              >
-                <span className="leading-tight">{r.role}</span>
-                <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 transition-all ${
-                  isConnected ? 'bg-[#6bff8f] border-[#6bff8f]' : isSelected ? 'bg-[#7dd3fc] border-[#7dd3fc] animate-ping' : 'border-white/40'
-                }`} />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Kolom Node Tugas Lingkungan */}
-        <div className="space-y-3">
-          <p className="text-center text-[11px] font-extrabold text-[#6bff8f] uppercase tracking-wider font-[family-name:var(--font-mono)] border-b border-white/15 pb-2">
-            2. Node Tugas Lingkungan
-          </p>
-          {tasks.map((t) => {
-            const isConnected = connectedIds.includes(t.id);
-            const isSelected = selectedTaskId === t.id;
-            const isError = errorPair?.task === t.id;
-
-            return (
-              <div
-                key={t.id}
-                ref={(el) => { taskRefs.current[t.id] = el; }}
-                onClick={() => handleTaskTap(t.id)}
-                className={`p-3 sm:p-4 rounded-2xl border transition-all cursor-pointer text-xs sm:text-sm flex items-center justify-between gap-2 min-h-[75px] leading-snug select-none ${
-                  isConnected
-                    ? 'bg-[#006e2f]/50 border-[#6bff8f] text-[#6bff8f] opacity-80 cursor-default shadow-[0_0_12px_rgba(107,255,143,0.3)]'
-                    : isError
-                    ? 'bg-[#ba1a1a]/60 border-[#ff8c8c] text-[#ff8c8c] animate-shake'
-                    : isSelected
-                    ? 'bg-[#006591] border-[#7dd3fc] text-[#7dd3fc] shadow-[0_0_20px_rgba(125,211,252,0.6)] scale-[1.03] ring-2 ring-[#7dd3fc]/50 font-bold'
-                    : 'bg-black/40 border-white/20 hover:border-[#6bff8f]/60 text-white/90 hover:bg-white/10 active:scale-95'
-                }`}
-              >
-                <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 transition-all ${
-                  isConnected ? 'bg-[#6bff8f] border-[#6bff8f]' : isSelected ? 'bg-[#7dd3fc] border-[#7dd3fc] animate-ping' : 'border-white/40'
-                }`} />
-                <span className="text-right leading-tight">{t.task}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes dash {
@@ -422,18 +363,33 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
 // ─── MAIN TAHAP 6 PAGE ────────────────────────────────────────────────────────
 export default function Tahap6() {
   const router = useRouter();
-  const { completeStage, setLkpdAnswer, lkpdAnswers, studentName, studentClass, sessionId } = useJourneyStore();
+  const { completeStage, completedStages, setLkpdAnswer, lkpdAnswers, studentName, studentClass, sessionId } = useJourneyStore();
+  const returned = useReturnedToStage(6);
   const { currentUser } = useAuthStore();
   const [commitment, setCommitment] = useState(lkpdAnswers.commitment);
   const [selectedPledges, setSelectedPledges] = useState<Set<string>>(new Set());
-  const [pdfDone, setPdfDone] = useState(false);
-  const [gameDone, setGameDone] = useState(false);
+  const [pdfDone, setPdfDone] = useState(returned && completedStages.includes(6));
+  const [gameDone, setGameDone] = useState(returned);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
   const drawing = useRef(false);
   const [hasSig, setHasSig] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const isReady = commitment.trim().length > 10 && hasSig && gameDone;
+
+  // Jurnal selesai -> sumpah -> permainan -> Tahap 5
+  useStageBack(() => {
+    if (pdfDone) {
+      setPdfDone(false);
+      return true;
+    }
+    if (gameDone) {
+      setGameDone(false);
+      setHasSig(false);
+      return true;
+    }
+    return false;
+  });
 
   function togglePledge(p: string) {
     const s = new Set(selectedPledges);
@@ -649,29 +605,13 @@ export default function Tahap6() {
   }
 
   return (
-    <div className="min-h-screen pt-28 sm:pt-32 pb-20 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative overflow-x-hidden">
+    <div className="min-h-screen pt-24 sm:pt-32 pb-20 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative overflow-x-hidden">
       {/* Background patterns and glowing Orbs */}
       <div className="absolute inset-0 adventure-map opacity-10 pointer-events-none" />
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#f0a345]/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
       <div className="absolute top-1/2 -right-24 w-96 h-96 bg-[#6bff8f]/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-3xl mx-auto px-4 py-4 sm:py-6 relative z-10">
-        {/* Top Navigation */}
-        <div className="mb-6 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/journey/tahap-5')}
-            className="w-10 h-10 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md transition-all shadow-sm flex items-center justify-center gap-2 flex-shrink-0"
-          >
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
-            <span className="hidden sm:inline">Kembali ke Tahap 5 (Papan Bukti)</span>
-          </button>
-
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-xl text-xs font-[family-name:var(--font-outfit)] font-extrabold text-[#ffdf9a]">
-            <span className="material-symbols-outlined text-base">verified_user</span>
-            <span>Tahap 6 — Sumpah Komitmen</span>
-          </div>
-        </div>
-
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 sm:py-6 relative z-10">
         {!gameDone && <StakeholderNetworkGraph onComplete={() => setGameDone(true)} />}
 
         {gameDone && (
@@ -710,14 +650,14 @@ export default function Tahap6() {
                   <button
                     key={p}
                     onClick={() => togglePledge(p)}
-                    className={`text-left text-xs sm:text-sm px-4 py-3 rounded-xl border transition-all ${
+                    className={`text-left text-xs sm:text-sm px-3 py-3 rounded-xl border transition-all flex items-center gap-2 ${
                       selectedPledges.has(p)
                         ? 'bg-[#006e2f]/60 border-[#6bff8f] text-[#6bff8f] font-bold shadow-[0_0_15px_rgba(107,255,143,0.3)]'
                         : 'bg-black/30 border-white/20 text-white/90 hover:border-[#6bff8f]/50 hover:bg-white/10'
                     }`}
                   >
-                    {selectedPledges.has(p) ? '✓ ' : '□ '}
-                    {p}
+                    <span className="material-symbols-outlined text-lg flex-shrink-0">{selectedPledges.has(p) ? 'check_box' : 'check_box_outline_blank'}</span>
+                    <span>{p}</span>
                   </button>
                 ))}
               </div>
@@ -783,10 +723,10 @@ export default function Tahap6() {
             {!isReady && (
               <p className="text-center text-[#ffdf9a] text-xs font-[family-name:var(--font-mono)]">
                 {!commitment.trim()
-                  ? '← Lengkapi isi komitmenmu dahulu'
+                  ? 'Lengkapi isi komitmenmu dahulu'
                   : !hasSig
-                  ? '← Wajib membubuhkan tanda tangan digital di atas'
-                  : '← Selesaikan jaringan energi stakeholder dahulu'}
+                  ? 'Bubuhkan tanda tangan digital di atas'
+                  : 'Selesaikan hubungan tokoh dan tugas dahulu'}
               </p>
             )}
 

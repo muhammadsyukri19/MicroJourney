@@ -2,6 +2,7 @@
 // Page template untuk orchestrate organism & molecule di Dashboard Guru.
 'use client';
 
+import { stripEmoji } from '@/lib/stripEmoji';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -391,7 +392,7 @@ export default function TeacherDashboardTemplate() {
               ? 'bg-purple-50 text-purple-700 border border-purple-200'
               : 'bg-emerald-50 text-[#006e2f] border border-emerald-200'
           }`}>
-            {isSuperAdmin ? '👑 SUPER ADMIN' : 'GURU'}
+            {isSuperAdmin ? 'SUPER ADMIN' : 'GURU'}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -439,7 +440,7 @@ export default function TeacherDashboardTemplate() {
                 </h1>
                 {isSuperAdmin && (
                   <span className="text-[9px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 mt-1 inline-block">
-                    👑 SUPER ADMIN
+                    SUPER ADMIN
                   </span>
                 )}
               </div>
@@ -674,12 +675,12 @@ export default function TeacherDashboardTemplate() {
         <div className="p-3 m-2.5 bg-white/90 rounded-xl border border-[#cbe1ef] flex flex-col gap-2.5 relative z-10 shadow-2xs">
           <div className="flex items-center gap-2.5">
             <div className={`w-9 h-9 rounded-xl ${isSuperAdmin ? 'bg-purple-700 text-white' : 'bg-[#006591] text-white'} flex items-center justify-center font-extrabold text-xs shadow-2xs shrink-0`}>
-              {isSuperAdmin ? '👑' : adminUser.name.charAt(0).toUpperCase()}
+              {isSuperAdmin ? <span className="material-symbols-outlined text-lg">shield</span> : adminUser.name.charAt(0).toUpperCase()}
             </div>
             <div className="overflow-hidden flex-1">
               <p className="text-xs font-bold text-[#083b54] truncate">{adminUser.name}</p>
               <p className={`text-[10px] font-semibold truncate ${isSuperAdmin ? 'text-purple-700 font-bold' : 'text-[#006591]'}`}>
-                {isSuperAdmin ? '👑 Super Admin Sistem' : (adminUser.school || 'Guru IPA Kelas VIII')}
+                {isSuperAdmin ? 'Super Admin Sistem' : (adminUser.school || 'Guru IPA Kelas VIII')}
               </p>
             </div>
           </div>
@@ -1129,7 +1130,7 @@ export default function TeacherDashboardTemplate() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input
                       type="text"
-                      placeholder="Tokoh (misal: 🏪 Supermarket & Ritel)"
+                      placeholder="Tokoh (misal: Supermarket & Ritel)"
                       value={newRole}
                       onChange={e => setNewRole(e.target.value)}
                       className="p-2.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#006591]"
@@ -1168,7 +1169,7 @@ export default function TeacherDashboardTemplate() {
                     <div key={stk.id} className="p-4 bg-[#FAFAFA] border border-slate-200 rounded-xl flex items-center justify-between gap-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-[#083b54]">{stk.role}</span>
+                          <span className="font-bold text-sm text-[#083b54]">{stripEmoji(stk.role)}</span>
                         </div>
                         <p className="text-xs text-slate-700">
                           <span className="font-semibold text-[#006e2f]">Tugas:</span> {stk.task}

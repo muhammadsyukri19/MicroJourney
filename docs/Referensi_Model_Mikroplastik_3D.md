@@ -1,8 +1,18 @@
 # Referensi Model Mikroplastik 3D
 
-Model di `public/models/microplastic/` adalah **visualisasi 3D berdasarkan referensi morfologi, bukan hasil pemindaian mikroskop**. Model ini belum divalidasi oleh ahli, jadi tidak boleh disebut akurat secara ilmiah.
+Model di `public/models/microplastic/v2/` adalah **visualisasi 3D berdasarkan referensi morfologi, bukan hasil pemindaian mikroskop**. Model ini belum divalidasi oleh ahli, jadi tidak boleh disebut akurat secara ilmiah.
 
-Gambar rujukan hanya dipakai untuk melihat bentuk. Tidak ada foto dari publikasi yang disalin ke aplikasi. Bila nanti ingin menampilkan fotonya, cantumkan atribusi sesuai CC BY 4.0.
+Layar AR menampilkan lima foto asli dari publikasi berlisensi CC BY 4.0 di `public/images/microplastic/`, supaya ilustrasi bisa dibedakan dari pengamatan nyata. Setiap foto diberi atribusi, tautan lisensi, dan keterangan perubahan di layar:
+
+| Berkas | Sumber | Perubahan |
+|--------|--------|-----------|
+| `foto-fragmen.jpg` | R4 Fig. 3 panel a | Dipotong dan diperkecil |
+| `foto-film.jpg` | R4 Fig. 3 panel c | Dipotong dan diperkecil |
+| `foto-serat.jpg` | R2 Fig. 5 panel B | Dipotong dan diperkecil |
+| `foto-pelet.jpg` | R1 Fig. 3 panel A | Dipotong |
+| `foto-semua.jpg` | R5 Fig. 1 | Format diubah ke JPEG |
+
+Batas mikroplastik kurang dari 5 mm mengikuti [NOAA](https://oceanservice.noaa.gov/facts/microplastics.html): "small plastic pieces less than five millimeters long".
 
 ## 1. Daftar referensi
 
@@ -26,29 +36,71 @@ Sumber yang tidak dipakai sebagai bukti bentuk:
 
 ## 2. Ringkasan analisis bentuk
 
-Analisis berasal dari foto dua dimensi. Ketebalan umumnya tidak bisa ditentukan, dan bentuk tidak dipakai untuk menyimpulkan jenis polimer. Ukuran di bawah ini perkiraan dari batang skala pada panel yang sama.
+Analisis berasal dari foto dua dimensi. Ketebalan umumnya tidak bisa ditentukan, dan bentuk tidak dipakai untuk menyimpulkan jenis polimer. Ukuran di bawah ini perkiraan dari batang skala pada panel yang sama, dan hanya menggambarkan contoh di foto, bukan rentang semua mikroplastik.
 
 | Kategori | Yang terlihat di foto | Ukuran terbaca |
 |----------|-----------------------|----------------|
 | **Fragmen** | Kontur tidak beraturan. Ada serpihan bersudut tajam (R1 C1), batang beralur dengan ujung berserabut sekitar 7:1 (R4 a), potongan tembus cahaya melengkung (R4 b, R2 I), bongkah dengan bidang patah (R5 D), dan benda bertepi lebih lunak (R2 F, H) | sekitar 0,3–3 mm |
 | **Serat** | Lebar mendekati batas resolusi foto, jadi rasio panjang terhadap lebar sangat besar. Ada yang berkelok tajam (R2 A), panjang dengan lingkar bersilangan (R2 B, R1 B), kusut dengan lingkar keluar (R2 C), lengkung lebar (R3 h), kait pendek (R4 e), dan lurus agak kasar (R5 C) | sekitar 0,1 mm sampai beberapa mm |
-| **Film** | Kontur tidak rata, sering berakhir sebagai tepi robek. Ada lembaran datar dengan takik dan garis lipat (R4 c), lembaran dengan lipatan sejajar dan tepi terkikis (R4 d), serta pita kusut (R5 b). Ketebalan tidak terukur | sekitar 0,2–2 mm |
-| **Pelet** | Membulat tetapi tidak bulat sempurna, ada sisi yang rata (R1 A), butiran kecil (R2 D, R3 c), dan cakram dengan bibir tepi (R5 e, skalanya tidak dinyatakan sehingga tidak dihitung) | sekitar 0,06–0,4 mm |
+| **Film** | Kontur tidak rata, sering berakhir sebagai tepi robek. Ada lembaran datar dengan takik dan garis lipat (R4 c), lembaran dengan lipatan sejajar dan tepi terkikis (R4 d), serta pita kusut (R5 b). Ketebalan tidak terukur | sekitar 0,2–1,5 mm |
+| **Pelet** | Membulat tetapi tidak bulat sempurna, ada sisi yang rata (R1 A), butiran kecil (R2 D, R3 c), dan cakram dengan bibir tepi (R5 e, skalanya tidak dinyatakan sehingga tidak dihitung) | sekitar 0,06–0,35 mm |
+
+### Tabel ukur
+
+Hanya dua nilai yang merupakan label ukur asli dari penulis publikasi. Nilai lain adalah perkiraan: panjang objek dalam piksel dibandingkan dengan batang skala di panel yang sama. Objek dipisahkan dari latar dengan ambang warna, jadi tepi yang samar bisa terlewat.
+
+| Panel | Kategori | Batang skala | Hasil | Jenis nilai |
+|-------|----------|--------------|-------|-------------|
+| R2 D | Pelet | Label pada foto | 62,787 µm | Label asli |
+| R2 F | Fragmen | Label pada foto | 309,838 µm | Label asli |
+| R3 c | Pelet | 92 px = 250 µm | sekitar 81 × 61 µm | Perkiraan |
+| R1 A | Pelet | 60 px = 500 µm | sekitar 340 × 260 µm | Perkiraan |
+| R4 a | Fragmen | 99 px = 100 µm | sekitar 710 × 100 µm | Perkiraan |
+| R4 b | Fragmen | 99 px = 100 µm | sekitar 350 × 180 µm | Perkiraan |
+| R1 C1 | Fragmen | 60 px = 500 µm | sekitar 540 × 350 µm | Perkiraan |
+| R5 D | Fragmen | 22 px = 1 mm | sekitar 2–3 mm; gambar sumber kecil | Perkiraan kasar |
+| R4 e | Serat | 99 px = 100 µm | potongan pendek sekitar 80 µm | Perkiraan |
+| R3 e | Serat | 93 px = 250 µm | sekitar 170 µm | Perkiraan |
+| R2 B | Serat | 49 px = 500 µm | rentang sekitar 4 mm; panjang lintasannya lebih besar | Perkiraan |
+| R3 d | Film | 93 px = 250 µm | sekitar 180 × 140 µm | Perkiraan |
+| R4 c | Film | 99 px = 100 µm | sekitar 550 × 300 µm | Perkiraan |
+| R2 E | Film | 139 px = 500 µm | sekitar 550 × 420 µm | Perkiraan |
+| R1 C2 | Film | 60 px = 500 µm | sekitar 1,5 mm | Perkiraan |
+
+Panel R5 E tidak dihitung karena skalanya tidak dinyatakan.
 
 ## 3. Pendekatan geometri
 
-Model dibuat oleh `scripts/build-microplastic-models.py` dengan numpy dan scipy, lalu diekspor ke USDZ untuk iPhone oleh `scripts/export-microplastic-usdz.mjs`. Hasilnya lima pasang file: `semua`, `fragmen`, `serat`, `film`, dan `pelet`. Setiap partikel punya seed dan resep sendiri, jadi tidak ada yang berulang.
+Model v2 dibuat oleh `scripts/build-microplastic-models-v2.py` dengan numpy, scipy, pillow, dan usd-core. Hasilnya lima pasang GLB dan USDZ biner: `semua`, `fragmen`, `serat`, `film`, dan `pelet`. Setiap partikel punya seed dan resep sendiri, jadi tidak ada yang berulang. Aset v1 dan pembuatnya, `scripts/build-microplastic-models.py` dan `scripts/export-microplastic-usdz.mjs`, belum dihapus sampai v2 lolos uji di HP.
+
+Geometri tetap prosedural, karena pada 3 November 2026 tidak ditemukan aset 3D partikel mikroplastik yang layak dan bisa diunduh tanpa login:
+
+- **Sketchfab (API, model yang bisa diunduh):** hanya "Microplastic Case" oleh simonster (CC BY, sekitar 594 ribu face). Itu pindaian model studi, bukan partikel, dan pengunduhan perlu login.
+- **Zenodo dan figshare (API):** tidak ada mesh partikel mikroplastik.
+- **Poly Haven (API):** tidak ada model mikroplastik.
+
+Aset pihak ketiga yang dipakai, semuanya CC0:
+
+| Aset | Sumber | Dipakai untuk |
+|------|--------|---------------|
+| Plastic013B, Plastic018B | [ambientCG](https://ambientcg.com/license) | Lapisan goresan dan bercak aus |
+| SurfaceImperfections015 | [ambientCG](https://ambientcg.com/license) | Lapisan keausan halus |
+| studio_small_09 | [Poly Haven](https://polyhaven.com/a/studio_small_09) | Cahaya viewer, diperkecil ke 256×128 dan warnanya dinetralkan menjadi `v2/studio.hdr` |
+
+Plastic015B dan Scratches004 juga diperiksa, tetapi tidak dipakai. Berkas sumber CC0 tidak disimpan di repo. Unduh versi 1K-JPG dari ambientCG dan berikan foldernya ke skrip saat membuat ulang model.
+
+Mesh dibuat ringan. Detail kecil dihitung dari fungsi tinggi yang sama, lalu disimpan sebagai normal map terhadap normal verteks yang terinterpolasi, ditambah tekstur warna dan kekasaran 1024 px per kategori. Serat memakai satu tekstur kecil yang berulang.
 
 | Kategori | Cara membentuk | Rujukan bentuk |
 |----------|----------------|----------------|
-| Fragmen | Kontur bersudut dengan sisi yang berbeda-beda, lalu triangulasi Delaunay. Permukaan dari minimum beberapa bidang miring supaya tampak seperti bidang patah. Tepi ada yang menipis, ada yang tegak. Tampilan datar (*flat shading*) | R1 C1, R5 D, R2 F |
-| Fragmen batang | Baris-baris memanjang dengan tinggi berbeda membentuk alur; ujung baris tidak sama panjang sehingga berserabut | R4 a |
+| Fragmen | Kontur bersudut dengan sisi yang berbeda-beda, lalu triangulasi Delaunay. Permukaan dari minimum beberapa bidang miring supaya tampak seperti bidang patah. Tepi ada yang menipis, ada yang tegak. Warna lebih terang di bagian tipis, dengan keausan tepi, goresan, dan bintik | R1 C1, R5 D, R2 F |
+| Fragmen batang | Alur memanjang yang sedikit terpuntir, satu ujung tumpul, ujung lainnya bergerigi seperti serabut | R4 a |
 | Fragmen sabit | Kontur sabit yang tidak simetris, tepi lebih tebal, sedikit melengkung dan terpuntir | R2 I, R4 b |
-| Serat | Tabung tipis mengikuti jalur dari urutan belokan, dengan penampang agak pipih. Tiap jalur punya resep sendiri: melingkar, berkelok, lengkung, lurus dengan ujung bengkok. Serat kusut memakai gelombang dengan jangkauan yang mengecil di tengah | R2 A, B, C; R3 h; R5 C |
-| Film | Kontur robek dengan takik, permukaan dari lipatan V yang memudar di ujungnya dan garis lipat sempit. Dibuat tertutup dengan tepi tipis dan bahan tembus cahaya, tanpa bahan dua sisi karena USDZ tidak mendukungnya | R4 c, R4 d, R5 b |
-| Pelet | Bola terbagi dengan benjolan rendah, lekukan, dan satu sisi rata; cakram hasil putaran dengan bibir tepi; silinder pendek dengan ujung terpotong | R1 A, R2 D, R5 e; silinder ilustratif |
+| Serat | Tabung tipis mengikuti jalur dari urutan belokan, dengan penampang agak pipih dan titik yang dipusatkan di belokan. Tiap jalur punya resep sendiri: melingkar, berkelok, lengkung, lurus dengan ujung bengkok. Serat kusut memakai gelombang dengan jangkauan yang mengecil di tengah | R2 A, B, C; R3 h; R5 C |
+| Film | Kontur robek dengan takik dan lipatan V yang memudar di ujungnya. Garis lipat dan goresan lebih putih dan lebih tidak tembus cahaya, seperti pada foto. Dibuat tertutup dengan tepi tipis, tanpa bahan dua sisi karena USDZ tidak mendukungnya | R4 c, R4 d, R5 b |
+| Pelet | Bola kubus tanpa kutub tekstur, dengan benjolan rendah, lubang kecil, goresan, dan satu sisi rata; cakram dengan bibir tepi; silinder pendek dengan ujung terpotong | R1 A, R2 D, R5 e; silinder ilustratif |
 
-Warna memakai keluarga biru muda dan cyan MicroJourney. Bahan tidak memakai `emissive`, jadi tidak ada efek glow, dan bentuknya terbaca dari cahaya biasa.
+Warna memakai keluarga biru muda dan cyan MicroJourney. Bahan tidak memakai `emissive`, jadi tidak ada efek glow, dan bentuknya terbaca dari cahaya biasa. Transmisi kaca tidak dipakai karena kanvas viewer transparan.
 
 ## 4. Keterbatasan
 
@@ -57,7 +109,7 @@ Warna memakai keluarga biru muda dan cyan MicroJourney. Bahan tidak memakai `emi
 - Model ini ilustrasi yang terinspirasi foto, bukan rekonstruksi partikel tertentu. Tidak ada hasil pindai atau pengukuran 3D di dalamnya.
 - Ketebalan, bentuk bagian bawah, dan tinggi lipatan adalah perkiraan, karena foto dua dimensi tidak menunjukkannya.
 - Warna dipilih untuk identitas aplikasi. Warna dan bentuk tidak menunjukkan jenis polimer.
-- Alur, serabut, dan garis lipat dibuat lebih jelas supaya terbaca di layar HP. Detail halus seperti bintik dan keausan permukaan tidak dimodelkan.
+- Alur, serabut, garis lipat, goresan, dan bintik dibuat lebih jelas supaya terbaca di layar HP. Pola goresan dan keausan berasal dari tekstur plastik umum, bukan dari partikel di foto.
 - Silinder pelet belum punya rujukan foto mikroskop.
 - Model tidak menyatakan bentuk apa yang ada di organ tertentu.
 - Perbandingan ukuran antarpartikel tidak sesuai skala nyata, dan semua partikel diperbesar.
@@ -66,5 +118,6 @@ Warna memakai keluarga biru muda dan cyan MicroJourney. Bahan tidak memakai `emi
 
 - Ukuran model sekitar 22–42 cm supaya terlihat di ruangan. Pengguna tetap bisa mengubah ukurannya di layar AR.
 - USDZ tidak membawa animasi. Model di AR diam.
+- Cahaya HDRI hanya berlaku di viewer. Di AR, cahaya mengikuti ruangan dan pengolah milik perangkat.
 - Film memakai bahan tembus cahaya. Tampilannya bisa sedikit berbeda antara model-viewer, Quick Look, dan Scene Viewer.
 - Lipatan yang saling menutupi pada film tidak diurutkan sempurna oleh penggambaran tembus cahaya.

@@ -3,12 +3,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
-import { runStageBack } from '@/lib/stageBack';
+import { goBackStep } from '@/lib/stageBack';
 import GuestLimitModal from '@/components/auth/GuestLimitModal';
 import BottomNav from '@/components/BottomNav';
 import UserProfileWidget from '@/components/auth/UserProfileWidget';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const STAGES = [
   { id: 1, label: 'Scanner AI', path: '/journey/tahap-1' },
@@ -22,13 +22,32 @@ const STAGES = [
 export default function JourneyLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { completedStages } = useJourneyStore();
+  const { completedStages, fetchProgress } = useJourneyStore();
   const currentUser = useAuthStore(state => state.currentUser);
   const [hoveredStage, setHoveredStage] = useState<number | null>(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Progres akun dimuat dari server, jadi tahap yang sudah selesai tetap terbuka setelah login ulang
+  const progressId = currentUser?.email || currentUser?.id;
+  useEffect(() => {
+    if (progressId) fetchProgress(progressId);
+  }, [progressId, fetchProgress]);
+
+  // Bar menjadi padat saat halaman digulir, supaya isi halaman tidak bertumpuk dengan jejak tahap
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const isDashboard = pathname === '/journey';
-  const currentId = isDashboard ? 0 : (STAGES.find(s => pathname.startsWith(s.path))?.id ?? 1);
-  const previousStage = STAGES.find(s => s.id === currentId - 1);
+  // Tes awal dan tes akhir bukan bagian dari enam tahap, jadi tidak ada tahap yang aktif
+  const isTestPage = pathname.startsWith('/journey/pre-test') || pathname.startsWith('/journey/post-test');
+  const currentId = isDashboard || isTestPage ? 0 : (STAGES.find(s => pathname.startsWith(s.path))?.id ?? 1);
+  const solidHeader = scrolled || isTestPage;
+  // Tes akhir berada setelah Tahap 6
+  const backStage = pathname.startsWith('/journey/post-test') ? STAGES.length + 1 : currentId;
   const isGuest = !currentUser;
   const isGuestBlockedPath = isGuest && currentId > 2;
 
@@ -41,11 +60,13 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
       />
 
       {/* Top Map Navigation - Adventure Theme */}
-      <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none">
+      <header className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-colors duration-200 ${solidHeader ? 'bg-[#083b54]/95 backdrop-blur-md shadow-lg' : ''}`}>
         {/* Latar Belakang Gradient Gelap di atas agar garis nyala terlihat */}
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#083b54]/60 to-transparent pointer-events-none mix-blend-multiply" />
+        {!solidHeader && (
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#083b54]/60 to-transparent pointer-events-none mix-blend-multiply" />
+        )}
 
-        <div className="relative max-w-5xl mx-auto px-4 h-28 flex items-center justify-between pointer-events-auto">
+        <div className={`relative max-w-5xl mx-auto px-4 flex items-center justify-between pointer-events-auto transition-[height] duration-200 ${solidHeader ? 'h-[72px]' : 'h-24 sm:h-28'}`}>
 
           {/* Satu tombol kembali - Wooden Theme */}
           <div className="flex items-center gap-2 z-20">
@@ -64,14 +85,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
               </button>
             ) : (
               <button
-                // Mundur per langkah di dalam tahap; setelah habis, ke tahap sebelumnya, lalu peta
-                onClick={() => {
-                  if (runStageBack()) {
-                    window.scrollTo(0, 0);
-                    return;
-                  }
-                  router.push(previousStage?.path ?? '/journey');
-                }}
+                onClick={() => goBackStep(router, backStage)}
                 title="Kembali"
                 aria-label="Kembali"
                 className="relative flex items-center justify-center gap-1 w-10 h-10 sm:w-auto sm:h-auto sm:px-3 sm:py-2 rounded-xl border-2 border-[#8e4912] shadow-md hover:scale-105 active:scale-95 transition-all text-[#3b2313] font-extrabold text-xs font-[family-name:var(--font-outfit)]"
@@ -162,13 +176,13 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
 
                     {/* Balon Kata Papan Kayu */}
                     <AnimatePresence>
-                      {(isHovered || active) && (
+                      {(isHovered || (active && !solidHeader)) && (
                         <motion.div
                           initial={{ opacity: 0, y: 15, scale: 0.8 }}
-                          animate={{ opacity: 1, y: 35, scale: 1 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 15, scale: 0.8 }}
                           transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                          className={`absolute top-full whitespace-nowrap text-[12px] font-extrabold px-4 py-2 rounded-lg shadow-lg pointer-events-none z-50 font-[family-name:var(--font-outfit)] text-[#3b2313] mt-2 ${isHovered ? 'block' : 'hidden sm:block'
+                          className={`absolute top-full whitespace-nowrap text-[11px] font-extrabold px-2.5 py-1 rounded-lg shadow-lg pointer-events-none z-50 font-[family-name:var(--font-outfit)] text-[#3b2313] mt-1 ${isHovered ? 'block' : 'hidden sm:block'
                             }`}
                           style={{
                             background: isLockedForGuest
@@ -179,7 +193,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                           }}
                         >
                           <span className="relative z-10">
-                            {isLockedForGuest ? `🔒 ${s.label} (Perlu Login)` : s.label}
+                            {isLockedForGuest ? `${s.label} (Perlu Login)` : s.label}
                           </span>
                         </motion.div>
                       )}

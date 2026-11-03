@@ -47,14 +47,14 @@ export default function Stage4Digestion({ onComplete }: Props) {
             <span className="material-symbols-outlined text-red-400 text-5xl mb-4 block">biotech</span>
             <h3 className="text-white font-bold text-xl mb-4">Investigasi X-Ray: Organ Dalam</h3>
             <div className="bg-amber-950/50 border border-amber-600/30 rounded-xl p-4 mb-4 text-left">
-              <p className="text-amber-300 text-xs font-bold mb-2">🧪 Ingat Eksperimen Asam Lambung di Kelas?</p>
+              <p className="text-amber-300 text-xs font-bold mb-2">Ingat Eksperimen Asam Lambung di Kelas?</p>
               <p className="text-white/70 text-sm">
                 Gelas A (cuka + daun) → daun melunak & hancur.<br />
                 Gelas B (cuka + plastik) → plastik tetap utuh, tidak bereaksi.
               </p>
             </div>
             <div className="bg-red-950/40 border border-red-600/30 rounded-xl p-4 mb-6 text-left">
-              <p className="text-red-300 text-xs font-bold mb-1">🔬 Konsep Ilmiah</p>
+              <p className="text-red-300 text-xs font-bold mb-1">Konsep Ilmiah</p>
               <p className="text-white/70 text-xs leading-relaxed">
                 Lambung menghasilkan HCl & enzim protease yang mampu mencerna protein organik.
                 Namun <strong className="text-white">rantai polimer sintetis plastik</strong> terlalu kuat — tidak bereaksi dengan asam maupun enzim apapun. Inilah yang disebut <em>indigestible</em>.
@@ -116,7 +116,7 @@ export default function Stage4Digestion({ onComplete }: Props) {
               ))}
             </g>
             {organicDissolved && (
-              <text x="155" y="145" textAnchor="middle" fontSize="10" fill="rgba(100,220,80,0.8)">✓ Terlarut</text>
+              <text x="155" y="145" textAnchor="middle" fontSize="10" fill="rgba(100,220,80,0.8)">Terlarut</text>
             )}
 
             {/* Plastic: stays */}
@@ -141,10 +141,10 @@ export default function Stage4Digestion({ onComplete }: Props) {
           {/* Status badges */}
           <div className="flex gap-3 flex-wrap justify-center">
             <div className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-1000 ${organicDissolved ? 'bg-green-900 text-green-300 border border-green-600' : 'bg-green-950/50 text-green-400 border border-green-800'}`}>
-              {organicDissolved ? '✓ Organik: TERURAI SEMPURNA' : '⟳ Organik: bereaksi dengan asam...'}
+              {organicDissolved ? 'Organik: TERURAI SEMPURNA' : 'Organik: bereaksi dengan asam...'}
             </div>
             <div className={`px-4 py-2 rounded-full text-xs font-bold border ${showScratch ? 'bg-red-900 text-red-300 border-red-600' : 'bg-blue-950/50 text-blue-300 border-blue-800'}`}>
-              {showScratch ? '⚠ Plastik: MENGGORES DINDING LAMBUNG' : '○ Plastik: tidak bereaksi (indigestible)'}
+              {showScratch ? 'Plastik: MENGGORES DINDING LAMBUNG' : 'Plastik: tidak bereaksi (indigestible)'}
             </div>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function Stage4Digestion({ onComplete }: Props) {
             </text>
             {plasticBlocked && (
               <text x="240" y="25" textAnchor="middle" fontSize="11" fill="rgba(255,80,80,0.9)" fontWeight="bold">
-                ⚠ Penyerapan sari makanan terhambat
+                Penyerapan sari makanan terhambat
               </text>
             )}
           </svg>
@@ -231,15 +231,15 @@ export default function Stage4Digestion({ onComplete }: Props) {
             <h3 className="text-white font-bold text-xl mb-3">Investigasi Fisiologis Selesai</h3>
             <div className="space-y-2 text-left mb-6">
               <div className="flex items-start gap-2">
-                <span className="text-green-400 font-bold">✓</span>
+                <span className="material-symbols-outlined text-base leading-none text-green-400">check</span>
                 <p className="text-white/70 text-sm">Asam lambung (HCl) tidak mampu mengurai polimer sintetis plastik</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="text-red-400 font-bold">✓</span>
+                <span className="material-symbols-outlined text-base leading-none text-red-400">check</span>
                 <p className="text-white/70 text-sm">Partikel plastik tajam menggores dinding lambung</p>
               </div>
               <div className="flex items-start gap-2">
-                <span className="text-orange-400 font-bold">✓</span>
+                <span className="material-symbols-outlined text-base leading-none text-orange-400">check</span>
                 <p className="text-white/70 text-sm">Vili usus halus tersumbat — penyerapan nutrisi terganggu</p>
               </div>
             </div>

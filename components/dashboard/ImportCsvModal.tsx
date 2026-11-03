@@ -157,17 +157,17 @@ export default function ImportCsvModal({ onClose, createdBy }: ImportCsvModalPro
                 </p>
                 <div className="grid grid-cols-3 gap-2 text-center text-xs text-[#5a8aa0]">
                   <div className="rounded-xl p-2.5" style={{ background: 'white', border: '1px solid #d4e5ed' }}>
-                    <p className="text-xl mb-1">📄</p>
+                    <span className="material-symbols-outlined text-xl text-[#006591] mb-1">upload_file</span>
                     <p className="font-bold text-[#083b54]">Guru upload</p>
                     <p>Daftar nama siswa (.csv)</p>
                   </div>
                   <div className="rounded-xl p-2.5" style={{ background: 'white', border: '1px solid #d4e5ed' }}>
-                    <p className="text-xl mb-1">⚡</p>
+                    <span className="material-symbols-outlined text-xl text-[#006591] mb-1">bolt</span>
                     <p className="font-bold text-[#083b54]">Sistem buat</p>
                     <p>Email & password otomatis</p>
                   </div>
                   <div className="rounded-xl p-2.5" style={{ background: 'white', border: '1px solid #d4e5ed' }}>
-                    <p className="text-xl mb-1">📋</p>
+                    <span className="material-symbols-outlined text-xl text-[#006591] mb-1">assignment</span>
                     <p className="font-bold text-[#083b54]">Guru export</p>
                     <p>Bagikan ke siswa</p>
                   </div>

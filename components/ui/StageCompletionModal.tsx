@@ -67,19 +67,19 @@ export default function StageCompletionModal({
       {/* Floating Confetti Elements */}
       {showConfetti && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
-          {['🥳', '🎉', '⭐', '🌟', '🏆', '🌊', '🧬', '✨', '🎈', '🎉'].map((emoji, i) => (
+          {['#6bff8f', '#f0a345', '#7dd3fc', '#ffdf9a', '#ff8c8c', '#6bff8f', '#7dd3fc', '#f0a345', '#ffdf9a', '#ffffff'].map((color, i) => (
             <div
               key={i}
-              className="absolute text-xl sm:text-2xl animate-float-particle"
+              className="absolute w-2 h-3 rounded-[2px] animate-float-particle"
               style={{
+                backgroundColor: color,
                 top: `${(i * 18) % 85}%`,
                 left: `${(i * 19) % 90}%`,
+                rotate: `${i * 37}deg`,
                 animationDelay: `${(i % 4) * 0.3}s`,
                 animationDuration: `${3.5 + (i % 3)}s`,
               }}
-            >
-              {emoji}
-            </div>
+            />
           ))}
         </div>
       )}
@@ -90,7 +90,7 @@ export default function StageCompletionModal({
         {/* Top Celebration Badge */}
         <div className="inline-flex items-center gap-1.5 bg-[#6bff8f]/20 border border-[#6bff8f]/60 text-[#6bff8f] px-3.5 py-1 rounded-full text-xs font-extrabold font-[family-name:var(--font-mono)] uppercase tracking-wider mb-4 shadow-md">
           <span className="material-symbols-outlined text-base animate-spin">auto_awesome</span>
-          <span>HOREEE! TAHAP {stageNumber} TUNTAS! 🎉</span>
+          <span>HOREEE! TAHAP {stageNumber} TUNTAS!</span>
         </div>
 
         <div className="flex justify-center mb-2 sm:mb-4">
@@ -108,7 +108,7 @@ export default function StageCompletionModal({
         </h2>
 
         <p className="text-white/80 text-[11px] sm:text-sm mb-4 leading-relaxed">
-          Kamu telah menunjukkan pemahaman sains yang luar biasa. Mari lanjutkan ekspedisimu! 🌊✨
+          Kamu telah menunjukkan pemahaman sains yang luar biasa. Mari lanjutkan ekspedisimu!
         </p>
 
         {/* Status Badge Banner */}

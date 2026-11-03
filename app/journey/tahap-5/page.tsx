@@ -6,6 +6,7 @@ import { useAuthStore } from '@/lib/authStore';
 import { useJourneyStore } from '@/lib/journeyStore';
 import EvidenceBoard from '@/components/stages/EvidenceBoard';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
+import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
 
 const SUGGESTED_CHIPS = [
   'Rantai Pangan',
@@ -23,10 +24,26 @@ export default function Tahap5() {
   const { completeStage, setLkpdAnswer, lkpdAnswers, studentName, studentClass, sessionId, totalParticles, selectedFoods, mostDangerousOrgan, quizCorrect, quizWrong } = useJourneyStore();
   const [lkpd4, setLkpd4] = useState(lkpdAnswers.lkpd4);
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [boardUnlocked, setBoardUnlocked] = useState(false);
+  const returned = useReturnedToStage(5);
+  const [submitted, setSubmitted] = useState(returned && Boolean(lkpdAnswers.lkpd4));
+  const [boardUnlocked, setBoardUnlocked] = useState(returned && Boolean(lkpdAnswers.lkpd4));
+  const [boardRound, setBoardRound] = useState(0);
   const [error, setError] = useState('');
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+
+  // Hasil -> LKPD 4 -> papan bukti -> Tahap 4
+  useStageBack(() => {
+    if (submitted) {
+      setSubmitted(false);
+      return true;
+    }
+    if (boardUnlocked) {
+      setBoardUnlocked(false);
+      setBoardRound(round => round + 1);
+      return true;
+    }
+    return false;
+  });
 
   const addChipText = (chip: string) => {
     setLkpd4((prev) => (prev ? `${prev} ${chip}` : chip));
@@ -95,16 +112,7 @@ export default function Tahap5() {
       <div className="absolute top-1/2 -right-24 w-96 h-96 bg-[#6bff8f]/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6 relative z-10">
-        {/* Top Navigation */}
-        <div className="mb-6 flex items-center justify-between">
-          <button
-            onClick={() => router.push('/journey/tahap-4')}
-            className="w-10 h-10 sm:w-auto sm:h-auto sm:px-4 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm backdrop-blur-md transition-all shadow-sm flex items-center justify-center gap-2 flex-shrink-0"
-          >
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
-            <span className="hidden sm:inline">Kembali ke Tahap 4 (Organ Pencernaan)</span>
-          </button>
-
+        <div className="mb-5 flex items-center justify-center">
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-xl text-xs font-[family-name:var(--font-outfit)] font-extrabold text-[#ffdf9a]">
             <span className="material-symbols-outlined text-base">assignment</span>
             <span>Tahap 5 — Papan Bukti &amp; LKPD 4</span>
@@ -133,7 +141,7 @@ export default function Tahap5() {
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-extrabold text-white/60 font-[family-name:var(--font-mono)] uppercase tracking-wider">Organ Target</p>
-              <p className="font-[family-name:var(--font-outfit)] font-extrabold text-base text-[#ff8c8c] truncate">
+              <p className="font-[family-name:var(--font-outfit)] font-extrabold text-sm text-[#ff8c8c] leading-tight line-clamp-2">
                 {mostDangerousOrgan || 'Usus Halus'}
               </p>
             </div>
@@ -156,7 +164,7 @@ export default function Tahap5() {
         {/* Evidence Board (Interactive Drag & Drop) */}
         {!submitted && (
           <div className="mb-8">
-            <EvidenceBoard onUnlock={() => setBoardUnlocked(true)} />
+            <EvidenceBoard key={boardRound} startSolved={boardUnlocked} onUnlock={() => setBoardUnlocked(true)} />
           </div>
         )}
 
@@ -191,7 +199,7 @@ export default function Tahap5() {
                 {/* Visual Dual Concept Diagram */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                   <div className="bg-black/30 border border-[#f0a345]/40 rounded-xl p-3 flex items-start gap-2.5">
-                    <span className="text-2xl">🕵️</span>
+                    <span className="material-symbols-outlined text-2xl text-[#ffdf9a]">person_search</span>
                     <div>
                       <p className="text-xs font-bold text-[#ffdf9a]">1. Manusia = PELAKU</p>
                       <p className="text-[11px] text-white/80 leading-snug mt-0.5">Memproduksi &amp; membuang sampah plastik sintetis ke lingkungan.</p>
@@ -199,7 +207,7 @@ export default function Tahap5() {
                   </div>
 
                   <div className="bg-black/30 border border-[#ff8c8c]/40 rounded-xl p-3 flex items-start gap-2.5">
-                    <span className="text-2xl">☣️</span>
+                    <span className="material-symbols-outlined text-2xl text-[#ff8c8c]">coronavirus</span>
                     <div>
                       <p className="text-xs font-bold text-[#ff8c8c]">2. Manusia = KORBAN</p>
                       <p className="text-[11px] text-white/80 leading-snug mt-0.5">Termakan kembali melalui rantai pangan &amp; masuk organ pencernaan.</p>

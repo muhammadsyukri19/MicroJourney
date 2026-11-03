@@ -99,7 +99,6 @@ export default function StandaloneSummaryPage() {
     quizWrong,
     lkpdAnswers,
     setLkpdAnswer,
-    reset,
   } = useJourneyStore();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'story' | 'assignment' | 'feedback'>('overview');
@@ -349,7 +348,7 @@ export default function StandaloneSummaryPage() {
 
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-[#6bff8f] text-[#083b54] font-extrabold flex items-center justify-center text-sm shadow-md">
-                🎓
+                <span className="material-symbols-outlined text-lg">school</span>
               </div>
               <div className="text-left">
                 <h3 className="font-extrabold text-white text-xs sm:text-sm leading-tight font-[family-name:var(--font-outfit)]">
@@ -362,18 +361,6 @@ export default function StandaloneSummaryPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={generateCertificatePDF}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-extrabold text-[#3b2313] transition-all hover:scale-105 active:scale-95 shadow-md border border-[#8e4912]"
-                style={{
-                  background: 'linear-gradient(to bottom, #f0a345, #d27b22)',
-                  fontFamily: 'var(--font-outfit)',
-                }}
-              >
-                <span className="material-symbols-outlined text-base">workspace_premium</span>
-                <span className="hidden sm:inline">{certGenerated ? 'Unduh PDF' : 'Cetak Sertifikat'}</span>
-              </button>
-
               <UserProfileWidget sizeClass="w-9 h-9" />
             </div>
           </div>
@@ -529,7 +516,7 @@ export default function StandaloneSummaryPage() {
 
                   <div className="px-4 py-2.5 rounded-xl bg-white/10 border border-white/15 text-xs text-right shrink-0">
                     <span className="text-[#6bff8f] font-bold block mb-0.5">Status Evaluasi:</span>
-                    <span className="text-white font-semibold">Tercatat di Jurnal LKPD ✓</span>
+                    <span className="text-white font-semibold">Tercatat di Jurnal LKPD</span>
                   </div>
                 </motion.div>
               )}
@@ -614,7 +601,7 @@ export default function StandaloneSummaryPage() {
 
                   <SummaryKpiCard
                     label="Status Ekspedisi"
-                    value="TUNTAS ✓"
+                    value="TUNTAS"
                     subtitle="6 Tahap Terlampaui"
                     icon="task_alt"
                     accentColor="#006591"
@@ -746,21 +733,10 @@ export default function StandaloneSummaryPage() {
                 <div className="pt-3 flex flex-wrap justify-center gap-4">
                   <button
                     type="button"
-                    onClick={() => {
-                      reset();
-                      router.push('/');
-                    }}
+                    onClick={() => router.push('/')}
                     className="bg-[#006591] hover:bg-[#083b54] text-white font-extrabold px-8 py-3.5 rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shadow-lg active:scale-95"
                   >
                     Kembali ke Beranda Utama
-                  </button>
-                  <button
-                    type="button"
-                    onClick={generateCertificatePDF}
-                    className="bg-[#006e2f] hover:bg-[#004f20] text-white font-extrabold px-8 py-3.5 rounded-2xl text-xs sm:text-sm transition-all cursor-pointer shadow-lg active:scale-95 flex items-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-lg">workspace_premium</span>
-                    <span>Cetak Sertifikat Duta Ekologi</span>
                   </button>
                 </div>
               </motion.div>

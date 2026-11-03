@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { FOODS } from '@/lib/foods';
 import Stage3MaterialIntro from '@/components/stages/Stage3MaterialIntro';
-import { useStageBack } from '@/lib/stageBack';
+import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 
 type Phase = 'materi' | 'select' | 'reveal' | 'summary';
@@ -41,12 +41,12 @@ function BgDeco() {
 }
 
 // Wood button
-function WoodBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
+function WoodBtn({ onClick, disabled, children, className = '' }: { onClick: () => void; disabled?: boolean; children: React.ReactNode; className?: string }) {
   return (
     <motion.button onClick={onClick} disabled={disabled}
       whileHover={!disabled ? { scale: 1.03, y: -2 } : {}}
       whileTap={!disabled ? { scale: 0.97 } : {}}
-      className="inline-flex items-center gap-2 px-7 py-3 font-extrabold text-[#3b2313] text-sm font-[family-name:var(--font-outfit)] rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+      className={`inline-flex items-center justify-center gap-2 px-6 py-3 min-h-12 font-extrabold text-[#3b2313] text-sm font-[family-name:var(--font-outfit)] rounded-xl disabled:opacity-40 disabled:cursor-not-allowed ${className}`}
       style={{
         background: 'linear-gradient(to bottom, #f5b55a, #d27b22)',
         border: '2.5px solid #8e4912',
@@ -56,25 +56,13 @@ function WoodBtn({ onClick, disabled, children }: { onClick: () => void; disable
   );
 }
 
-// Ghost button
-function GhostBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <motion.button onClick={onClick}
-      whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-      className="inline-flex items-center gap-1.5 px-5 py-3 rounded-xl text-sm font-semibold text-blue-200 hover:text-white transition-colors"
-      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)' }}
-    >{children}</motion.button>
-  );
-}
-
 // The reveal content is extracted as its own component so useEffect fires AFTER mount
 function RevealScreen({
-  total, breakdown, onNext, onBack,
+  total, breakdown, onNext,
 }: {
   total: number;
   breakdown: { id: string; name: string; particles: number }[];
   onNext: () => void;
-  onBack: () => void;
 }) {
   const count = useMotionValue(0);
   const displayCount = useTransform(count, (latest) => Math.round(latest).toLocaleString('id-ID'));
@@ -172,11 +160,7 @@ function RevealScreen({
           })}
         </div>
 
-        <div className="flex flex-wrap justify-center gap-3">
-          <GhostBtn onClick={onBack}>
-            <span className="material-symbols-outlined text-base">arrow_back</span>
-            <span>Ubah Pilihan Makanan</span>
-          </GhostBtn>
+        <div className="flex justify-center">
           <WoodBtn onClick={onNext}>
             Lihat Dampak ke Organ Tubuh
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -189,15 +173,27 @@ function RevealScreen({
   );
 }
 
+/** Hasil uji terakhir, supaya hasil dan rangkuman tetap sama saat siswa kembali dari Tahap 4 */
+let lastScan: { total: number; breakdown: { id: string; name: string; particles: number }[] } | null = null;
+
 export default function Tahap3() {
   const router = useRouter();
   const { addFood, totalParticles, setTotalParticles, selectedFoods, completeStage, setLkpdAnswer, lkpdAnswers } = useJourneyStore();
 
-  const [phase, setPhase] = useState<Phase>('materi');
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const returned = useReturnedToStage(3);
+  const [restored] = useState(() => {
+    if (!returned) return null;
+    if (lastScan) return lastScan;
+    if (selectedFoods.length === 0) return null;
+    return { total: totalParticles, breakdown: selectedFoods.map(({ id, name, particles }) => ({ id, name, particles })) };
+  });
+  const [phase, setPhase] = useState<Phase>(restored ? 'summary' : 'materi');
+  const [materiAtEnd, setMateriAtEnd] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(() => new Set(restored?.breakdown.map(food => food.id)));
+  // Makanan terakhir yang disentuh; di HP tidak ada hover, jadi faktanya mengikuti ketukan
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [confirmedTotal, setConfirmedTotal] = useState(0);
-  const [confirmedBreakdown, setConfirmedBreakdown] = useState<{ id: string; name: string; particles: number }[]>([]);
+  const [confirmedTotal, setConfirmedTotal] = useState(restored?.total ?? 0);
+  const [confirmedBreakdown, setConfirmedBreakdown] = useState<{ id: string; name: string; particles: number }[]>(restored?.breakdown ?? []);
   const [lkpd2Answer, setLkpd2Answer] = useState<string | null>(lkpdAnswers.lkpd2 || null);
   const [lkpd2Answered, setLkpd2Answered] = useState(!!lkpdAnswers.lkpd2);
 
@@ -213,6 +209,7 @@ export default function Tahap3() {
       s.has(id) ? s.delete(id) : s.add(id);
       return s;
     });
+    setHoveredId(id);
   }
 
   function handleScan() {
@@ -233,11 +230,13 @@ export default function Tahap3() {
     // Store locally for RevealScreen (avoid timing issues with store)
     setConfirmedTotal(total);
     setConfirmedBreakdown(breakdown);
+    lastScan = { total, breakdown };
     setPhase('reveal');
   }
 
   function handleLkpd2Answer(id: string) {
-    if (lkpd2Answered) return;
+    // Jawaban salah boleh diganti; kalau dikunci, siswa tidak bisa lanjut ke Tahap 4
+    if (lkpd2Answer === LKPD2_CORRECT) return;
     setLkpd2Answer(id);
     setLkpd2Answered(true);
     setLkpdAnswer('lkpd2', id);
@@ -245,11 +244,16 @@ export default function Tahap3() {
 
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
-  // Rangkuman -> hasil -> pilih makanan -> materi -> Tahap 2
+  function backToMateri() {
+    setMateriAtEnd(true);
+    setPhase('materi');
+  }
+
+  // Rangkuman -> hasil -> pilih makanan -> urutan materi -> materi -> Tahap 2
   useStageBack(() => {
     if (phase === 'summary') setPhase('reveal');
     else if (phase === 'reveal') setPhase('select');
-    else if (phase === 'select') setPhase('materi');
+    else if (phase === 'select') backToMateri();
     else return false;
     return true;
   });
@@ -263,7 +267,7 @@ export default function Tahap3() {
 
   // ─── RENDER ────────────────────────────────────────────────────────────────
   if (phase === 'materi') {
-    return <Stage3MaterialIntro onComplete={() => setPhase('select')} />;
+    return <Stage3MaterialIntro startAtEnd={materiAtEnd} onComplete={() => setPhase('select')} />;
   }
 
   if (phase === 'reveal') {
@@ -272,7 +276,6 @@ export default function Tahap3() {
         total={confirmedTotal}
         breakdown={confirmedBreakdown}
         onNext={() => setPhase('summary')}
-        onBack={() => setPhase('select')}
       />
     );
   }
@@ -280,34 +283,22 @@ export default function Tahap3() {
   // ─── SELECT PHASE ──────────────────────────────────────────────────────────
   if (phase === 'select') {
     return (
-      <div className="relative max-w-full overflow-x-hidden overflow-y-auto flex flex-col w-full min-h-screen bg-[#083b54] pt-28 md:pt-32 pb-16"
+      <div className="relative max-w-full overflow-x-hidden flex flex-col w-full min-h-screen bg-[#083b54] pt-24 md:pt-32 pb-28 md:pb-16"
         style={{ background: 'linear-gradient(160deg, #083b54 0%, #006591 45%, #004c6e 100%)' }}>
         <BgDeco />
 
-        <div className="relative z-10 flex-1 flex flex-col items-center px-4 md:px-8 pt-4 pb-6">
-          <div className="w-full max-w-6xl flex flex-col gap-6 flex-1">
-
-            {/* Header with Back Button */}
-            <div className="relative text-center">
-              <button
-                onClick={() => setPhase('materi')}
-                className="absolute left-0 top-0 inline-flex items-center gap-1 text-xs text-blue-200 hover:text-white bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 backdrop-blur-sm transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">arrow_back</span>
-                <span className="hidden sm:inline">Materi</span>
-              </button>
+        <div className="relative z-10 flex-1 flex flex-col items-center px-4 md:px-8">
+          <div className="w-full max-w-5xl flex flex-col gap-3 md:gap-6">
+            <div className="text-center">
               <p className="text-[#6bff8f] text-xs font-bold uppercase tracking-widest mb-1">Uji Makanan Hari Ini</p>
               <h2 className="text-2xl md:text-3xl font-extrabold text-white font-[family-name:var(--font-outfit)]">
                 Apa yang Kamu Makan?
               </h2>
-              <p className="text-blue-200 text-sm mt-1">Centang semua makanan yang kamu konsumsi hari ini.</p>
+              <p className="text-blue-200 text-sm mt-1">Ketuk semua yang kamu makan atau minum hari ini, lalu scan.</p>
             </div>
 
-            {/* Body: food grid + side panel */}
-            <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
-
-              {/* Food Cards */}
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 content-start">
+            <div className="flex flex-col md:flex-row gap-3 md:gap-5">
+              <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-3 content-start">
                 {FOODS.map(food => {
                   const isChecked = checked.has(food.id);
                   const accent = FOOD_ACCENT[food.id] ?? '#6bff8f';
@@ -315,119 +306,68 @@ export default function Tahap3() {
                     <motion.button key={food.id}
                       onClick={() => toggle(food.id)}
                       onMouseEnter={() => setHoveredId(food.id)}
-                      onMouseLeave={() => setHoveredId(null)}
-                      whileHover={{ y: -3, scale: 1.01 }}
                       whileTap={{ scale: 0.97 }}
-                      className="relative text-left p-4 rounded-2xl border-2 transition-all flex items-center md:flex-col gap-3 md:gap-2"
+                      aria-pressed={isChecked}
+                      className="relative text-left p-2.5 md:p-4 rounded-2xl border-2 transition-colors flex items-center gap-2.5"
                       style={{
-                        background: isChecked ? `${accent}18` : 'rgba(255,255,255,0.05)',
-                        borderColor: isChecked ? accent : 'rgba(255,255,255,0.1)',
-                        boxShadow: isChecked ? `0 6px 24px ${accent}25` : 'none',
-                        backdropFilter: 'blur(10px)',
+                        background: isChecked ? `${accent}26` : 'rgba(255,255,255,0.07)',
+                        borderColor: isChecked ? accent : 'rgba(255,255,255,0.14)',
                       }}
                     >
-                      {/* Checkmark badge */}
-                      <div className="absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all"
-                        style={{ borderColor: isChecked ? accent : 'rgba(255,255,255,0.25)', background: isChecked ? accent : 'transparent' }}>
-                        {isChecked && (
-                          <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                            <path d="M1 4 L3.5 6.5 L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
+                      <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden flex-shrink-0 relative">
+                        <Image src={food.image} alt="" fill className="object-cover" sizes="56px" />
                       </div>
-
-                      {/* Food image */}
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0 relative"
-                        style={{ boxShadow: isChecked ? `0 0 16px ${accent}40` : 'none', transition: 'box-shadow 0.2s' }}>
-                        <Image
-                          src={food.image}
-                          alt={food.name}
-                          fill
-                          className="object-cover"
-                          sizes="56px"
-                        />
-                      </div>
-
-                      <div className="pr-5 flex-1">
-                        <p className="text-white font-bold text-sm font-[family-name:var(--font-outfit)] leading-tight">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-bold text-[13px] md:text-sm font-[family-name:var(--font-outfit)] leading-tight">
                           {food.name}
                         </p>
-                        <p className="text-xs mt-0.5 font-medium" style={{ color: accent }}>
-                          {food.particles.toLocaleString('id-ID')} partikel / {food.unit}
+                        <p className="text-[11px] mt-0.5 font-medium leading-tight" style={{ color: accent }}>
+                          {food.particles.toLocaleString('id-ID')} partikel
                         </p>
                       </div>
+                      {isChecked && (
+                        <span className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[#083b54]" style={{ background: accent }}>
+                          <span className="material-symbols-outlined text-sm leading-none font-bold">check</span>
+                        </span>
+                      )}
                     </motion.button>
                   );
                 })}
               </div>
 
-              {/* Side panel */}
-              <div className="w-full md:w-56 flex-shrink-0 flex flex-col gap-3">
-                {/* Hover info */}
-                <div className="rounded-2xl p-4 flex flex-col justify-center min-h-[120px]"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
-                  <AnimatePresence mode="wait">
-                    {hoveredFood ? (
-                      <motion.div key={hoveredFood.id}
-                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                        {/* Food image in panel */}
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden mb-3 relative">
-                          <Image
-                            src={hoveredFood.image}
-                            alt={hoveredFood.name}
-                            fill
-                            className="object-cover"
-                            sizes="64px"
-                          />
-                        </div>
-                        <p className="text-white font-bold text-sm font-[family-name:var(--font-outfit)] mb-1">{hoveredFood.name}</p>
-                        <p className="text-xs font-bold mb-3" style={{ color: FOOD_ACCENT[hoveredFood.id] ?? '#6bff8f' }}>
-                          {hoveredFood.particles} partikel / {hoveredFood.unit}
-                        </p>
-                        <p className="text-blue-200 text-[11px] leading-relaxed">{hoveredFood.justification}</p>
-                      </motion.div>
-                    ) : (
-                      <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 0.5 }}
-                        className="text-center text-blue-300 text-xs py-2">
-                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="mx-auto mb-2 opacity-50">
-                          <circle cx="14" cy="14" r="10" stroke="currentColor" strokeWidth="1.5"/>
-                          <path d="M14 10 V14 M14 17 V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        </svg>
-                        Pilih atau tekan makanan untuk melihat fakta ilmiahnya
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Total */}
-                <div className="rounded-2xl p-4 text-center transition-all"
-                  style={{
-                    background: liveTotal > 0 ? 'rgba(186,26,26,0.18)' : 'rgba(255,255,255,0.05)',
-                    border: `2px solid ${liveTotal > 0 ? 'rgba(186,26,26,0.45)' : 'rgba(255,255,255,0.1)'}`,
-                    backdropFilter: 'blur(12px)',
-                  }}>
-                  <p className="text-[10px] uppercase tracking-widest font-bold mb-1"
-                    style={{ color: liveTotal > 0 ? '#ff8c8c' : 'rgba(255,255,255,0.4)' }}>
-                    Total Partikel
-                  </p>
-                  <p className="text-3xl font-extrabold font-[family-name:var(--font-outfit)] flex justify-center items-baseline gap-1.5"
-                    style={{ color: liveTotal > 0 ? '#ff8c8c' : 'rgba(255,255,255,0.2)' }}>
-                    {liveTotal.toLocaleString('id-ID')}
-                    {liveTotal > 0 && <span className="text-[10px] font-bold opacity-80 uppercase tracking-widest">partikel / asupan</span>}
-                  </p>
-                  {checked.size > 0 && (
-                    <p className="text-[11px] text-blue-300 mt-1">{checked.size} menu dipilih</p>
+              <div className="w-full md:w-64 flex-shrink-0 flex flex-col gap-3">
+                <div className="rounded-2xl p-3.5 md:p-4 min-h-[92px]"
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.14)' }}>
+                  {hoveredFood ? (
+                    <>
+                      <p className="text-white font-bold text-sm font-[family-name:var(--font-outfit)]">{hoveredFood.name}</p>
+                      <p className="text-[11px] font-bold mb-1" style={{ color: FOOD_ACCENT[hoveredFood.id] ?? '#6bff8f' }}>
+                        {hoveredFood.particles.toLocaleString('id-ID')} partikel / {hoveredFood.unit}
+                      </p>
+                      <p className="text-blue-100 text-xs leading-relaxed">{hoveredFood.justification}</p>
+                    </>
+                  ) : (
+                    <p className="text-blue-200 text-xs leading-relaxed flex items-center gap-2 h-full">
+                      <span className="material-symbols-outlined text-2xl text-[#7dd3fc]">touch_app</span>
+                      Ketuk makanan untuk melihat fakta ilmiahnya.
+                    </p>
                   )}
                 </div>
 
-                {/* Scan button */}
-                <WoodBtn onClick={handleScan} disabled={checked.size === 0}>
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <rect x="1" y="5" width="12" height="7" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M4 5 V3 a3 3 0 016 0 V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                  Scan Mikroplastik
-                </WoodBtn>
+                {/* Di HP ringkasan dan tombol scan selalu terlihat di bawah layar */}
+                <div className="fixed md:static inset-x-0 bottom-0 z-40 flex md:flex-col items-center md:items-stretch gap-3 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-0 bg-[#083b54]/95 md:bg-transparent border-t border-white/15 md:border-0">
+                  <div className="flex-1 md:rounded-2xl md:p-4 md:text-center md:border md:border-white/15 md:bg-white/5">
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-white/60">Total Partikel</p>
+                    <p className={`text-xl md:text-3xl font-extrabold font-[family-name:var(--font-outfit)] leading-tight ${liveTotal > 0 ? 'text-[#ff8c8c]' : 'text-white/40'}`}>
+                      {liveTotal.toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-[11px] text-blue-200">{checked.size} menu dipilih</p>
+                  </div>
+                  <WoodBtn onClick={handleScan} disabled={checked.size === 0} className="flex-shrink-0">
+                    <span className="material-symbols-outlined text-lg">search</span>
+                    Scan Mikroplastik
+                  </WoodBtn>
+                </div>
               </div>
             </div>
           </div>
@@ -464,18 +404,19 @@ export default function Tahap3() {
               let bg = 'rgba(255,255,255,0.04)';
               let border = 'rgba(255,255,255,0.1)';
               let textColor = '#bfdbfe';
-              if (lkpd2Answered) {
-                if (isChosen && isCorrect)  { bg = 'rgba(107,255,143,0.1)'; border = 'rgba(107,255,143,0.4)'; textColor = '#6bff8f'; }
-                else if (isChosen)          { bg = 'rgba(186,26,26,0.13)';  border = 'rgba(186,26,26,0.45)'; textColor = '#ff8c8c'; }
-                else if (isCorrect)         { bg = 'rgba(107,255,143,0.05)'; border = 'rgba(107,255,143,0.2)'; textColor = '#6bff8f88'; }
+              if (isChosen && lkpd2Answered) {
+                if (isCorrect) { bg = 'rgba(107,255,143,0.1)'; border = 'rgba(107,255,143,0.4)'; textColor = '#6bff8f'; }
+                else           { bg = 'rgba(186,26,26,0.13)';  border = 'rgba(186,26,26,0.45)'; textColor = '#ff8c8c'; }
               }
               return (
-                <button key={opt.id} onClick={() => handleLkpd2Answer(opt.id)} disabled={lkpd2Answered}
+                <button key={opt.id} onClick={() => handleLkpd2Answer(opt.id)} disabled={lkpd2Answer === LKPD2_CORRECT}
                   className="w-full text-left flex items-start gap-3 p-4 rounded-xl border-2 transition-all"
-                  style={{ background: bg, borderColor: border, color: textColor, cursor: lkpd2Answered ? 'default' : 'pointer' }}>
+                  style={{ background: bg, borderColor: border, color: textColor, cursor: lkpd2Answer === LKPD2_CORRECT ? 'default' : 'pointer' }}>
                   <span className="flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold mt-0.5"
                     style={{ borderColor: border }}>
-                    {lkpd2Answered && isCorrect ? '✓' : lkpd2Answered && isChosen && !isCorrect ? '✗' : opt.id.toUpperCase()}
+                    {isChosen && lkpd2Answered
+                      ? <span className="material-symbols-outlined text-sm leading-none">{isCorrect ? 'check' : 'close'}</span>
+                      : opt.id.toUpperCase()}
                   </span>
                   <span className="text-sm font-semibold">{opt.text}</span>
                 </button>
@@ -491,21 +432,15 @@ export default function Tahap3() {
                   ? { background: 'rgba(107,255,143,0.1)', border: '1px solid rgba(107,255,143,0.3)', color: '#6bff8f' }
                   : { background: 'rgba(186,26,26,0.12)', border: '1px solid rgba(186,26,26,0.35)', color: '#ff8c8c' }}>
                 {lkpd2Answer === LKPD2_CORRECT
-                  ? '✓ Tepat! Kerang menyaring air tercemar (bioakumulasi), dan wadah plastik/styrofoam luruh saat terkena makanan panas.'
-                  : '✗ Belum tepat. Jawaban yang benar adalah A — bioakumulasi dan peluruhan polimer kemasan.'}
+                  ? 'Tepat! Kerang menyaring air tercemar (bioakumulasi), dan wadah plastik/styrofoam luruh saat terkena makanan panas.'
+                  : 'Belum tepat. Ingat lagi fakta riset tadi, lalu pilih jawaban lain.'}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <div className="flex items-center justify-between">
-          <GhostBtn onClick={() => setPhase('select')}>
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M11 7 H3 M6 3 L2 7 L6 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Ubah Pilihan
-          </GhostBtn>
-          <WoodBtn onClick={handleNext} disabled={!lkpd2Answered || lkpd2Answer !== LKPD2_CORRECT}>
+        <div className="flex justify-end">
+          <WoodBtn onClick={handleNext} disabled={!lkpd2Answered || lkpd2Answer !== LKPD2_CORRECT} className="w-full sm:w-auto">
             Ke Tahap 4: Organ Dalam
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M3 7 H11 M8 3 L12 7 L8 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>

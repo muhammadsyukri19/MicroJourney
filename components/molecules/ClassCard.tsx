@@ -86,7 +86,7 @@ export default function ClassCard({
       </div>
 
       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-[#006591]">
-        <span>{isSelected ? '✓ Kelas Aktif Dipilih' : 'Pilih untuk Analisis'}</span>
+        <span>{isSelected ? 'Kelas Aktif Dipilih' : 'Pilih untuk Analisis'}</span>
         <span className="material-symbols-outlined text-[16px]">chevron_right</span>
       </div>
     </div>

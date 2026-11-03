@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
+import { useStageBack } from '@/lib/stageBack';
 import { POSTTEST_QUESTIONS } from '@/lib/testsData';
 
 export default function PostTestPage() {
@@ -13,6 +14,12 @@ export default function PostTestPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>(new Array(POSTTEST_QUESTIONS.length).fill(-1));
   const [isFinished, setIsFinished] = useState(false);
+
+  useStageBack(() => {
+    if (isFinished || currentQuestion === 0) return false;
+    setCurrentQuestion(currentQuestion - 1);
+    return true;
+  });
 
   // If already taken, redirect to summary
   useEffect(() => {

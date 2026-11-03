@@ -124,7 +124,7 @@ const DriveInputCard: React.FC<DriveInputCardProps> = ({
 
         {uploadError && (
           <p className="text-[11px] text-red-600 font-bold mt-2">
-            ⚠️ {uploadError}
+            {uploadError}
           </p>
         )}
       </div>

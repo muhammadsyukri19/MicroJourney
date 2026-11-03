@@ -2,7 +2,7 @@
 
 import { useStageBack } from '@/lib/stageBack';
 import { useState, useCallback } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { MICROPLASTIC_JOURNEY_ITEMS, type DragItem } from '@/lib/dragDropData';
 
 // ─── SVG Illustrations ────────────────────────────────────────────────────────
@@ -112,96 +112,89 @@ function WoodButton({ onClick, children, disabled, sm }: {
   );
 }
 
-// ─── Reorderable Card Component (Desktop Mouse & Touch Mobile Supported) ────────
+// ─── Kartu urutan ─────────────────────────────────────────────────────────────
+/**
+ * Di HP kartu digeser lewat pegangan atau tombol panah, jadi halaman tetap bisa digulir.
+ * Dengan mouse, seluruh kartu bisa diseret.
+ */
 function DragCard({
   item,
   index,
   totalItems,
+  placement,
   onMoveUp,
   onMoveDown,
 }: {
   item: DragItem;
   index: number;
   totalItems: number;
+  placement: 'none' | 'right' | 'wrong';
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
 }) {
+  const controls = useDragControls();
   const accent = STEP_ACCENT[item.id];
+  const borderColor = placement === 'right' ? '#006e2f' : placement === 'wrong' ? '#ba1a1a' : 'transparent';
   return (
     <Reorder.Item
       value={item}
       id={item.id}
-      whileDrag={{ scale: 1.03, boxShadow: `0 8px 25px ${accent}40`, zIndex: 30 }}
-      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-      className="select-none touch-none flex items-center gap-3 sm:gap-5 px-4 sm:px-6 py-3.5 sm:py-4 rounded-2xl md:rounded-3xl border-2 bg-white transition-all cursor-grab active:cursor-grabbing relative"
-      style={{
-        borderColor: accent,
-        boxShadow: '0 4px 14px rgba(0,0,0,0.08)',
+      dragListener={false}
+      dragControls={controls}
+      onPointerDown={(event) => {
+        if (event.pointerType === 'mouse' && !(event.target as HTMLElement).closest('button')) controls.start(event);
       }}
+      whileDrag={{ scale: 1.03, boxShadow: '0 14px 30px rgba(0,0,0,0.35)', zIndex: 30 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 36 }}
+      className="relative select-none flex items-center gap-2 sm:gap-4 pl-2.5 pr-1 sm:pl-5 sm:pr-3 py-2 sm:py-3 rounded-2xl border-2 bg-white transition-colors md:cursor-grab md:active:cursor-grabbing"
+      style={{ borderColor, boxShadow: '0 3px 10px rgba(0,0,0,0.12)' }}
     >
-      {/* Index Badge */}
       <div
-        className="flex-shrink-0 w-9 h-9 rounded-full text-white text-sm sm:text-base font-extrabold font-[family-name:var(--font-outfit)] flex items-center justify-center shadow-md"
-        style={{ background: accent }}
+        className="flex-shrink-0 w-7 h-7 sm:w-9 sm:h-9 rounded-full text-white text-xs sm:text-base font-extrabold font-[family-name:var(--font-outfit)] flex items-center justify-center"
+        style={{ background: placement === 'right' ? '#006e2f' : placement === 'wrong' ? '#ba1a1a' : accent }}
       >
         {index + 1}
       </div>
 
-      {/* SVG Icon */}
-      <div
-        className="w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 p-1.5 rounded-2xl shadow-inner"
-        style={{ background: STEP_BG[item.id] }}
-      >
+      <div className="w-10 h-10 sm:w-14 sm:h-14 flex-shrink-0 rounded-xl p-0.5" style={{ background: STEP_BG[item.id] }}>
         {STEP_SVG[item.id]}
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="font-extrabold text-[#083b54] text-sm sm:text-base md:text-lg font-[family-name:var(--font-outfit)] leading-snug">
+        <p className="font-extrabold text-[#083b54] text-[13px] sm:text-base font-[family-name:var(--font-outfit)] leading-tight">
           {STEP_LABEL[item.id]}
         </p>
-        <p className="text-xs sm:text-sm text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
-          {STEP_DESC[item.id]}
-        </p>
+        <p className="text-[11px] sm:text-sm text-slate-500 mt-0.5 leading-tight">{STEP_DESC[item.id]}</p>
       </div>
 
-      {/* Controls */}
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <div className="flex flex-col gap-1">
+      <div className="flex items-center flex-shrink-0">
+        <div className="flex flex-col gap-0.5">
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveUp(index);
-            }}
+            onClick={() => onMoveUp(index)}
             disabled={index === 0}
-            className="w-7 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-90 shadow-xs"
-            title="Geser ke atas"
+            aria-label={`Naikkan ${STEP_LABEL[item.id]}`}
+            className="w-9 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#083b54] disabled:opacity-25 flex items-center justify-center active:scale-90"
           >
-            <span className="material-symbols-outlined text-base">keyboard_arrow_up</span>
+            <span className="material-symbols-outlined text-xl leading-none">keyboard_arrow_up</span>
           </button>
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveDown(index);
-            }}
+            onClick={() => onMoveDown(index)}
             disabled={index === totalItems - 1}
-            className="w-7 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors active:scale-90 shadow-xs"
-            title="Geser ke bawah"
+            aria-label={`Turunkan ${STEP_LABEL[item.id]}`}
+            className="w-9 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-[#083b54] disabled:opacity-25 flex items-center justify-center active:scale-90"
           >
-            <span className="material-symbols-outlined text-base">keyboard_arrow_down</span>
+            <span className="material-symbols-outlined text-xl leading-none">keyboard_arrow_down</span>
           </button>
         </div>
 
-        {/* Drag Handle Grip Icon */}
-        <div className="p-1.5 text-slate-400 opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing touch-none flex flex-col gap-1">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-              <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-            </div>
-          ))}
+        <div
+          onPointerDown={(event) => controls.start(event)}
+          aria-hidden="true"
+          className="w-8 sm:w-9 h-14 flex items-center justify-center text-slate-400 touch-none cursor-grab active:cursor-grabbing"
+        >
+          <span className="material-symbols-outlined text-2xl">drag_indicator</span>
         </div>
       </div>
     </Reorder.Item>
@@ -209,8 +202,9 @@ function DragCard({
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
-export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => void }) {
-  const [view, setView] = useState<'learn' | 'drag'>('learn');
+export default function Stage3MaterialIntro({ onComplete, startAtEnd = false }: { onComplete: () => void; startAtEnd?: boolean }) {
+  // startAtEnd: siswa kembali dari langkah berikutnya, jadi urutan yang sudah benar ditampilkan lagi
+  const [view, setView] = useState<'learn' | 'drag'>(startAtEnd ? 'drag' : 'learn');
   useStageBack(() => {
     if (view !== 'drag') return false;
     setView('learn');
@@ -218,6 +212,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
   }, 1);
   const [items, setItems] = useState<DragItem[]>(() => {
     const arr = [...MICROPLASTIC_JOURNEY_ITEMS];
+    if (startAtEnd) return arr.sort((a, b) => a.correctOrder - b.correctOrder);
     do {
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -227,8 +222,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
     return arr;
   });
 
-  const [feedback, setFeedback] = useState<'idle' | 'correct' | 'wrong'>('idle');
-  const [attempts, setAttempts] = useState(0);
+  const [feedback, setFeedback] = useState<'idle' | 'correct' | 'wrong'>(startAtEnd ? 'correct' : 'idle');
 
   const moveItemUp = useCallback((index: number) => {
     if (index === 0) return;
@@ -252,9 +246,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
 
   function checkOrder() {
     const ok = items.every((x, i) => x.correctOrder === i + 1);
-    setAttempts(a => a + 1);
     setFeedback(ok ? 'correct' : 'wrong');
-    if (!ok) setTimeout(() => setFeedback('idle'), 1800);
   }
 
   const ordered = [...MICROPLASTIC_JOURNEY_ITEMS].sort((a, b) => a.correctOrder - b.correctOrder);
@@ -263,7 +255,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
   // We fill exactly the remaining viewport height with overflow-hidden.
   return (
     <div
-      className="flex flex-col overflow-y-auto overflow-x-hidden max-w-full relative font-[family-name:var(--font-inter)] w-full min-h-screen bg-[#083b54] pt-28 md:pt-32 pb-16"
+      className="flex flex-col overflow-y-auto overflow-x-hidden max-w-full relative font-[family-name:var(--font-inter)] w-full min-h-[100dvh] bg-[#083b54] pt-24 md:pt-32 pb-6 md:pb-16"
       style={{
         background: 'linear-gradient(160deg, #083b54 0%, #006591 45%, #004c6e 100%)',
       }}
@@ -290,7 +282,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
       ))}
 
       {/* Content */}
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 md:px-8 py-4">
+      <div className="relative z-10 flex-1 flex items-center justify-center px-3 md:px-8 py-1 md:py-4">
         <AnimatePresence mode="wait">
 
           {/* ═══ VIEW 1: MATERI ═══ */}
@@ -368,23 +360,23 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
             <motion.div key="drag"
               initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.35 }}
-              className="w-full max-w-3xl flex flex-col items-center gap-5 md:gap-6 py-2"
+              className="w-full max-w-3xl flex flex-col items-center gap-3 md:gap-5"
             >
               {/* Title */}
               <div className="text-center">
-                <h2 className="text-3xl md:text-4xl font-extrabold text-white font-[family-name:var(--font-outfit)] mb-2 drop-shadow-md">
-                  Susun Urutannya! 🧩
+                <h2 className="text-2xl md:text-4xl font-extrabold text-white font-[family-name:var(--font-outfit)] mb-1 drop-shadow-md">
+                  Susun Urutannya!
                 </h2>
                 <p className="text-blue-100 text-sm md:text-base font-medium">
-                  <span className="text-[#6bff8f] font-bold">Geser / tekan panah</span> untuk menyusun alur pencemaran mikroplastik yang benar.
+                  <span className="text-[#6bff8f] font-bold">Tekan panah atau seret pegangan</span> sampai alurnya benar, dari sampah ke tubuh kita.
                 </p>
               </div>
 
               {/* Drag area */}
-              <div className="w-full p-4 sm:p-5 rounded-3xl flex flex-col gap-3 transition-all shadow-2xl"
+              <div className="w-full p-2 sm:p-4 rounded-3xl transition-all shadow-2xl"
                 style={{
                   background: 'rgba(255,255,255,0.08)',
-                  border: `2px solid ${feedback === 'correct' ? '#6bff8f' : feedback === 'wrong' ? '#ff6b6b' : 'rgba(255,255,255,0.2)'}`,
+                  border: `2px solid ${feedback === 'correct' ? '#6bff8f' : 'rgba(255,255,255,0.2)'}`,
                   backdropFilter: 'blur(20px)',
                   boxShadow: feedback === 'correct' ? '0 0 50px rgba(107,255,143,0.3)' : '0 20px 40px rgba(0,0,0,0.3)',
                 }}>
@@ -395,7 +387,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
                     setItems(newItems);
                     setFeedback('idle');
                   }}
-                  className="w-full flex flex-col gap-3"
+                  className="w-full flex flex-col gap-1.5 sm:gap-2.5"
                 >
                   {items.map((item, index) => (
                     <DragCard
@@ -403,6 +395,7 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
                       item={item}
                       index={index}
                       totalItems={items.length}
+                      placement={feedback === 'idle' ? 'none' : item.correctOrder === index + 1 ? 'right' : 'wrong'}
                       onMoveUp={moveItemUp}
                       onMoveDown={moveItemDown}
                     />
@@ -410,60 +403,28 @@ export default function Stage3MaterialIntro({ onComplete }: { onComplete: () => 
                 </Reorder.Group>
               </div>
 
-              {/* Feedback */}
-              <AnimatePresence>
-                {feedback === 'correct' && (
-                  <motion.div initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                    className="w-full py-4 px-6 rounded-2xl text-center shadow-lg"
-                    style={{ background: 'rgba(107,255,143,0.15)', border: '2px solid rgba(107,255,143,0.5)' }}>
-                    <p className="text-[#6bff8f] text-base md:text-lg font-extrabold font-[family-name:var(--font-outfit)]">
-                      🎉 Tepat Sekali! Urutan sudah benar.
-                    </p>
-                  </motion.div>
-                )}
-                {feedback === 'wrong' && (
-                  <motion.div initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: [0, -8, 8, -5, 5, 0] }}
-                    exit={{ opacity: 0 }}
-                    className="w-full py-4 px-6 rounded-2xl text-center shadow-lg"
-                    style={{ background: 'rgba(186,26,26,0.2)', border: '2px solid rgba(186,26,26,0.5)' }}>
-                    <p className="text-[#ff8c8c] text-base font-bold font-[family-name:var(--font-outfit)]">
-                      Belum tepat — yuk coba lagi! 💪
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {attempts > 0 && feedback === 'idle' && (
-                <p className="text-blue-200 text-xs sm:text-sm font-semibold">Percobaan ke-{attempts} — jangan menyerah!</p>
+              {feedback !== 'idle' && (
+                <p
+                  role="status"
+                  className={`text-center text-sm md:text-base font-extrabold font-[family-name:var(--font-outfit)] ${feedback === 'correct' ? 'text-[#6bff8f]' : 'text-[#ffb4ab]'}`}
+                >
+                  {feedback === 'correct'
+                    ? 'Tepat sekali! Urutannya sudah benar.'
+                    : `${items.filter((x, i) => x.correctOrder === i + 1).length} dari ${items.length} sudah tepat. Pindahkan kartu bertanda merah.`}
+                </p>
               )}
 
-              {/* Actions */}
-              <div className="flex gap-4 justify-center">
-                {feedback !== 'correct' ? (
-                  <WoodButton onClick={checkOrder}>
-                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-                      <path d="M2 8 L6 12 L14 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Cek Urutan
-                  </WoodButton>
-                ) : (
-                  <WoodButton onClick={onComplete}>
-                    Mulai Uji Makananku!
-                    <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
-                      <path d="M3 9 H15 M10 4 L15 9 L10 14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </WoodButton>
-                )}
-                <motion.button
-                  onClick={() => setView('learn')}
-                  whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
-                  className="px-6 py-3 rounded-xl text-base font-bold text-blue-100 hover:text-white transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-                >
-                  ← Materi
-                </motion.button>
-              </div>
+              {feedback !== 'correct' ? (
+                <WoodButton onClick={checkOrder}>
+                  <span className="material-symbols-outlined text-xl">check</span>
+                  Cek Urutan
+                </WoodButton>
+              ) : (
+                <WoodButton onClick={onComplete}>
+                  Mulai Uji Makananku
+                  <span className="material-symbols-outlined text-xl">arrow_forward</span>
+                </WoodButton>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

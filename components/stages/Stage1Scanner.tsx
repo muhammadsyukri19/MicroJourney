@@ -199,7 +199,7 @@ export default function Stage1Scanner({ onComplete }: Props) {
               </div>
             </div>
             <p className="text-xs font-bold text-green-600 uppercase tracking-widest text-center mb-2">
-              Objek Plastik Terdeteksi ✓
+              Objek Plastik Terdeteksi
             </p>
             <h3 className="font-[family-name:var(--font-plus-jakarta)] text-xl font-bold text-center mb-5">
               Pertanyaan Pemantik

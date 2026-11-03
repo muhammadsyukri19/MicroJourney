@@ -37,7 +37,7 @@ export default function UserProfileWidget({
   const roleConfig = {
     superadmin: {
       label: 'Super Admin',
-      badge: '👑 Admin',
+      badge: 'Admin',
       color: '#7c3aed',
       bgLight: '#f5f3ff',
       borderLight: '#ddd6fe',
@@ -49,7 +49,7 @@ export default function UserProfileWidget({
     },
     teacher: {
       label: 'Guru Edukator',
-      badge: '👨‍🏫 Guru',
+      badge: 'Guru',
       color: '#006e2f',
       bgLight: '#e8f6ee',
       borderLight: '#b8e3cb',
@@ -61,7 +61,7 @@ export default function UserProfileWidget({
     },
     student: {
       label: 'Siswa Petualang',
-      badge: '🎒 Siswa',
+      badge: 'Siswa',
       color: '#006591',
       bgLight: '#e8f2f8',
       borderLight: '#b8d8eb',
@@ -97,6 +97,7 @@ export default function UserProfileWidget({
             color: currentCfg.textColor,
           }}
         >
+          <span className="material-symbols-outlined text-[14px] leading-none">{currentCfg.icon}</span>
           <span>{currentCfg.badge}</span>
         </span>
       )}
@@ -132,7 +133,7 @@ export default function UserProfileWidget({
                 color: '#ffffff',
               }}
             >
-              {role === 'superadmin' ? '👑' : role === 'teacher' ? '✓' : '★'}
+              <span className="material-symbols-outlined text-[11px] leading-none">{role === 'superadmin' ? 'shield' : role === 'teacher' ? 'check' : 'star'}</span>
             </span>
           )}
         </button>
