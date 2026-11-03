@@ -6,11 +6,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/models/microplastic/microplastic.usdz',
+        source: '/models/microplastic/:file([a-z]+\\.usdz)',
         headers: [{ key: 'Content-Type', value: 'model/vnd.usdz+zip' }],
       },
       {
-        source: '/models/microplastic/microplastic.glb',
+        source: '/models/microplastic/:file([a-z]+\\.glb)',
         headers: [{ key: 'Content-Type', value: 'model/gltf-binary' }],
       },
     ];

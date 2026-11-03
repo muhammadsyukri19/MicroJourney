@@ -1,10 +1,13 @@
 'use client';
 import { useStageBack } from '@/lib/stageBack';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { ORGANS, Organ } from '@/lib/organs';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
+
+const MicroplasticAR = dynamic(() => import('@/components/stages/MicroplasticAR'), { ssr: false });
 
 type Phase = 'bridge' | 'organs' | 'lkpd';
 
@@ -115,6 +118,7 @@ export default function Tahap4() {
   const { totalParticles, selectedFoods, completeStage, setLkpdAnswer, addOrganInteraction, setMostDangerousOrgan, organInteractions, lkpdAnswers } = useJourneyStore();
   const [phase, setPhase] = useState<Phase>('bridge');
   const [activeOrgan, setActiveOrgan] = useState<Organ | null>(null);
+  const [showMicroplastic, setShowMicroplastic] = useState(false);
   const [clickedIds, setClickedIds] = useState<Set<string>>(new Set(organInteractions));
   const [lkpd3q1, setLkpd3q1] = useState(lkpdAnswers.lkpd3q1);
   const [lkpd3q2, setLkpd3q2] = useState(lkpdAnswers.lkpd3q2);
@@ -500,6 +504,14 @@ export default function Tahap4() {
                       <div className="text-white/70 text-[11px] sm:text-sm mt-0.5">status risiko</div>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => setShowMicroplastic(true)}
+                    className="mt-3 sm:mt-4 w-full min-h-12 py-2 px-3 rounded-xl bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] font-extrabold text-sm sm:text-base transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-xl">view_in_ar</span>
+                    <span>Lihat bentuk mikroplastik 3D</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -576,6 +588,8 @@ export default function Tahap4() {
           </button>
         </div>
       )}
+
+      {showMicroplastic && <MicroplasticAR organName={activeOrgan?.name} onClose={() => setShowMicroplastic(false)} />}
 
       <StageCompletionModal
         isOpen={showCompletionModal}
