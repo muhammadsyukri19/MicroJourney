@@ -42,7 +42,7 @@ export default function Tahap2() {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden">
+    <div className="w-full max-w-full page-clip">
       <GuestLimitModal
         isOpen={guestModalOpen}
         onClose={() => router.push('/journey')}
@@ -67,7 +67,7 @@ export default function Tahap2() {
 
       {/* Main Lab Phase (Vibrant Ocean Theme + Background Pattern) */}
       {phase === 'main' && (
-        <div className="relative px-4 pt-24 md:pt-32 pb-3 md:pb-16 min-h-[100dvh] bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] overflow-x-hidden">
+        <div className="relative px-4 pt-24 md:pt-32 pb-3 md:pb-16 min-h-[100dvh] bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] page-clip">
           
           {/* Ambient Glowing Blobs & Ocean Wave Pattern */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">

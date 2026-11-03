@@ -3,10 +3,11 @@ import * as tf from '@tensorflow/tfjs';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 
 type Box = [number, number, number, number];
+type View = 'full' | 'center' | 'rotated';
 
 type Request =
   | { id: number; type: 'init'; origin: string }
-  | { id: number; type: 'detect'; frame: ImageBitmap }
+  | { id: number; type: 'detect'; frame: ImageBitmap; view: View }
   | { id: number; type: 'classify'; box: Box }
   | { id: number; type: 'release' };
 
@@ -48,13 +49,39 @@ function releaseFrame() {
   frame = null;
 }
 
-async function detect(next: ImageBitmap) {
+// COCO-SSD lemah pada botol yang tergeletak dan pada gambar yang terpencet ke persegi,
+// jadi bingkai juga dilihat dalam keadaan diputar dan dipotong persegi. Kotaknya dikembalikan ke koordinat asli.
+async function detect(next: ImageBitmap, view: View) {
   if (!coco) throw new Error('Model belum siap');
+  const model = coco;
   releaseFrame();
   frame = next;
+  const { width, height } = next;
   const pixels = tf.browser.fromPixels(next);
   try {
-    return await coco.detect(pixels, 6, 0.2);
+    if (view === 'full') return await model.detect(pixels, 6, 0.2);
+    if (view === 'center') {
+      const side = Math.min(width, height);
+      const left = Math.floor((width - side) / 2);
+      const top = Math.floor((height - side) / 2);
+      const square = pixels.slice([top, left, 0], [side, side, 3]);
+      try {
+        const found = await model.detect(square, 6, 0.2);
+        return found.map(p => ({ ...p, bbox: [p.bbox[0] + left, p.bbox[1] + top, p.bbox[2], p.bbox[3]] as Box }));
+      } finally {
+        square.dispose();
+      }
+    }
+    const rotated = tf.tidy(() => tf.reverse(tf.transpose(pixels, [1, 0, 2]), 1)) as tf.Tensor3D;
+    try {
+      const found = await model.detect(rotated, 6, 0.2);
+      return found.map(p => {
+        const [x, y, w, h] = p.bbox;
+        return { ...p, bbox: [y, height - x - w, h, w] as Box };
+      });
+    } finally {
+      rotated.dispose();
+    }
   } finally {
     pixels.dispose();
   }
@@ -104,7 +131,7 @@ scope.onmessage = async ({ data }) => {
   try {
     let result: unknown = null;
     if (data.type === 'init') result = await init(data.origin);
-    else if (data.type === 'detect') result = await detect(data.frame);
+    else if (data.type === 'detect') result = await detect(data.frame, data.view);
     else if (data.type === 'classify') result = classify(data.box);
     else releaseFrame();
     scope.postMessage({ id: data.id, ok: true, result });

@@ -264,7 +264,7 @@ export default function StandaloneSummaryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#083b54] via-[#004c6e] to-[#006591] text-slate-100 font-[family-name:var(--font-inter)] relative overflow-x-hidden selection:bg-[#6bff8f] selection:text-[#083b54]">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-[#083b54] via-[#004c6e] to-[#006591] text-slate-100 font-[family-name:var(--font-inter)] relative page-clip selection:bg-[#6bff8f] selection:text-[#083b54]">
       {/* ── Multi-layer Visual Background & Sidebar.webp Overlay ── */}
       <div className="absolute inset-0 pointer-events-none z-0">
         {/* Sidebar.webp Layer 1: Translucent Right Decorative Texture */}

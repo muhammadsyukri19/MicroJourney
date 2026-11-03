@@ -35,11 +35,13 @@ Bagian yang dipakai:
 - Jumlah poligon disederhanakan dengan fast-simplification. Bentuk organ tidak digambar ulang.
 - Sumbu dan titik pusat disesuaikan. Ukuran tetap anatomis: sekitar 22 x 66 x 17 cm.
 - Warna jaringan, lekukan yang lebih gelap, dan transparansi ditambahkan.
-- Ditambah 30 partikel ilustratif (fragmen, serat, film, pelet) yang dibuat sendiri, tanpa aset luar.
+- Ditambah 48 partikel ilustratif (fragmen, serat, film, pelet) yang dibuat sendiri, tanpa aset luar.
 
 ## Batas ilmiah
 
-- Jalur partikel adalah garis tengah rongga yang dihitung dari mesh, bukan hasil pengamatan di dalam tubuh.
+- Jalur partikel dihitung dari bentuk mesh, bukan hasil pengamatan di dalam tubuh.
+- Mesh jejunum dan ileum terdiri dari banyak potongan tertutup yang menempel, bukan satu tabung. Jalurnya berkeliling melalui titik-titik rongga agar seluruh bagian terlewati, jadi urutannya bukan urutan anatomi yang pasti.
+- Bentuk partikel saja tidak memastikan jenis plastiknya.
 - Ukuran partikel sangat diperbesar dan jumlahnya tidak mewakili jumlah sebenarnya.
 - Model tidak menunjukkan partikel menembus jaringan atau masuk ke darah. Pada pilihan Aliran Darah, partikel disembunyikan.
 - Tidak ada visual kerusakan, luka, atau penyakit.
@@ -49,6 +51,8 @@ Bagian yang dipakai:
 ## Animasi dan AR
 
 GLB berisi lima klip: `jalur_lengkap`, `kerongkongan`, `lambung`, `usus_halus`, `usus_besar`. USDZ hanya berisi animasi jalur lengkap dan tidak punya warna lekukan per titik. Partikel ada di dalam kedua berkas, jadi tidak ada sistem AR kedua.
+
+Cara menghitung jalur: tiap bagian organ divoxelkan 2,5 mm, jarak ke dinding dihitung dengan distance transform, lalu jalur terpendek berbobot (menjauhi dinding) menjadi garis tengah. Jalur dihaluskan, dan bagian yang keluar rongga memakai penghalusan lebih ringan. Posisi partikel, ukuran yang mengikuti lebar rongga, dan arah dihitung tiap 0,05 detik, lalu kuncinya dipadatkan dalam batas toleransi. Pada klip lambung, sebagian besar partikel berkeliling di dalam rongga lambung dan sisanya lewat dari kerongkongan ke usus halus.
 
 Validasi: glTF Validator 0 error dan 0 peringatan; validator bawaan usd-core 0 temuan. Quick Look di iPhone serta Scene Viewer dan WebXR di Android belum diuji di perangkat sungguhan.
 
@@ -60,7 +64,7 @@ Unduh delapan berkas STL di atas ke satu folder, lalu jalankan dari root repo:
 python scripts/build-organ-model.py public/models/organs <folder STL>
 ```
 
-Butuh numpy, fast-simplification, dan usd-core. Bila pusat organ berubah, sesuaikan `VIEWS` di `components/stages/OrganViewer3D.tsx`.
+Butuh numpy, scipy, fast-simplification, dan usd-core. Bila pusat organ berubah, sesuaikan `VIEWS` di `components/stages/OrganViewer3D.tsx`.
 
 ## Alternatif yang diperiksa
 

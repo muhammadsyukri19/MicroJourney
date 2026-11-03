@@ -79,7 +79,7 @@ function RevealScreen({
   const dangerText = isHighDanger ? 'BAHAYA! KONTAMINASI TINGGI' : 'WASPADA! ADA KONTAMINASI';
 
   return (
-    <div className="relative w-full max-w-full overflow-x-hidden overflow-y-auto flex items-center justify-center min-h-screen py-8 px-4 pt-28 md:pt-32 pb-16 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)]">
+    <div className="relative w-full max-w-full page-clip flex items-center justify-center min-h-[100dvh] py-8 px-4 pt-28 md:pt-32 pb-16 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)]">
       <BgDeco />
 
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -283,7 +283,7 @@ export default function Tahap3() {
   // ─── SELECT PHASE ──────────────────────────────────────────────────────────
   if (phase === 'select') {
     return (
-      <div className="relative max-w-full overflow-x-hidden flex flex-col w-full min-h-screen bg-[#083b54] pt-24 md:pt-32 pb-28 md:pb-16"
+      <div className="relative max-w-full page-clip flex flex-col w-full min-h-[100dvh] bg-[#083b54] pt-24 md:pt-32 pb-28 md:pb-16"
         style={{ background: 'linear-gradient(160deg, #083b54 0%, #006591 45%, #004c6e 100%)' }}>
         <BgDeco />
 
@@ -378,7 +378,7 @@ export default function Tahap3() {
 
   // ─── SUMMARY / LKPD ───────────────────────────────────────────────────────
   return (
-    <div className="relative max-w-full overflow-x-hidden overflow-y-auto w-full min-h-screen pt-28 md:pt-32 pb-16"
+    <div className="relative max-w-full page-clip w-full min-h-[100dvh] pt-28 md:pt-32 pb-16"
       style={{ background: 'linear-gradient(160deg, #083b54 0%, #006591 45%, #004c6e 100%)' }}>
       <BgDeco />
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6 flex flex-col gap-5">

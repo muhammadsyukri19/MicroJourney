@@ -3,10 +3,15 @@ Model saluran pencernaan untuk Tahap 4: kerongkongan, lambung, usus halus, dan u
 partikel mikroplastik ilustratif yang bergerak sepanjang jalur. GLB dan USDZ berisi satu komposisi yang sama, jadi
 partikel ikut tampil di AR. Jalur partikel hanya ilustrasi, bukan hasil pengamatan di dalam tubuh.
 
+Jalur dihitung dari bentuk model: tiap bagian organ divoxelkan, jarak ke dinding dihitung, lalu jalur terpendek yang
+menjauhi dinding menjadi garis tengah rongga. Mesh jejunum dan ileum bukan satu tabung bersih karena lengkungnya menempel,
+jadi jalurnya berkeliling melalui titik-titik rongga. Hasilnya tetap di dalam mesh, tetapi urutannya bukan urutan anatomi
+yang pasti. Ukuran partikel menyesuaikan lebar rongga supaya tidak menembus dinding.
+
 BodyParts3D, Copyright(C) 2008 Life Science Integrated Database Center, CC Attribution-Share Alike 2.1 Japan.
 Modifikasi: mesh digabung per organ, disederhanakan, diputar, dan diberi warna. Hasilnya berlisensi sama.
 
-Butuh numpy, fast-simplification, dan usd-core. Jalankan dari root repo:
+Butuh numpy, scipy, fast-simplification, dan usd-core. Jalankan dari root repo:
   python scripts/build-organ-model.py public/models/organs <folder berisi FMA*.stl>
 """
 
@@ -20,6 +25,10 @@ import tempfile
 import fast_simplification
 import numpy as np
 from pxr import Gf, Kind, Sdf, Usd, UsdGeom, UsdShade, UsdUtils, Vt
+from scipy import ndimage
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import connected_components, dijkstra
+from scipy.spatial import cKDTree
 
 OUT_DIR = pathlib.Path(sys.argv[1])
 SOURCE_DIR = pathlib.Path(sys.argv[2])
@@ -46,18 +55,24 @@ ORGAN_LOOK = {
     "usus_besar": {"color": "#c98f70", "alpha": 0.45, "roughness": 0.44},
 }
 
-# Klip animasi: nama, bagian jalur (None berarti seluruh jalur), jumlah partikel, durasi detik, jumlah kunci
-PARTICLE_COUNT = 30
-FULL_DURATION = 40.0
-ROTATION_KEYS = 25
+VOXEL = 0.0025
+ROUTE_STEP = 0.004
+SAMPLE_STEP = 0.05
 USD_FPS = 24
-CLIPS = [
-    ("jalur_lengkap", None, 30, FULL_DURATION, 160),
-    ("kerongkongan", "kerongkongan", 8, 8.0, 24),
-    ("lambung", "lambung", 14, 16.0, 48),
-    ("usus_halus", "usus_halus", 14, 26.0, 110),
-    ("usus_besar", "usus_besar", 14, 26.0, 80),
-]
+PARTICLE_COUNT = 48
+PARTICLE_KINDS = ["fragmen", "serat", "pelet", "film"]
+SECTIONS = ["kerongkongan", "lambung", "usus_halus", "usus_besar"]
+# Bagian waktu tiap organ pada jalur lengkap, supaya lambung tidak terlewat sekejap dibanding usus halus yang panjang
+FULL_TIME_SHARE = [0.08, 0.22, 0.42, 0.28]
+# Klip animasi: bagian jalur, jumlah partikel, durasi detik, putaran menyamping, ayunan maju mundur, kelipatan ayunan
+CLIPS = {
+    "jalur_lengkap": {"sections": SECTIONS, "count": PARTICLE_COUNT, "duration": 72.0, "turns": 18, "sway": 0.006, "waves": 5},
+    "kerongkongan": {"sections": ["kerongkongan"], "count": 10, "duration": 9.0, "turns": 2, "sway": 0.02, "waves": 2},
+    "lambung": {"sections": ["lambung"], "count": 22, "duration": 24.0, "turns": 3, "sway": 0.05, "waves": 3, "wander": True, "shrink": 0.75},
+    "usus_halus": {"sections": ["usus_halus"], "count": 30, "duration": 48.0, "turns": 10, "sway": 0.008, "waves": 4},
+    "usus_besar": {"sections": ["usus_besar"], "count": 24, "duration": 30.0, "turns": 6, "sway": 0.015, "waves": 3},
+}
+FULL_DURATION = CLIPS["jalur_lengkap"]["duration"]
 
 # Cahaya sendiri yang kecil supaya warna partikel tidak tenggelam oleh warna jaringan di depannya
 PARTICLE_EMISSIVE = 0.4
@@ -132,92 +147,193 @@ def tissue_shade(verts, faces, normals, seed):
 # ─── Jalur ilustratif ───────────────────────────────────────────────────────
 
 
-def inner_points(verts, faces, normals, samples, seed):
-    """Titik tengah rongga: dari permukaan, sinar ke arah dalam sampai dinding seberang."""
-    rng = np.random.default_rng(seed)
-    pick = rng.choice(len(verts), min(samples, len(verts)), replace=False)
-    a, b, c = verts[faces[:, 0]], verts[faces[:, 1]], verts[faces[:, 2]]
-    e1, e2 = b - a, c - a
-    found = []
-    for index in pick:
-        origin = verts[index] - normals[index] * 1e-4
-        direction = -normals[index]
-        p = np.cross(direction, e2)
-        det = (e1 * p).sum(-1)
-        ok = np.abs(det) > 1e-12
-        inv = np.where(ok, 1 / np.where(ok, det, 1), 0)
-        s = origin - a
-        u = (s * p).sum(-1) * inv
-        q = np.cross(s, e1)
-        v = (direction * q).sum(-1) * inv
-        t = (e2 * q).sum(-1) * inv
-        hit = ok & (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 1e-3)
+class Grid:
+    """Kisi voxel seukuran seluruh model, dengan koordinat dunia dalam meter."""
+
+    def __init__(self, low, high):
+        self.origin = low - VOXEL * 3
+        self.shape = tuple(np.ceil((high - low) / VOXEL).astype(int) + 6)
+
+    def center(self, index):
+        return self.origin + (index + 0.5) * VOXEL
+
+    def sample(self, field, points):
+        coordinates = (points - self.origin) / VOXEL - 0.5
+        return ndimage.map_coordinates(field, coordinates.T, order=1, mode="nearest")
+
+
+def voxelize(grid, verts, faces):
+    """Isi mesh tertutup: tiap kolom voxel dipotongkan dengan segitiga, lalu bagian antar pasangan potongan diisi."""
+    tri = (verts[faces] - grid.origin) / VOXEL - 0.5
+    columns, heights = [], []
+    # Pergeseran kecil supaya kolom tidak tepat mengenai tepi segitiga
+    nudge = 0.0137
+    for a, b, c in tri:
+        d = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+        if abs(d) < 1e-12:
+            continue
+        x0, x1 = int(np.ceil(min(a[0], b[0], c[0]) - nudge)), int(np.floor(max(a[0], b[0], c[0]) - nudge))
+        y0, y1 = int(np.ceil(min(a[1], b[1], c[1]) - nudge)), int(np.floor(max(a[1], b[1], c[1]) - nudge))
+        if x1 < x0 or y1 < y0:
+            continue
+        i, j = np.meshgrid(np.arange(x0, x1 + 1), np.arange(y0, y1 + 1), indexing="ij")
+        px, py = i + nudge, j + nudge
+        v = ((px - a[0]) * (c[1] - a[1]) - (py - a[1]) * (c[0] - a[0])) / d
+        w = ((b[0] - a[0]) * (py - a[1]) - (b[1] - a[1]) * (px - a[0])) / d
+        hit = (v >= 0) & (w >= 0) & (v + w <= 1)
         if hit.any():
-            found.append(origin + direction * t[hit].min() / 2)
-    return np.array(found)
+            columns.append(np.column_stack([i[hit], j[hit]]))
+            heights.append(a[2] + v[hit] * (b[2] - a[2]) + w[hit] * (c[2] - a[2]))
+    columns, heights = np.vstack(columns), np.concatenate(heights)
+    order = np.lexsort((heights, columns[:, 1], columns[:, 0]))
+    columns, heights = columns[order], heights[order]
+    breaks = np.flatnonzero(np.any(np.diff(columns, axis=0) != 0, axis=1)) + 1
+    mask = np.zeros(grid.shape, dtype=bool)
+    odd = []
+    for start, end in zip(np.r_[0, breaks], np.r_[breaks, len(columns)]):
+        i, j = columns[start]
+        if (end - start) % 2:
+            odd.append((i, j))
+            continue
+        for low, high in zip(heights[start:end:2], heights[start + 1 : end : 2]):
+            mask[i, j, int(np.ceil(low)) : int(np.floor(high)) + 1] = True
+    # Kolom yang potongannya ganjil mengikuti kolom tetangganya
+    for i, j in odd:
+        mask[i, j, :] = (mask[i - 1, j, :].astype(int) + mask[i + 1, j, :] + mask[i, j - 1, :] + mask[i, j + 1, :]) >= 2
+    return mask
 
 
-def walk(points, start, jump=0.05):
-    """Mengurutkan titik rongga dari titik awal dengan langkah terdekat; berhenti bila titik berikutnya terlalu jauh."""
-    remaining = np.ones(len(points), dtype=bool)
-    current = start
-    chain = []
-    while remaining.any():
-        indices = np.flatnonzero(remaining)
-        distances = np.linalg.norm(points[indices] - current, axis=1)
-        nearest = int(np.argmin(distances))
-        if chain and distances[nearest] > jump:
-            break
-        current = points[indices[nearest]]
-        chain.append(current)
-        remaining[indices[nearest]] = False
-    return np.array(chain)
+class Lumen:
+    """Rongga satu bagian organ sebagai graf voxel. Bobot sisi membesar di dekat dinding."""
+
+    def __init__(self, grid, verts, faces):
+        self.grid = grid
+        self.mask = voxelize(grid, verts, faces)
+        self.clearance = ndimage.distance_transform_edt(self.mask) * VOXEL
+        cells = np.argwhere(self.mask)
+        number = -np.ones(grid.shape, dtype=np.int32)
+        number[tuple(cells.T)] = np.arange(len(cells))
+        rows, targets, weights = [], [], []
+        steps = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), (1, -1, 0), (1, 0, 1), (1, 0, -1), (0, 1, 1), (0, 1, -1), (1, 1, 1), (1, 1, -1), (1, -1, 1), (1, -1, -1)]
+        limit = np.array(grid.shape)
+        wall = self.clearance[tuple(cells.T)]
+        for step in steps:
+            other = cells + step
+            valid = np.all((other >= 0) & (other < limit), axis=1)
+            target = np.full(len(cells), -1, dtype=np.int32)
+            target[valid] = number[tuple(other[valid].T)]
+            keep = target >= 0
+            middle = (wall[keep] + wall[target[keep]]) / 2
+            rows.append(np.flatnonzero(keep))
+            targets.append(target[keep])
+            weights.append(VOXEL * np.linalg.norm(step) * (1 + (0.015 / middle) ** 2))
+        graph = coo_matrix((np.concatenate(weights), (np.concatenate(rows), np.concatenate(targets))), shape=(len(cells), len(cells))).tocsr()
+        _, labels = connected_components(graph, directed=False)
+        self.main = np.flatnonzero(labels == np.bincount(labels).argmax())
+        self.cells, self.graph = cells, graph
+        self.points = grid.center(cells)
+        self.tree = cKDTree(self.points[self.main])
+
+    def nearest(self, point):
+        return self.main[self.tree.query(point)[1]]
+
+    def ends(self):
+        """Dua ujung terjauh rongga, yaitu kedua mulut tabung."""
+        first = self.farthest(self.main[0])
+        return first, self.farthest(first)
+
+    def farthest(self, start):
+        distance = dijkstra(self.graph, directed=False, indices=start)
+        distance[~np.isfinite(distance)] = -1
+        return int(np.argmax(distance))
+
+    def route(self, start, end):
+        _, previous = dijkstra(self.graph, directed=False, indices=start, return_predecessors=True)
+        chain = [end]
+        while chain[-1] != start:
+            chain.append(previous[chain[-1]])
+        return smooth_inside(self.points[chain[::-1]], self.grid, self.clearance, 8)
+
+    def loop(self, rng, stops=5, wide=0.012):
+        """Lintasan tertutup melalui beberapa titik acak di bagian rongga yang lebar."""
+        wall = self.clearance[tuple(self.cells[self.main].T)]
+        chosen = rng.choice(self.main[wall >= wide], stops, replace=False).tolist()
+        chain = []
+        for a, b in zip(chosen, chosen[1:] + chosen[:1]):
+            _, previous = dijkstra(self.graph, directed=False, indices=a, return_predecessors=True)
+            leg = [b]
+            while leg[-1] != a:
+                leg.append(previous[leg[-1]])
+            chain += leg[::-1][:-1]
+        smoothed = ndimage.gaussian_filter1d(self.points[chain], 8, axis=0, mode="wrap")
+        return np.vstack([smoothed, smoothed[:1]])
+
+    def waypoints(self, spacing=0.03, wide=0.004):
+        """Titik di bagian rongga yang lebar, saling berjarak, mengutamakan yang paling jauh dari dinding."""
+        wall = self.clearance[tuple(self.cells[self.main].T)]
+        candidates = self.main[wall >= wide]
+        tree = cKDTree(self.points[candidates])
+        free = np.ones(len(candidates), dtype=bool)
+        chosen = []
+        for index in np.argsort(-wall[wall >= wide]):
+            if free[index]:
+                chosen.append(int(candidates[index]))
+                free[tree.query_ball_point(self.points[candidates[index]], spacing)] = False
+        return chosen
+
+    def tour(self, start, end):
+        """Jalur dari start ke end yang melewati semua titik rongga, dengan urutan yang total jaraknya pendek."""
+        stops = [start, *[w for w in self.waypoints() if w not in (start, end)], end]
+        distance, previous = dijkstra(self.graph, directed=False, indices=stops, return_predecessors=True)
+        cost = distance[:, stops]
+        order = [0]
+        left = set(range(1, len(stops) - 1))
+        while left:
+            nearest = min(left, key=lambda k: cost[order[-1], k])
+            order.append(nearest)
+            left.remove(nearest)
+        order.append(len(stops) - 1)
+        improved = True
+        while improved:
+            improved = False
+            for i in range(1, len(order) - 2):
+                for j in range(i + 1, len(order) - 1):
+                    before = cost[order[i - 1], order[i]] + cost[order[j], order[j + 1]]
+                    after = cost[order[i - 1], order[j]] + cost[order[i], order[j + 1]]
+                    if after < before - 1e-9:
+                        order[i : j + 1] = order[i : j + 1][::-1]
+                        improved = True
+        chain = [stops[order[0]]]
+        for a, b in zip(order[:-1], order[1:]):
+            leg = [stops[b]]
+            while leg[-1] != stops[a]:
+                leg.append(previous[a, leg[-1]])
+            chain += leg[::-1][1:]
+        return smooth_inside(self.points[chain], self.grid, self.clearance, 5)
 
 
-def inside_mesh(points, verts, faces):
-    """Titik berada di dalam mesh tertutup bila sinar dari titik itu menembus permukaan sebanyak bilangan ganjil."""
-    a, b, c = verts[faces[:, 0]], verts[faces[:, 1]], verts[faces[:, 2]]
-    e1, e2 = b - a, c - a
-    direction = normalized(np.array([0.37, 0.53, 0.76]))
-    p = np.cross(direction, e2)
-    det = (e1 * p).sum(-1)
-    ok = np.abs(det) > 1e-12
-    inv = np.where(ok, 1 / np.where(ok, det, 1), 0)
-    result = []
-    for origin in points:
-        s = origin - a
-        u = (s * p).sum(-1) * inv
-        q = np.cross(s, e1)
-        v = (direction * q).sum(-1) * inv
-        t = (e2 * q).sum(-1) * inv
-        result.append(int((ok & (u >= 0) & (v >= 0) & (u + v <= 1) & (t > 0)).sum()) % 2 == 1)
-    return np.array(result)
+def smooth_inside(points, grid, clearance, sigma):
+    """Menghaluskan jalur; bagian yang keluar dari rongga memakai penghalusan yang lebih ringan."""
+    points = resample(points, max(int(np.linalg.norm(np.diff(points, axis=0), axis=1).sum() / VOXEL), 8))
+    result = points
+    for width in (sigma / 4, sigma / 2, sigma):
+        smoothed = ndimage.gaussian_filter1d(points, width, axis=0, mode="nearest")
+        smoothed[0], smoothed[-1] = points[0], points[-1]
+        wider = ndimage.binary_dilation(grid.sample(clearance, smoothed) < VOXEL, iterations=4)
+        result = np.where(wider[:, None], result, smoothed)
+    return result
 
 
-def arc_path(points, start, end, bins):
-    """Garis tengah organ melengkung: titik rongga dikelompokkan menurut sudut di sekitar lekukannya."""
-    middle = (start + end) / 2
-    first, last = normalized(start - middle), normalized(end - middle)
-    side = normalized(points.mean(axis=0) - middle)
-    side = normalized(side - first * (side @ first))
-    offset = points - middle
-    angle = np.arctan2(offset @ side, offset @ first) % TWO_PI
-    sweep = np.arctan2(last @ side, last @ first) % TWO_PI
-    edges = np.linspace(0, sweep, bins + 1)
-    chain = [start]
-    for low, high in zip(edges[:-1], edges[1:]):
-        group = points[(angle >= low) & (angle < high)]
-        if len(group):
-            chain.append(np.median(group, axis=0))
-    chain.append(end)
-    return np.array(chain)
-
-
-def smooth_path(path, width):
-    kernel = np.hanning(width + 2)[1:-1]
-    kernel /= kernel.sum()
-    padded = np.concatenate([np.repeat(path[:1], width, axis=0), path, np.repeat(path[-1:], width, axis=0)])
-    return np.column_stack([np.convolve(padded[:, k], kernel, mode="same") for k in range(3)])[width:-width]
+def build_route(points, grid, clearance):
+    """Garis tengah dengan titik berjarak sama, arah, kerangka putar, dan lebar rongga."""
+    points = resample(points, max(int(np.linalg.norm(np.diff(points, axis=0), axis=1).sum() / ROUTE_STEP), 8))
+    tangent = normalized(ndimage.gaussian_filter1d(np.gradient(points, axis=0), 2, axis=0, mode="nearest"))
+    normal = np.zeros_like(points)
+    current = normalized(np.cross(tangent[0], [0.31, 0.2, 0.93]))
+    for i, direction in enumerate(tangent):
+        current = normalized(current - direction * (current @ direction))
+        normal[i] = current
+    return {"points": points, "tangent": tangent, "normal": normal, "binormal": np.cross(tangent, normal), "radius": np.maximum(grid.sample(clearance, points), VOXEL)}
 
 
 def resample(path, count):
@@ -310,6 +426,16 @@ def fiber_mesh(rng):
     return verts, np.array(faces)
 
 
+def unit_shape(verts, faces, kind):
+    verts = verts - verts.mean(axis=0)
+    if kind == "serat":
+        # Sumbu panjang serat menjadi sumbu x, supaya bisa searah jalur
+        _, _, axes = np.linalg.svd(verts, full_matrices=False)
+        verts = verts @ axes.T
+    verts = verts / np.linalg.norm(verts, axis=1).max()
+    return flat(verts, faces)
+
+
 def flat(verts, faces):
     tri = verts[faces]
     normals = normalized(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]))
@@ -317,7 +443,41 @@ def flat(verts, faces):
 
 
 def quaternion(axis, angle):
-    return np.concatenate([axis * np.sin(angle / 2), [np.cos(angle / 2)]])
+    angle = np.asarray(angle)[..., None]
+    return np.concatenate([axis * np.sin(angle / 2), np.cos(angle / 2)], axis=-1)
+
+
+def quaternion_multiply(a, b):
+    ax, ay, az, aw = np.moveaxis(a, -1, 0)
+    bx, by, bz, bw = np.moveaxis(b, -1, 0)
+    return np.stack([aw * bx + ax * bw + ay * bz - az * by, aw * by - ax * bz + ay * bw + az * bx, aw * bz + ax * by - ay * bx + az * bw, aw * bw - ax * bx - ay * by - az * bz], axis=-1)
+
+
+def quaternion_from_frame(x, y, z):
+    w = np.sqrt(np.maximum(0, 1 + x[:, 0] + y[:, 1] + z[:, 2])) / 2
+    qx = np.copysign(np.sqrt(np.maximum(0, 1 + x[:, 0] - y[:, 1] - z[:, 2])) / 2, y[:, 2] - z[:, 1])
+    qy = np.copysign(np.sqrt(np.maximum(0, 1 - x[:, 0] + y[:, 1] - z[:, 2])) / 2, z[:, 0] - x[:, 2])
+    qz = np.copysign(np.sqrt(np.maximum(0, 1 - x[:, 0] - y[:, 1] + z[:, 2])) / 2, x[:, 1] - y[:, 0])
+    return normalized(np.column_stack([qx, qy, qz, w]))
+
+
+def fewer_keys(times, values, tolerance):
+    """Membuang kunci yang bisa didekati garis lurus, tetapi tetap dalam batas toleransi."""
+    keep = np.zeros(len(times), dtype=bool)
+    keep[[0, -1]] = True
+    stack = [(0, len(times) - 1)]
+    while stack:
+        a, b = stack.pop()
+        if b - a < 2:
+            continue
+        share = ((times[a + 1 : b] - times[a]) / (times[b] - times[a]))[:, None]
+        error = np.linalg.norm(values[a + 1 : b] - (values[a] * (1 - share) + values[b] * share), axis=1)
+        worst = int(np.argmax(error))
+        if error[worst] > tolerance:
+            middle = a + 1 + worst
+            keep[middle] = True
+            stack += [(a, middle), (middle, b)]
+    return times[keep], values[keep]
 
 
 # ─── Penulisan ──────────────────────────────────────────────────────────────
@@ -395,15 +555,16 @@ def write_usdz(target, organs, particles):
             path = f"/Root/partikel_{i + 1}"
             mesh(path, particle["positions"], particle["normals"], particle["indices"], materials[particle["kind"]])
             xform = UsdGeom.Xformable(stage.GetPrimAtPath(path))
-            translate, orient, scale = xform.AddTranslateOp(), xform.AddOrientOp(), xform.AddScaleOp()
+            translate, orient, scale = xform.AddTranslateOp(UsdGeom.XformOp.PrecisionFloat), xform.AddOrientOp(), xform.AddScaleOp()
             track = particle["full"]
-            for k, moment in enumerate(track["times"]):
-                when = float(moment) * USD_FPS
-                translate.Set(Gf.Vec3d(*(float(v) for v in track["translation"][k])), when)
+            for moment, value in zip(*track["translation"]):
+                translate.Set(Gf.Vec3f(*(float(v) for v in value)), float(moment) * USD_FPS)
+            for moment, value in zip(*track["scale"]):
                 # Skala nol membuat matriks tidak bisa dibalik di beberapa penampil USD
-                scale.Set(Gf.Vec3f(*(max(float(v), 0.001) for v in track["scale"][k])), when)
-            for k, moment in enumerate(track["rotation_times"]):
-                x, y, z, w = (float(v) for v in track["rotation"][k])
+                size = max(float(value[0]), 0.0001)
+                scale.Set(Gf.Vec3f(size, size, size), float(moment) * USD_FPS)
+            for moment, value in zip(*track["rotation"]):
+                x, y, z, w = (float(v) for v in value)
                 orient.Set(Gf.Quatf(w, x, y, z), float(moment) * USD_FPS)
         stage.GetRootLayer().Save()
         target = target.resolve()
@@ -419,7 +580,6 @@ def write_usdz(target, organs, particles):
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     grouped = {}
-    chain_parts = []
     raw_parts = {}
     for organ, fma, target in PARTS:
         points, faces = read_stl(SOURCE_DIR / f"{fma}.stl")
@@ -447,77 +607,156 @@ def main():
         normals = vertex_normals(verts, faces)
         organs[organ] = {"verts": verts, "faces": faces, "normals": normals, "shade": tissue_shade(verts, faces, normals, len(organ))}
 
-    # Jalur ilustratif dari kerongkongan sampai rektum
+    # Jalur ilustratif dari kerongkongan sampai rektum, mengikuti garis tengah rongga tiap bagian
     def moved(fma):
         points, part_faces = raw_parts[fma]
         return points - shift, part_faces
 
-    def cavity(fma, samples):
-        points, part_faces = moved(fma)
-        return inner_points(points, part_faces, vertex_normals(points, part_faces), samples, sum(map(ord, fma)))
+    grid = Grid(all_points.min(axis=0) - shift, all_points.max(axis=0) - shift)
+    lumens = {fma: Lumen(grid, *moved(fma)) for fma in ("FMA7131", "FMA7148", "FMA7206", "FMA7207", "FMA7208", "FMA14543nsn", "FMA14544")}
+    appendix = voxelize(grid, *moved("FMA14542"))
+    union = appendix.copy()
+    for lumen in lumens.values():
+        union |= lumen.mask
+    clearance = ndimage.distance_transform_edt(union) * VOXEL
 
-    esophagus = cavity("FMA7131", 60)
-    esophagus = smooth_path(esophagus[np.argsort(-esophagus[:, 1])], 7)
-    duodenum_points = cavity("FMA7206", 120)
-    pylorus = duodenum_points[np.argmin(np.linalg.norm(duodenum_points - moved("FMA7148")[0].mean(axis=0), axis=1))]
-    stomach_points, stomach_faces = moved("FMA7148")
-    stomach = resample(smooth_path(arc_path(cavity("FMA7148", 500), esophagus[-1], pylorus, 14), 3), 60)
-    print("jalur lambung di dalam rongga:", int(inside_mesh(stomach, stomach_points, stomach_faces).sum()), "dari", len(stomach), flush=True)
-    small, current = [], stomach[-1]
-    for fma, samples in (("FMA7206", 120), ("FMA7207", 420), ("FMA7208", 420)):
-        section = walk(cavity(fma, samples), current, jump=0.06)
-        small.append(section)
-        current = section[-1]
-    small = smooth_path(np.vstack(small), 5)
-    colon_points = cavity("FMA14543nsn", 500)
-    cecum = colon_points[np.argmin(np.linalg.norm(colon_points - moved("FMA14542")[0].mean(axis=0), axis=1))]
-    colon = walk(colon_points, cecum, jump=0.06)
-    rectum = cavity("FMA14544", 60)
-    large = smooth_path(np.vstack([colon, rectum[np.argsort(-rectum[:, 1])]]), 5)
-    sections = {"kerongkongan": esophagus, "lambung": stomach, "usus_halus": small, "usus_besar": large}
-    for name, section in sections.items():
-        print(f"jalur {name}: {len(section)} titik, {np.linalg.norm(np.diff(section, axis=0), axis=1).sum():.2f} m", flush=True)
-    full_path = np.vstack(list(sections.values()))
+    def tube(fma, near=None):
+        """Jalur satu tabung dari ujung yang paling dekat ke titik sebelumnya."""
+        lumen = lumens[fma]
+        a, b = lumen.ends()
+        if near is not None and np.linalg.norm(lumen.points[b] - near) < np.linalg.norm(lumen.points[a] - near):
+            a, b = b, a
+        return lumen.route(a, b)
 
-    # Partikel: bentuk berbeda dan fase berbeda; ukurannya diperbesar supaya terlihat
+    esophagus = tube("FMA7131")
+    if esophagus[0, 1] < esophagus[-1, 1]:
+        esophagus = esophagus[::-1]
+    stomach_center = moved("FMA7148")[0].mean(axis=0)
+    duodenum = tube("FMA7206", stomach_center)
+    stomach_lumen = lumens["FMA7148"]
+    stomach = stomach_lumen.route(stomach_lumen.nearest(esophagus[-1]), stomach_lumen.nearest(duodenum[0]))
+    # Usus besar dimulai dari ujung kolon di dekat usus buntu dan berakhir di ujung yang dekat rektum
+    colon_lumen = lumens["FMA14543nsn"]
+    rectum_top = moved("FMA14544")[0]
+    rectum_top = rectum_top[np.argsort(-rectum_top[:, 1])[:20]].mean(axis=0)
+    colon_end, colon_start = sorted(colon_lumen.ends(), key=lambda index: np.linalg.norm(colon_lumen.points[index] - rectum_top))
+    colon = colon_lumen.route(colon_start, colon_end)
+    rectum = tube("FMA14544", colon[-1])
+    # Jejunum dan ileum disambung di pasangan titik rongga terdekat, jauh dari ujung masuk dan ujung keluarnya
+    jejunum_lumen, ileum_lumen = lumens["FMA7207"], lumens["FMA7208"]
+    jejunum_start = jejunum_lumen.nearest(duodenum[-1])
+    ileum_end = ileum_lumen.nearest(colon[0])
+    jejunum_stops = np.array([w for w in jejunum_lumen.waypoints() if np.linalg.norm(jejunum_lumen.points[w] - jejunum_lumen.points[jejunum_start]) > 0.05])
+    ileum_stops = np.array([w for w in ileum_lumen.waypoints() if np.linalg.norm(ileum_lumen.points[w] - ileum_lumen.points[ileum_end]) > 0.05])
+    gap = np.linalg.norm(jejunum_lumen.points[jejunum_stops][:, None] - ileum_lumen.points[ileum_stops][None], axis=2)
+    pair = np.unravel_index(np.argmin(gap), gap.shape)
+    jejunum = jejunum_lumen.tour(jejunum_start, int(jejunum_stops[pair[0]]))
+    ileum = ileum_lumen.tour(int(ileum_stops[pair[1]]), ileum_end)
+    parts = {"kerongkongan": [esophagus], "lambung": [stomach], "usus_halus": [duodenum, jejunum, ileum], "usus_besar": [colon, rectum]}
+    for name, pieces in parts.items():
+        gaps = [float(np.linalg.norm(a[-1] - b[0]) * 100) for a, b in zip(pieces[:-1], pieces[1:])]
+        print(f"jalur {name}: panjang {sum(np.linalg.norm(np.diff(x, axis=0), axis=1).sum() for x in pieces):.2f} m, celah sambungan {[round(g, 1) for g in gaps]} cm", flush=True)
+    routes = {name: build_route(smooth_inside(np.vstack(pieces), grid, clearance, 3), grid, clearance) for name, pieces in parts.items()}
+    joined = np.vstack([routes[name]["points"] for name in SECTIONS])
+    print("celah antar organ", [round(float(np.linalg.norm(routes[a]["points"][-1] - routes[b]["points"][0]) * 100), 1) for a, b in zip(SECTIONS[:-1], SECTIONS[1:])], "cm", flush=True)
+    full_route = build_route(smooth_inside(joined, grid, clearance, 3), grid, clearance)
+    lengths = np.array([np.linalg.norm(np.diff(routes[name]["points"], axis=0), axis=1).sum() for name in SECTIONS])
+    arc_marks = np.r_[0, np.cumsum(lengths) / lengths.sum()]
+    time_marks = np.r_[0, np.cumsum(FULL_TIME_SHARE)]
+
+    # Partikel: empat bentuk, dua variasi tiap bentuk; satu mesh dipakai bersama agar hemat memori grafis
     rng = np.random.default_rng(404)
     makers = {"fragmen": fragment_mesh, "serat": fiber_mesh, "film": film_mesh, "pelet": pellet_mesh}
-    sequence = (["fragmen", "serat", "pelet", "film"] * 8)[:PARTICLE_COUNT]
+    shapes = []
+    for variant in range(2):
+        for kind in PARTICLE_KINDS:
+            shapes.append({"kind": kind, "variant": variant, "shape": unit_shape(*makers[kind](rng), kind)})
     particles = []
-    for kind in sequence:
-        verts, faces = makers[kind](rng)
-        positions, normals, indices = flat(verts * rng.uniform(0.007, 0.0105), faces)
-        particles.append({"kind": kind, "positions": positions, "normals": normals, "indices": indices, "axis": normalized(rng.normal(0, 1, 3)), "turns": int(rng.integers(1, 4)), "start": rng.uniform(0, TWO_PI), "jitter": rng.normal(0, 0.0025, 3)})
+    for i in range(PARTICLE_COUNT):
+        kind_index, variant = i % 4, (i // 4) % 2
+        kind = PARTICLE_KINDS[kind_index]
+        positions, normals, indices = shapes[variant * 4 + kind_index]["shape"]
+        particles.append(
+            {
+                "kind": kind,
+                "mesh": variant * 4 + kind_index,
+                "positions": positions,
+                "normals": normals,
+                "indices": indices,
+                # Jari-jari tampak dalam meter. Ini sangat diperbesar dan tidak menunjukkan ukuran sebenarnya
+                "size": rng.uniform(0.009, 0.013),
+                "lane": rng.uniform(0.35, 0.85),
+                "angle": rng.uniform(0, TWO_PI),
+                "wave": rng.uniform(0, TWO_PI),
+                # Serat berputar pada sumbu panjangnya supaya tetap searah jalur
+                "axis": np.array([1.0, 0.0, 0.0]) if kind == "serat" else normalized(rng.normal(0, 1, 3)),
+                "turns": int(rng.integers(2, 5)),
+                "tilt": normalized(rng.normal(0, 1, 4)) if kind != "serat" else np.array([0.0, 0.0, 0.0, 1.0]),
+            }
+        )
 
-    def tracks(particle, path, phase, duration, keys, spread=0.0, mesh=None):
-        """Satu putaran melingkar: partikel mengecil di ujung jalur dan muncul lagi di awal."""
-        points = resample(path, max(keys * 2, 240))
-        times = np.linspace(0, duration, keys)
-        where = ((phase + np.linspace(0, 1, keys)) % 1.0) * (len(points) - 1)
-        translation = np.column_stack([np.interp(where, np.arange(len(points)), points[:, k]) for k in range(3)]) + particle["jitter"]
-        if spread:
-            # Partikel menyebar di rongga, tetapi kembali ke garis tengah bila sebarannya menembus dinding
-            shifted = translation + normalized(particle["jitter"]) * spread
-            keep = inside_mesh(shifted, *mesh)
-            translation = np.where(keep[:, None], shifted, translation)
-        scale = np.ones((keys, 3))
-        for k in range(keys - 1):
-            if where[k + 1] < where[k]:
-                scale[k] = scale[k + 1] = 0
-        if scale[0, 0] == 0 or scale[-1, 0] == 0:
-            scale[0] = scale[-1] = 0
-        rotation_times = np.linspace(0, duration, ROTATION_KEYS)
-        angles = particle["turns"] * TWO_PI * np.linspace(0, 1, ROTATION_KEYS) + particle["start"]
-        rotation = np.array([quaternion(particle["axis"], a) for a in angles])
-        return {"times": times, "translation": translation, "scale": scale, "rotation_times": rotation_times, "rotation": rotation}
+    def simulate(particle, clip, route, phase, closed=False):
+        """Posisi, ukuran, dan arah satu partikel tiap langkah waktu, lalu dipadatkan menjadi kunci animasi."""
+        duration = clip["duration"]
+        times = np.arange(0, duration + SAMPLE_STEP / 2, SAMPLE_STEP)
+        share = times / duration
+        # Maju terus dengan kecepatan yang sedikit berubah; ayunannya berulang tepat di akhir klip
+        along = (phase + share + clip["sway"] * np.sin(TWO_PI * clip["waves"] * share + particle["wave"])) % 1.0
+        arc = np.interp(along, time_marks, arc_marks) if len(clip["sections"]) > 1 else along
+        where = arc * (len(route["points"]) - 1)
+        grid_index = np.arange(len(route["points"]))
+
+        def on_route(key):
+            return np.column_stack([np.interp(where, grid_index, route[key][:, k]) for k in range(3)])
+
+        center, tangent, normal = on_route("points"), normalized(on_route("tangent")), normalized(on_route("normal"))
+        binormal = np.cross(tangent, normal)
+        radius = np.interp(where, grid_index, route["radius"])
+        # Ukuran mengikuti lebar rongga, jadi partikel tidak lebih besar daripada ruang yang tersedia
+        size = np.maximum(np.minimum(particle["size"] * clip.get("shrink", 1), radius * 1.05), 0.005)
+        size = ndimage.gaussian_filter1d(size, 6, mode="nearest")
+        angle = particle["angle"] + TWO_PI * clip["turns"] * share
+        offset = particle["lane"] * np.maximum(radius - size, 0)
+        position = center + offset[:, None] * (np.cos(angle)[:, None] * normal + np.sin(angle)[:, None] * binormal)
+        tight = grid.sample(clearance, position) < size * 0.7
+        position[tight] = center[tight]
+        # Muncul dan hilang perlahan di ujung jalur, dan lompatan kembali ke awal tidak terlihat
+        fade = np.ones(len(along)) if closed else np.clip(np.minimum(along, 1 - along) / 0.012, 0, 1)
+        scale = size * fade
+        if not closed:
+            jumps = np.flatnonzero(np.abs(np.diff(along)) > 0.5)
+            scale[jumps], scale[jumps + 1] = 0, 0
+        # Lintasan tertutup tidak punya arah maju yang tetap, jadi partikelnya hanya berputar pelan
+        frame = np.tile([0.0, 0.0, 0.0, 1.0], (len(along), 1)) if closed else quaternion_from_frame(tangent, normal, binormal)
+        spin = quaternion(particle["axis"], particle["turns"] * TWO_PI * share)
+        rotation = normalized(quaternion_multiply(quaternion_multiply(frame, spin), particle["tilt"]))
+        for k in range(1, len(rotation)):
+            if rotation[k] @ rotation[k - 1] < 0:
+                rotation[k] = -rotation[k]
+        stats = (grid.sample(union.astype(np.float32), position[fade > 0]) >= 0.5, grid.sample(clearance, position[fade > 0]) >= size[fade > 0] * 0.6, size[fade > 0])
+        return {
+            "translation": fewer_keys(times, position, 0.0012),
+            "scale": fewer_keys(times, scale[:, None], 0.0003),
+            "rotation": fewer_keys(times, rotation, 0.05),
+            "stats": stats,
+        }
 
     clips = []
-    for name, path, count, duration, keys in CLIPS:
-        path = full_path if path is None else sections[path]
-        order = sorted({round(i * PARTICLE_COUNT / count) for i in range(count)})
-        extra = {"spread": 0.016, "mesh": (stomach_points, stomach_faces)} if name == "lambung" else {}
-        items = {i: tracks(particles[i], path, order.index(i) / len(order), duration, keys, **extra) for i in order}
-        clips.append((name, duration, items))
+    for name, clip in CLIPS.items():
+        route = full_route if len(clip["sections"]) > 1 else routes[clip["sections"][0]]
+        phases = (np.arange(clip["count"]) + rng.uniform(-0.25, 0.25, clip["count"])) / clip["count"]
+        items = {}
+        for i in range(clip["count"]):
+            if clip.get("wander") and i % 5:
+                items[i] = simulate(particles[i], clip, build_route(stomach_lumen.loop(rng), grid, clearance), rng.uniform(0, 1), closed=True)
+            else:
+                items[i] = simulate(particles[i], clip, route, phases[i] % 1.0)
+        inside = np.concatenate([item["stats"][0] for item in items.values()])
+        roomy = np.concatenate([item["stats"][1] for item in items.values()])
+        sizes = np.concatenate([item["stats"][2] for item in items.values()])
+        keys = sum(len(item["translation"][0]) for item in items.values())
+        print(f"klip {name}: pusat di dalam rongga {inside.mean() * 100:.1f}%, muat di rongga {roomy.mean() * 100:.1f}%, jari-jari {sizes.mean() * 1000:.1f} mm, kunci posisi {keys}", flush=True)
+        clips.append((name, clip["duration"], items))
     for i, particle in enumerate(particles):
         particle["full"] = clips[0][2][i]
 
@@ -554,27 +793,28 @@ def main():
     for kind, color in PARTICLE_LOOK.items():
         materials.append({"name": f"partikel_{kind}", "emissiveFactor": [round(float(c) * PARTICLE_EMISSIVE, 4) for c in hex_linear(color)], "pbrMetallicRoughness": {"baseColorFactor": [*[round(float(c), 4) for c in hex_linear(color)], 1.0], "metallicFactor": 0.0, "roughnessFactor": 0.35}})
         particle_material[kind] = len(materials) - 1
+    shape_meshes = {}
     particle_nodes = []
     for i, particle in enumerate(particles):
-        primitive = {
-            "attributes": {"POSITION": glb.add(particle["positions"].astype(np.float32), 5126, "VEC3", 34962, bounds=True), "NORMAL": glb.add(particle["normals"].astype(np.float32), 5126, "VEC3", 34962)},
-            "indices": glb.add(particle["indices"].astype(np.uint16), 5123, "SCALAR", 34963),
-            "material": particle_material[particle["kind"]],
-        }
-        meshes.append({"name": f"partikel_{i + 1}", "primitives": [primitive]})
-        rest = particle["full"]["translation"][0]
-        nodes.append({"name": f"partikel_{i + 1}", "mesh": len(meshes) - 1, "translation": [float(v) for v in rest]})
+        if particle["mesh"] not in shape_meshes:
+            primitive = {
+                "attributes": {"POSITION": glb.add(particle["positions"].astype(np.float32), 5126, "VEC3", 34962, bounds=True), "NORMAL": glb.add(particle["normals"].astype(np.float32), 5126, "VEC3", 34962)},
+                "indices": glb.add(particle["indices"].astype(np.uint16), 5123, "SCALAR", 34963),
+                "material": particle_material[particle["kind"]],
+            }
+            meshes.append({"name": f"bentuk_{particle['kind']}_{particle['mesh']}", "primitives": [primitive]})
+            shape_meshes[particle["mesh"]] = len(meshes) - 1
+        rest = particle["full"]["translation"][1][0]
+        nodes.append({"name": f"partikel_{i + 1}", "mesh": shape_meshes[particle["mesh"]], "translation": [float(v) for v in rest], "scale": [float(particle["size"])] * 3})
         particle_nodes.append(len(nodes) - 1)
         root_children.append(len(nodes) - 1)
     animations = []
     for name, duration, items in clips:
         samplers, channels = [], []
-        first = next(iter(items.values()))
-        time_accessor = glb.add(first["times"].astype(np.float32), 5126, "SCALAR", bounds=True)
-        spin_accessor = glb.add(first["rotation_times"].astype(np.float32), 5126, "SCALAR", bounds=True)
-        step_accessor = None
+        hidden_times = None
 
-        def channel(node, target, input_accessor, values, kind):
+        def channel(node, target, moments, values, kind):
+            input_accessor = moments if isinstance(moments, int) else glb.add(moments.astype(np.float32), 5126, "SCALAR", bounds=True)
             samplers.append({"input": input_accessor, "output": glb.add(values.astype(np.float32), 5126, kind), "interpolation": "LINEAR"})
             channels.append({"sampler": len(samplers) - 1, "target": {"node": node, "path": target}})
 
@@ -582,13 +822,13 @@ def main():
             item = items.get(i)
             if item is None:
                 # Partikel yang tidak dipakai jalur ini disembunyikan
-                if step_accessor is None:
-                    step_accessor = glb.add(np.array([0, duration], dtype=np.float32), 5126, "SCALAR", bounds=True)
-                channel(node, "scale", step_accessor, np.zeros((2, 3)), "VEC3")
+                if hidden_times is None:
+                    hidden_times = glb.add(np.array([0, duration], dtype=np.float32), 5126, "SCALAR", bounds=True)
+                channel(node, "scale", hidden_times, np.zeros((2, 3)), "VEC3")
                 continue
-            channel(node, "translation", time_accessor, item["translation"], "VEC3")
-            channel(node, "scale", time_accessor, item["scale"], "VEC3")
-            channel(node, "rotation", spin_accessor, item["rotation"], "VEC4")
+            channel(node, "translation", item["translation"][0], item["translation"][1], "VEC3")
+            channel(node, "scale", item["scale"][0], np.repeat(item["scale"][1], 3, axis=1), "VEC3")
+            channel(node, "rotation", item["rotation"][0], normalized(item["rotation"][1]), "VEC4")
         animations.append({"name": name, "samplers": samplers, "channels": channels})
     nodes.append({"name": "SaluranPencernaan", "children": root_children})
     while len(glb.blob) % 4:
@@ -615,7 +855,7 @@ def main():
     write_usdz(OUT_DIR / "digestive.usdz", organs, particles)
 
     triangles = sum(len(d["faces"]) for d in organs.values())
-    print(f"organ {triangles:,} segitiga, partikel {sum(len(p['indices']) // 3 for p in particles):,} segitiga, GLB {total // 1024} KB, USDZ {(OUT_DIR / 'digestive.usdz').stat().st_size // 1024} KB")
+    print(f"organ {triangles:,} segitiga, partikel {sum(len(p['indices']) // 3 for p in particles):,} segitiga tampil, GLB {total // 1024} KB, USDZ {(OUT_DIR / 'digestive.usdz').stat().st_size // 1024} KB")
     size = high - low
     print(f"ukuran {size[0] * 100:.0f} x {size[1] * 100:.0f} x {size[2] * 100:.0f} cm")
     for name, data in organs.items():

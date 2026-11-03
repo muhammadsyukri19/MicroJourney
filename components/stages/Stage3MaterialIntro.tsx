@@ -255,7 +255,7 @@ export default function Stage3MaterialIntro({ onComplete, startAtEnd = false }: 
   // We fill exactly the remaining viewport height with overflow-hidden.
   return (
     <div
-      className="flex flex-col overflow-y-auto overflow-x-hidden max-w-full relative font-[family-name:var(--font-inter)] w-full min-h-[100dvh] bg-[#083b54] pt-24 md:pt-32 pb-6 md:pb-16"
+      className="flex flex-col page-clip max-w-full relative font-[family-name:var(--font-inter)] w-full min-h-[100dvh] bg-[#083b54] pt-24 md:pt-32 pb-6 md:pb-16"
       style={{
         background: 'linear-gradient(160deg, #083b54 0%, #006591 45%, #004c6e 100%)',
       }}

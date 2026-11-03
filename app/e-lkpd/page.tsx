@@ -195,7 +195,7 @@ export default function ELKPDPage() {
   }
 
   return (
-    <div className="min-h-screen pb-24 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative overflow-x-hidden">
+    <div className="min-h-[100dvh] pb-24 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative page-clip">
       <Navbar />
       {/* Background patterns */}
       <div className="absolute inset-0 adventure-map opacity-10 pointer-events-none" />

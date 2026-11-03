@@ -4,24 +4,38 @@ import { loadViewerScript } from '@/lib/modelViewer';
 
 const MODEL_BASE = '/models/organs';
 const LOAD_PROBLEM = 'Model 3D belum bisa dimuat. Periksa koneksi internet, lalu coba lagi.';
+const WEBGL_PROBLEM = 'Perangkat atau browser ini tidak bisa menampilkan grafis 3D, jadi yang tampil adalah gambar anatomi. Informasi organ tetap bisa dibaca.';
+const CONCEPT_NOTE = 'Animasi konseptual: jalur dihitung dari bentuk model 3D, bukan hasil pengamatan di dalam tubuh. Ukuran dan jumlah partikel bukan ukuran dan jumlah sebenarnya, dan bentuk saja tidak memastikan jenis plastiknya.';
+const SPEEDS = [
+  { value: 0.5, label: 'Lambat' },
+  { value: 1, label: 'Normal' },
+  { value: 2, label: 'Cepat' },
+];
+const MORPHS = [
+  { id: 'semua', label: 'Semua' },
+  { id: 'fragmen', label: 'Fragmen' },
+  { id: 'serat', label: 'Serat' },
+  { id: 'film', label: 'Film' },
+  { id: 'pelet', label: 'Pelet' },
+];
 
 export type OrganViewId = 'lengkap' | 'kerongkongan' | 'lambung' | 'usus_halus' | 'usus_besar' | 'darah';
 
 /** Pusat dan jarak kamera berasal dari keluaran scripts/build-organ-model.py, dalam meter */
-const VIEWS: Record<OrganViewId, { label: string; clip: string; material: string | null; target: string; orbit: string }> = {
-  lengkap: { label: 'Jalur lengkap', clip: 'jalur_lengkap', material: null, target: '0m 0.33m 0m', orbit: '0deg 85deg 1.2m' },
-  kerongkongan: { label: 'Kerongkongan (mulut tidak dimodelkan)', clip: 'kerongkongan', material: 'kerongkongan', target: '0m 0.535m -0.024m', orbit: '0deg 85deg 0.65m' },
-  lambung: { label: 'Lambung', clip: 'lambung', material: 'lambung', target: '0.04m 0.366m 0.028m', orbit: '0deg 85deg 0.5m' },
-  usus_halus: { label: 'Usus halus', clip: 'usus_halus', material: 'usus_halus', target: '0m 0.207m 0.033m', orbit: '0deg 85deg 0.72m' },
-  usus_besar: { label: 'Usus besar', clip: 'usus_besar', material: 'usus_besar', target: '-0.002m 0.166m -0.003m', orbit: '0deg 85deg 0.85m' },
-  darah: { label: 'Jalur lengkap, tanpa partikel', clip: 'jalur_lengkap', material: null, target: '0m 0.33m 0m', orbit: '0deg 85deg 1.2m' },
+const VIEWS: Record<OrganViewId, { label: string; clip: string; material: string | null; target: string; distance: number }> = {
+  lengkap: { label: 'Jalur lengkap', clip: 'jalur_lengkap', material: null, target: '0m 0.33m 0m', distance: 1.2 },
+  kerongkongan: { label: 'Kerongkongan (mulut tidak dimodelkan)', clip: 'kerongkongan', material: 'kerongkongan', target: '0m 0.535m -0.024m', distance: 0.65 },
+  lambung: { label: 'Lambung', clip: 'lambung', material: 'lambung', target: '0.04m 0.366m 0.028m', distance: 0.5 },
+  usus_halus: { label: 'Usus halus', clip: 'usus_halus', material: 'usus_halus', target: '0m 0.207m 0.033m', distance: 0.62 },
+  usus_besar: { label: 'Usus besar', clip: 'usus_besar', material: 'usus_besar', target: '-0.002m 0.166m -0.003m', distance: 0.85 },
+  darah: { label: 'Jalur lengkap, tanpa partikel', clip: 'jalur_lengkap', material: null, target: '0m 0.33m 0m', distance: 1.2 },
 };
 
 // Usus halus berlapis-lapis, jadi dibuat lebih tembus supaya partikel di dalamnya tetap terlihat
 const ORGAN_ALPHA: Record<string, { rest: number; focus: number }> = {
   kerongkongan: { rest: 0.5, focus: 0.55 },
   lambung: { rest: 0.5, focus: 0.5 },
-  usus_halus: { rest: 0.38, focus: 0.3 },
+  usus_halus: { rest: 0.38, focus: 0.26 },
   usus_besar: { rest: 0.45, focus: 0.42 },
 };
 const DIM_ALPHA = 0.1;
@@ -36,24 +50,38 @@ type ViewerElement = HTMLElement & {
   canActivateAR?: boolean;
   activateAR?: () => Promise<void>;
   cameraOrbit?: string;
+  cameraTarget?: string;
   getCameraOrbit?: () => { theta: number; phi: number; radius: number };
+  currentTime?: number;
+  timeScale?: number;
   play?: () => void;
   pause?: () => void;
   model?: { materials: ViewerMaterial[] };
 };
 
-function ControlButton({ icon, label, onClick, active }: { icon: string; label: string; onClick: () => void; active?: boolean }) {
+function webglAvailable() {
+  try {
+    const canvas = document.createElement('canvas');
+    return Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'));
+  } catch {
+    return false;
+  }
+}
+
+function ControlButton({ icon, text, label, onClick, active, disabled }: { icon?: string; text?: string; label: string; onClick: () => void; active?: boolean; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
       title={label}
       aria-pressed={active}
-      className={`flex-1 min-w-11 h-11 rounded-xl border flex items-center justify-center active:scale-95 ${
+      className={`flex-1 min-w-0 h-11 rounded-xl border flex items-center justify-center active:scale-95 disabled:opacity-40 ${
         active === false ? 'bg-white/5 border-white/15 text-white/60' : 'bg-white/15 border-white/25 text-white'
       }`}
     >
-      <span className="material-symbols-outlined text-xl">{icon}</span>
+      {icon && <span className="material-symbols-outlined text-xl">{icon}</span>}
+      {text && <span className="text-[11px] font-bold">{text}</span>}
     </button>
   );
 }
@@ -69,14 +97,21 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
   const [modelReady, setModelReady] = useState(false);
   const [progress, setProgress] = useState(0);
   const [arSupported, setArSupported] = useState<boolean | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(() => (webglAvailable() ? null : WEBGL_PROBLEM));
   const [arProblem, setArProblem] = useState<string | null>(null);
   const [particlesOn, setParticlesOn] = useState(true);
   const [interacted, setInteracted] = useState(false);
-  const [resets, setResets] = useState(0);
+  // Siswa yang meminta gerak dikurangi memulai dengan animasi berhenti
+  const [playing, setPlaying] = useState(() => !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const [speed, setSpeed] = useState(1);
+  const [morph, setMorph] = useState('semua');
+  const nudged = useRef(false);
   const config = VIEWS[view];
-  // Aliran darah tidak dimodelkan, jadi partikel sengaja tidak ditampilkan pada pilihan ini
-  const showParticles = particlesOn && view !== 'darah';
+  const [initial] = useState(config);
+  // Aliran darah tidak dimodelkan, jadi partikel sengaja tidak diteruskan ke sana
+  const noParticles = view === 'darah';
+  const showParticles = particlesOn && !noParticles;
+  const stopped = Boolean(paused) || !showParticles || !playing;
 
   useEffect(() => {
     let cancelled = false;
@@ -98,15 +133,16 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
     for (const material of materials) {
       const [r, g, b] = material.pbrMetallicRoughness.baseColorFactor;
       if (material.name.startsWith('partikel_')) {
-        material.setAlphaMode(showParticles ? 'OPAQUE' : 'BLEND');
-        material.pbrMetallicRoughness.setBaseColorFactor([r, g, b, showParticles ? 1 : 0]);
+        const visible = showParticles && (morph === 'semua' || material.name === `partikel_${morph}`);
+        material.setAlphaMode(visible ? 'OPAQUE' : 'BLEND');
+        material.pbrMetallicRoughness.setBaseColorFactor([r, g, b, visible ? 1 : 0]);
       } else {
         const look = ORGAN_ALPHA[material.name];
         const alpha = !config.material ? look.rest : material.name === config.material ? look.focus : DIM_ALPHA;
         material.pbrMetallicRoughness.setBaseColorFactor([r, g, b, alpha]);
       }
     }
-  }, [config.material, showParticles]);
+  }, [config.material, morph, showParticles]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -149,12 +185,42 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
     if (modelReady) paint();
   }, [modelReady, paint]);
 
+  // Ganti organ tetap memulai klipnya; bila sedang dijeda, klip baru tampil lalu berhenti lagi
   useEffect(() => {
     if (!modelReady) return;
     const viewer = viewerRef.current;
-    if (paused || !showParticles) viewer?.pause?.();
-    else viewer?.play?.();
-  }, [modelReady, paused, showParticles, view]);
+    viewer?.play?.();
+    if (!stopped) return;
+    const timer = window.setTimeout(() => viewer?.pause?.(), 150);
+    return () => window.clearTimeout(timer);
+  }, [modelReady, stopped, view]);
+
+  useEffect(() => {
+    if (modelReady && viewerRef.current) viewerRef.current.timeScale = speed;
+  }, [modelReady, speed]);
+
+  // Sudut pandang siswa dipertahankan; hanya pusat dan jarak yang berpindah dengan halus
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const current = viewer?.getCameraOrbit?.();
+    if (!modelReady || !viewer || !current) return;
+    viewer.cameraTarget = config.target;
+    viewer.cameraOrbit = `${current.theta}rad ${current.phi}rad ${config.distance}m`;
+  }, [modelReady, config.target, config.distance]);
+
+  const resetAll = () => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    // Nilai yang sama tidak menggerakkan kamera, jadi jaraknya diubah sedikit sekali
+    nudged.current = !nudged.current;
+    viewer.cameraTarget = config.target;
+    viewer.cameraOrbit = `0deg 85deg ${config.distance * (nudged.current ? 1.0005 : 1)}m`;
+    viewer.currentTime = 0;
+    setPlaying(true);
+    setSpeed(1);
+    setMorph('semua');
+    setParticlesOn(true);
+  };
 
   const zoomBy = (factor: number) => {
     const viewer = viewerRef.current;
@@ -163,15 +229,12 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
   };
 
   const retry = () => {
-    setProblem(null);
+    setProblem(webglAvailable() ? null : WEBGL_PROBLEM);
     setModelReady(false);
     setProgress(0);
     setScriptReady(false);
     setAttempt(value => value + 1);
   };
-
-  // Atribut yang sama tidak menggerakkan kamera, jadi jaraknya diubah sedikit sekali saat Reset
-  const orbit = resets % 2 ? config.orbit.replace(/([\d.]+)m$/, (_, radius) => `${Number(radius) * 1.0005}m`) : config.orbit;
 
   return (
     <div className="flex flex-col gap-2 h-full">
@@ -201,8 +264,8 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
               ar-placement="floor"
               camera-controls
               disable-pan
-              camera-target={config.target}
-              camera-orbit={orbit}
+              camera-target={initial.target}
+              camera-orbit={`0deg 85deg ${initial.distance}m`}
               min-camera-orbit="auto auto 0.25m"
               max-camera-orbit="auto auto 2m"
               touch-action="pan-y"
@@ -229,7 +292,7 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
         )}
         {view === 'darah' && modelReady && !problem && (
           <p className="absolute inset-x-2 bottom-2 rounded-xl bg-[#06293b]/90 border border-[#ffdf9a]/40 px-3 py-2 text-[12px] leading-snug text-[#ffdf9a] pointer-events-none">
-            Aliran darah tidak dimodelkan di sini, jadi partikel tidak ditampilkan.
+            Aliran darah tidak dimodelkan, jadi partikel tidak diteruskan ke sana. Cara partikel bisa masuk ke darah masih diteliti.
           </p>
         )}
         {view !== 'darah' && modelReady && !interacted && !problem && (
@@ -246,15 +309,39 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
       </div>
 
       <div className="shrink-0 flex gap-1.5" role="group" aria-label="Kontrol model 3D">
+        <ControlButton icon={playing ? 'pause' : 'play_arrow'} label={playing ? 'Jeda animasi' : 'Putar animasi'} disabled={!showParticles} onClick={() => setPlaying(value => !value)} />
+        <ControlButton
+          text={SPEEDS.find(item => item.value === speed)?.label}
+          label="Ganti kecepatan animasi"
+          disabled={!showParticles}
+          onClick={() => setSpeed(value => SPEEDS[(SPEEDS.findIndex(item => item.value === value) + 1) % SPEEDS.length].value)}
+        />
         <ControlButton icon="zoom_out" label="Perkecil" onClick={() => zoomBy(1.25)} />
         <ControlButton icon="zoom_in" label="Perbesar" onClick={() => zoomBy(0.8)} />
-        <ControlButton icon="restart_alt" label="Atur ulang tampilan" onClick={() => setResets(value => value + 1)} />
+        <ControlButton icon="restart_alt" label="Atur ulang kamera dan animasi" onClick={resetAll} />
         <ControlButton
           icon={particlesOn ? 'grain' : 'blur_off'}
           label={particlesOn ? 'Sembunyikan partikel' : 'Tampilkan partikel'}
           active={particlesOn}
+          disabled={noParticles}
           onClick={() => setParticlesOn(value => !value)}
         />
+      </div>
+
+      <div className="shrink-0 flex gap-1" role="group" aria-label="Pilih bentuk partikel">
+        {MORPHS.map(item => (
+          <button
+            key={item.id}
+            onClick={() => setMorph(item.id)}
+            disabled={!showParticles}
+            aria-pressed={item.id === morph}
+            className={`flex-1 min-w-0 min-h-11 rounded-xl border text-[11px] sm:text-xs font-bold active:scale-95 disabled:opacity-40 ${
+              item.id === morph ? 'bg-[#6bff8f]/20 border-[#6bff8f] text-[#6bff8f]' : 'bg-white/5 border-white/15 text-white/80'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       {arSupported !== false && !problem && (
@@ -271,11 +358,9 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
         {arProblem ??
           (arSupported === false
             ? 'AR belum didukung di perangkat ini. Model tetap bisa diputar dan diperbesar di layar.'
-            : 'Jalur partikel hanya ilustrasi, bukan hasil pengamatan di dalam tubuh. Ukuran partikel sangat diperbesar.')}
+            : 'AR menampilkan jalur lengkap dengan semua bentuk partikel.')}
       </p>
-      {arSupported === false && (
-        <p className="shrink-0 text-[12px] leading-snug text-white/80">Jalur partikel hanya ilustrasi, bukan hasil pengamatan di dalam tubuh. Ukuran partikel sangat diperbesar.</p>
-      )}
+      <p className="shrink-0 text-[12px] leading-snug text-white/80">{CONCEPT_NOTE}</p>
     </div>
   );
 }

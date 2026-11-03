@@ -105,7 +105,7 @@ export default function Tahap5() {
   ];
 
   return (
-    <div className="min-h-screen pt-28 sm:pt-32 pb-20 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative overflow-x-hidden">
+    <div className="min-h-[100dvh] pt-28 sm:pt-32 pb-20 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative page-clip">
       {/* Background patterns and glowing Orbs */}
       <div className="absolute inset-0 adventure-map opacity-10 pointer-events-none" />
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#f0a345]/15 rounded-full blur-3xl pointer-events-none animate-pulse" />

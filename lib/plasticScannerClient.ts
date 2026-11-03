@@ -55,8 +55,10 @@ export function stopScannerAI() {
   failAll(new Error('AI scanner dihentikan'));
 }
 
-export const detectObjects = (frame: ImageBitmap) =>
-  call<DetectedObject[]>({ type: 'detect', frame }, [frame]);
+export type DetectView = 'full' | 'center' | 'rotated';
+
+export const detectObjects = (frame: ImageBitmap, view: DetectView) =>
+  call<DetectedObject[]>({ type: 'detect', frame, view }, [frame]);
 
 export const classifyCrop = (box: Box) => call<number[] | null>({ type: 'classify', box });
 

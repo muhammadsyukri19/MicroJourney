@@ -10,6 +10,7 @@ import {
   releaseFrame,
   startScannerAI,
   stopScannerAI,
+  type DetectView,
 } from '@/lib/plasticScannerClient';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -58,11 +59,19 @@ const PACKAGING_PLASTIC_INFO: PlasticInfo = {
 
 type ObjectKind = keyof typeof OBJECT_PLASTIC_INFO;
 
-/** COCO sering menamai botol plastik "vase"; bentuknya yang memanjang membedakannya dari gelas */
+/** COCO sering menamai botol plastik "vase" atau "cup"; bentuknya yang memanjang membedakannya dari gelas */
 function objectKind(cocoClass: string, [, , w, h]: Box): ObjectKind {
   if (cocoClass === 'bottle' || cocoClass === 'bowl') return cocoClass;
-  if (cocoClass === 'vase' && Math.max(w, h) / Math.max(1, Math.min(w, h)) >= BOTTLE_MIN_ELONGATION) return 'bottle';
+  const elongation = Math.max(w, h) / Math.max(1, Math.min(w, h));
+  if ((cocoClass === 'vase' || cocoClass === 'wine glass') && elongation >= BOTTLE_MIN_ELONGATION) return 'bottle';
+  if (cocoClass === 'cup' && elongation >= CUP_AS_BOTTLE_ELONGATION) return 'bottle';
   return 'cup';
+}
+
+/** Botol lebih dulu: skornya sering rendah, terutama yang bening atau penyok, tetapi model plastik tetap memeriksanya */
+function isLockable(p: { class: string; score: number }) {
+  if ((BOTTLE_COCO_CLASSES as readonly string[]).includes(p.class)) return p.score >= BOTTLE_LOCK_SCORE;
+  return (CONTAINER_COCO_CLASSES as readonly string[]).includes(p.class) && p.score >= LOCK_SCORE;
 }
 
 // Kandidat wadah target COCO-SSD. COCO sering menamai botol plastik "vase" atau "wine glass", kadang bergantian
@@ -85,14 +94,22 @@ const NON_PLASTIC_INDEX = 7;
 
 // Deteksi langsung: objek dikunci setelah stabil beberapa frame, lalu diperiksa model plastik sekali
 const LOCK_SCORE = 0.6;
-const TRACK_SCORE = 0.35;
+const BOTTLE_LOCK_SCORE = 0.3;
+const TRACK_SCORE = 0.3;
 const REACQUIRE_SCORE = 0.5;
-const STABLE_FRAMES = 8;
+const BOTTLE_COCO_CLASSES = ['bottle', 'vase', 'wine glass'] as const;
 const BOTTLE_MIN_ELONGATION = 1.6;
-// Satu-dua frame kosong wajar pada kamera HP yang bergetar, jadi hitungan kunci tidak langsung diulang
-const STREAK_GAP_FRAMES = 2;
+const CUP_AS_BOTTLE_ELONGATION = 1.8;
+// Bingkai bergantian: utuh, diputar untuk botol yang tergeletak, dan potongan tengah yang tidak terpencet
+const DETECT_VIEWS: DetectView[] = ['full', 'rotated', 'full', 'center'];
+// Bukti dikumpulkan dari skor tiap bingkai, jadi benda berskor rendah hanya perlu ditahan sedikit lebih lama.
+// Kamera HP yang bergetar atau pandangan yang gagal cukup mengurangi bukti, tidak mengulang dari nol.
+const LOCK_EVIDENCE = 1.6;
+const LOCK_MIN_HITS = 3;
+const MISS_PENALTY = 0.2;
+const SAME_OBJECT_OVERLAP = 0.15;
 const LOST_FRAMES = 6;
-const RECHECK_AFTER_FRAMES = 10;
+const RECHECK_AFTER_FRAMES = 4;
 const DETECT_INTERVAL_MS = 150;
 const FRAME_LONG_SIDE = 640;
 const MANUAL_SCAN_DELAY_MS = 5000;
@@ -302,8 +319,12 @@ interface ScanFeedbackState {
 
 const INITIAL_SCAN_CARD: ScanFeedbackState = {
   status: 'scanning',
-  message: 'Arahkan kamera ke sampah plastik, lalu tahan sebentar.',
+  message: 'Arahkan kamera ke botol atau sampah plastik lain, lalu tahan sebentar.',
 };
+
+function newLockState() {
+  return { hits: 0, evidence: 0, streakBox: null as Box | null, kinds: [] as ObjectKind[], probs: [] as number[][], cooldown: 0, misses: 0, errors: 0 };
+}
 
 let stopAiTimer = 0;
 
@@ -328,7 +349,8 @@ export default function Tahap1() {
   const staticOverlayKeyRef = useRef<string | null>(null);
   const trackedBoxRef = useRef<Box | null>(null);
   const manualScanRef = useRef(false);
-  const lockStateRef = useRef({ streak: 0, streakBox: null as Box | null, kinds: [] as ObjectKind[], cooldown: 0, misses: 0, errors: 0 });
+  const lockStateRef = useRef(newLockState());
+  const viewIndexRef = useRef(0);
 
   const streamRef = useRef<MediaStream | null>(null);
   const renderRafRef = useRef<number>(0);
@@ -612,7 +634,8 @@ export default function Tahap1() {
     if (!procCtx) return;
     procCtx.drawImage(video, 0, 0, frameW, frameH);
 
-    const detected = await detectObjects(await createImageBitmap(procCanvas));
+    const view = DETECT_VIEWS[viewIndexRef.current++ % DETECT_VIEWS.length];
+    const detected = await detectObjects(await createImageBitmap(procCanvas), view);
     if (session !== sessionRef.current) return;
 
     const region = getVisibleRegion(video);
@@ -627,6 +650,14 @@ export default function Tahap1() {
 
     const lock = lockStateRef.current;
     lock.errors = 0;
+
+    const judgeProbs = (probs: number[]) => {
+      const nonPlasticProb = probs[NON_PLASTIC_INDEX];
+      return {
+        topScore: Math.max(...probs.slice(0, NON_PLASTIC_INDEX)) / Math.max(1e-6, 1 - nonPlasticProb),
+        looksNonPlastic: nonPlasticProb >= NON_PLASTIC_REJECT_THRESHOLD,
+      };
+    };
 
     /** Model plastik menilai satu kotak, dirata-ratakan dari beberapa margin crop */
     const classifyBox = async ([bx, by, bw, bh]: Box, padRatios: number[]) => {
@@ -647,14 +678,9 @@ export default function Tahap1() {
         if (probs) allProbs.push(probs);
       }
       if (allProbs.length === 0) return null;
-      const meanProbs = allProbs[0].map(
+      return allProbs[0].map(
         (_, i) => allProbs.reduce((sum, probs) => sum + probs[i], 0) / allProbs.length
       );
-      const nonPlasticProb = meanProbs[NON_PLASTIC_INDEX];
-      return {
-        topScore: Math.max(...meanProbs.slice(0, NON_PLASTIC_INDEX)) / Math.max(1e-6, 1 - nonPlasticProb),
-        looksNonPlastic: nonPlasticProb >= NON_PLASTIC_REJECT_THRESHOLD,
-      };
     };
 
     const acceptPlastic = (info: PlasticInfo, box: Box, isCenterFallback: boolean) => {
@@ -709,7 +735,8 @@ export default function Tahap1() {
     // Permintaan siswa untuk kemasan yang tidak dikenali COCO (sachet, bungkus)
     if (manualScanRef.current) {
       manualScanRef.current = false;
-      const result = await classifyBox(roi, [0]);
+      const probs = await classifyBox(roi, [0]);
+      const result = probs && judgeProbs(probs);
       setManualChecking(false);
       if (session !== sessionRef.current) return;
       if (result && !result.looksNonPlastic && result.topScore >= RESIN_THRESHOLD) {
@@ -731,15 +758,20 @@ export default function Tahap1() {
       return;
     }
 
-    const candidate = preds
-      .filter(p => (CONTAINER_COCO_CLASSES as readonly string[]).includes(p.class) && p.score >= LOCK_SCORE)
-      .sort((a, b) => b.score - a.score)[0];
+    const lockable = preds.filter(isLockable).sort((a, b) => b.score - a.score);
+    const streakBox = lock.streakBox;
+    // Benda yang sedang dikumpulkan buktinya diutamakan, supaya tidak berpindah ke benda lain di bingkai yang sama
+    const candidate = streakBox
+      ? lockable
+          .map(p => ({ p, overlap: boxOverlap(p.bbox, streakBox) }))
+          .filter(item => item.overlap > SAME_OBJECT_OVERLAP)
+          .sort((a, b) => b.overlap - a.overlap)[0]?.p
+      : lockable[0];
 
     if (!candidate) {
-      if (lock.streakBox && ++lock.misses <= STREAK_GAP_FRAMES) return;
-      lock.misses = 0;
-      lock.streak = 0;
-      lock.streakBox = null;
+      lock.evidence -= MISS_PENALTY;
+      if (streakBox && lock.evidence > 0) return;
+      Object.assign(lock, { hits: 0, evidence: 0, streakBox: null, kinds: [], probs: [] });
       overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
 
       // Benda bukan sampah (orang, laptop, dll.) yang menutupi titik tengah bingkai
@@ -767,26 +799,30 @@ export default function Tahap1() {
       return;
     }
 
-    // Objek harus bertahan di tempat yang sama selama beberapa frame berturut-turut
-    lock.misses = 0;
-    const kind = objectKind(candidate.class, candidate.bbox);
-    const sameObject = lock.streakBox && boxOverlap(lock.streakBox, candidate.bbox) > 0.2;
-    lock.streak = sameObject ? lock.streak + 1 : 1;
-    lock.kinds = sameObject ? [...lock.kinds, kind] : [kind];
+    // Bukti dikumpulkan selama benda bertahan di tempat yang sama
+    lock.hits += 1;
+    lock.evidence += candidate.score;
+    lock.kinds = [...lock.kinds, objectKind(candidate.class, candidate.bbox)];
     lock.streakBox = candidate.bbox;
     overlayTargetRef.current = { box: candidate.bbox, kind: 'uncertain', label: 'Tahan sebentar…', isCenterFallback: false };
-    if (lock.streak < STABLE_FRAMES) return;
+    if (lock.evidence < LOCK_EVIDENCE || lock.hits < LOCK_MIN_HITS) return;
 
-    lock.streak = 0;
-    lock.streakBox = null;
-    const result = await classifyBox(candidate.bbox, CANDIDATE_PAD_RATIOS);
+    const probs = await classifyBox(candidate.bbox, CANDIDATE_PAD_RATIOS);
     if (session !== sessionRef.current) return;
+    if (probs) lock.probs = [...lock.probs, probs];
+    // Penilaian benda yang sama dirata-ratakan, jadi satu bingkai buruk tidak menentukan hasil
+    const result = lock.probs.length
+      ? judgeProbs(lock.probs[0].map((_, i) => lock.probs.reduce((sum, item) => sum + item[i], 0) / lock.probs.length))
+      : null;
     if (result && !result.looksNonPlastic && result.topScore >= RESIN_THRESHOLD) {
-      acceptPlastic(OBJECT_PLASTIC_INFO[mostCommon(lock.kinds)], candidate.bbox, false);
+      const kinds = lock.kinds;
+      Object.assign(lock, { hits: 0, evidence: 0, streakBox: null, kinds: [], probs: [] });
+      acceptPlastic(OBJECT_PLASTIC_INFO[mostCommon(kinds)], candidate.bbox, false);
       return;
     }
-    // Pesannya sengaja lunak: model kadang keliru menolak plastik sungguhan
+    // Pesannya sengaja lunak: model kadang keliru menolak plastik sungguhan. Benda yang sama diperiksa lagi sebentar kemudian
     lock.cooldown = RECHECK_AFTER_FRAMES;
+    lock.evidence = LOCK_EVIDENCE / 2;
     showDoubt(
       result?.looksNonPlastic
         ? 'Belum terlihat seperti plastik. Coba dari sisi lain, dengan cahaya lebih terang.'
@@ -859,7 +895,8 @@ export default function Tahap1() {
     setManualChecking(false);
     setShowManualScan(false);
     trackedBoxRef.current = null;
-    lockStateRef.current = { streak: 0, streakBox: null, kinds: [], cooldown: 0, misses: 0, errors: 0 };
+    lockStateRef.current = newLockState();
+    viewIndexRef.current = 0;
     staticOverlayKeyRef.current = null;
     overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
     displayBoxRef.current = null;
@@ -889,6 +926,8 @@ export default function Tahap1() {
         return;
       }
       streamRef.current = stream;
+      // Fokus otomatis terus-menerus, bila kamera mendukung; botol bening mudah hilang saat buram
+      stream.getVideoTracks()[0]?.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {});
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});

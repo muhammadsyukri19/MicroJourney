@@ -149,7 +149,7 @@ export default function Tahap4() {
   };
 
   return (
-    <div className="min-h-screen pt-24 md:pt-28 pb-10 md:pb-16 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white flex flex-col relative overflow-x-hidden">
+    <div className="min-h-[100dvh] pt-24 md:pt-28 pb-10 md:pb-16 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white flex flex-col relative page-clip">
       {/* Background patterns and glowing Orbs */}
       <div className="absolute inset-0 adventure-map opacity-10 pointer-events-none" />
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#ba1a1a]/20 rounded-full blur-3xl pointer-events-none animate-pulse" />

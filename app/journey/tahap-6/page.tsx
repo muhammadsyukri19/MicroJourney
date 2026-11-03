@@ -131,8 +131,10 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
 
   useEffect(() => {
     updateLaserLines();
-    window.addEventListener('resize', updateLaserLines);
-    return () => window.removeEventListener('resize', updateLaserLines);
+    const board = containerRef.current;
+    const observer = new ResizeObserver(updateLaserLines);
+    if (board) observer.observe(board);
+    return () => observer.disconnect();
   }, [connectedIds, selectedRoleId, selectedTaskId, roles, tasks]);
 
   const checkConnection = (rId: string, tId: string) => {
@@ -209,8 +211,8 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
       ref={containerRef}
       className="bg-white/10 border border-white/20 rounded-3xl p-3 sm:p-7 shadow-2xl text-white mb-8 relative overflow-hidden"
     >
-      {/* Garis penghubung hanya di layar lebar; di HP tokoh dan tugas bersusun, jadi nama tokoh tampil di kartu tugas */}
-      <svg className="hidden md:block absolute inset-0 w-full h-full pointer-events-none z-10">
+      {/* Garis penghubung berada di celah antara kolom tokoh dan kolom tugas */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none z-30">
         <defs>
           <linearGradient id="laserSuccess" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#6bff8f" stopOpacity="0.9" />
@@ -225,11 +227,13 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
         {laserLines.map((line) => {
           // Gradien tidak tergambar pada garis yang benar-benar datar, jadi ujungnya digeser sedikit
           const y2 = Math.abs(line.y2 - line.y1) < 1 ? line.y1 + 1 : line.y2;
-          const path = `M ${line.x1} ${line.y1} C ${line.x1 + 60} ${line.y1}, ${line.x2 - 60} ${y2}, ${line.x2} ${y2}`;
+          // Lengkungan mengikuti lebar celah, yang di HP jauh lebih sempit daripada di web
+          const bend = Math.min(60, (line.x2 - line.x1) * 0.6);
+          const path = `M ${line.x1} ${line.y1} C ${line.x1 + bend} ${line.y1}, ${line.x2 - bend} ${y2}, ${line.x2} ${y2}`;
           return (
             <g key={line.id}>
-              <path d={path} stroke="#6bff8f" strokeWidth="6" fill="none" opacity="0.4" filter="url(#glowLaser)" />
-              <path d={path} stroke="url(#laserSuccess)" strokeWidth="3" fill="none" strokeDasharray="8 4" className="animate-[dash_1s_linear_infinite]" />
+              <path d={path} stroke="#6bff8f" strokeWidth="5" fill="none" opacity="0.4" filter="url(#glowLaser)" />
+              <path d={path} stroke="url(#laserSuccess)" strokeWidth="2.5" fill="none" strokeDasharray="8 4" className="animate-[dash_1s_linear_infinite]" />
             </g>
           );
         })}
@@ -261,13 +265,13 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
         {instruction}
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-10 relative z-20">
+      <div className="grid grid-cols-2 gap-x-7 md:gap-x-10 relative z-20">
         {/* Tokoh */}
-        <div>
+        <div className="flex flex-col min-w-0">
           <p className="text-[11px] font-extrabold text-[#ffdf9a] uppercase tracking-wider font-[family-name:var(--font-mono)] mb-1.5">
             Tokoh
           </p>
-          <div className="grid grid-cols-3 md:grid-cols-1 gap-1.5 md:gap-2.5">
+          <div className="flex flex-col flex-1 gap-1.5 md:gap-2.5">
             {roles.map((r) => {
               const isConnected = connectedIds.includes(r.id);
               const isSelected = selectedRoleId === r.id;
@@ -280,7 +284,7 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
                   onClick={() => handleRoleTap(r.id)}
                   disabled={isConnected}
                   aria-pressed={isSelected}
-                  className={`min-h-[68px] md:min-h-[60px] p-1.5 md:p-3 rounded-xl border-2 transition-colors font-bold text-[11px] sm:text-sm leading-tight flex flex-col md:flex-row items-center gap-1 md:gap-2.5 text-center md:text-left select-none ${
+                  className={`flex-1 min-h-[60px] p-1.5 md:p-3 rounded-xl border-2 transition-colors font-bold text-[11px] sm:text-sm leading-tight flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-2.5 text-center md:text-left select-none ${
                     isConnected
                       ? 'bg-[#006e2f]/50 border-[#6bff8f]/70 text-[#6bff8f]'
                       : isError
@@ -299,11 +303,11 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
         </div>
 
         {/* Tugas */}
-        <div>
+        <div className="flex flex-col min-w-0">
           <p className="text-[11px] font-extrabold text-[#6bff8f] uppercase tracking-wider font-[family-name:var(--font-mono)] mb-1.5">
             Tugas
           </p>
-          <div className="flex flex-col gap-1.5 md:gap-2.5">
+          <div className="flex flex-col flex-1 gap-1.5 md:gap-2.5">
             {tasks.map((t) => {
               const isConnected = connectedIds.includes(t.id);
               const isSelected = selectedTaskId === t.id;
@@ -316,7 +320,7 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
                   onClick={() => handleTaskTap(t.id)}
                   disabled={isConnected}
                   aria-pressed={isSelected}
-                  className={`min-h-[48px] md:min-h-[60px] px-3 py-2 rounded-xl border-2 transition-colors text-xs sm:text-sm leading-snug text-left select-none ${
+                  className={`flex-auto min-h-[60px] px-2 py-1.5 md:px-3 md:py-2 rounded-xl border-2 transition-colors text-[11px] sm:text-sm leading-snug text-left select-none ${
                     isConnected
                       ? 'bg-[#006e2f]/50 border-[#6bff8f]/70 text-white'
                       : isError
@@ -326,9 +330,6 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
                       : 'bg-black/30 border-white/20 text-white/95 hover:border-[#6bff8f] active:scale-[0.98]'
                   }`}
                 >
-                  {isConnected && (
-                    <span className="block text-[11px] font-extrabold text-[#6bff8f] md:hidden">{stripEmoji(t.role)}</span>
-                  )}
                   {t.task}
                 </button>
               );
@@ -605,7 +606,7 @@ export default function Tahap6() {
   }
 
   return (
-    <div className="min-h-screen pt-24 sm:pt-32 pb-20 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative overflow-x-hidden">
+    <div className="min-h-[100dvh] pt-24 sm:pt-32 pb-20 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)] text-white relative page-clip">
       {/* Background patterns and glowing Orbs */}
       <div className="absolute inset-0 adventure-map opacity-10 pointer-events-none" />
       <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#f0a345]/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
