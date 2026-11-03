@@ -263,11 +263,17 @@ interface PlasticShatter3DProps {
   onBurst: () => void;
   onDone: () => void;
   onUnavailable: () => void;
+  /** Adegan berhenti menggambar selama layar AR terbuka, supaya HP tidak menggambar dua 3D sekaligus */
+  paused?: boolean;
 }
 
 /** Pecahan menyembur dari benda asli, lalu terurai menjadi mikroplastik 3D yang melayang di air */
-export default function PlasticShatter3D({ objectId, uvExposure, onStart, onBurst, onDone, onUnavailable }: PlasticShatter3DProps) {
+export default function PlasticShatter3D({ objectId, uvExposure, onStart, onBurst, onDone, onUnavailable, paused = false }: PlasticShatter3DProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(paused);
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
   const callbacks = useRef({ onStart, onBurst, onDone, onUnavailable });
   useEffect(() => {
     callbacks.current = { onStart, onBurst, onDone, onUnavailable };
@@ -486,6 +492,11 @@ export default function PlasticShatter3D({ objectId, uvExposure, onStart, onBurs
 
         const frame = (now: number) => {
           if (cancelled) return;
+          if (pausedRef.current) {
+            last = now;
+            raf = requestAnimationFrame(frame);
+            return;
+          }
           const dt = Math.min(0.05, (now - last) / 1000);
           last = now;
           time += dt;

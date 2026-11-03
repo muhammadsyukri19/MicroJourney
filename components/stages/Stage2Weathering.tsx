@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, PanInfo, AnimatePresence } from 'framer-motion';
 import YouTubePlayer from '@/components/ui/YouTubePlayer';
 import MikaMascot from '@/components/MikaMascot';
@@ -6,6 +7,8 @@ import PlasticShatter3D, { CRACK_END } from '@/components/stages/PlasticShatter3
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useStageBack } from '@/lib/stageBack';
 import MIKA_VOICE_LINES from '@/lib/mikaVoiceLines.json';
+
+const MicroplasticAR = dynamic(() => import('@/components/stages/MicroplasticAR'), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LabPhase = 'lab' | 'breaking' | 'complete';
@@ -488,6 +491,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
   const particlesRef = useRef<Particle[]>([]);
   const [useFallbackBreak, setUseFallbackBreak] = useState(false);
   const [hasBurst, setHasBurst] = useState(false);
+  const [showAr, setShowAr] = useState(false);
   const animRef = useRef<number>(0);
   const phaseRef = useRef(labPhase);
   phaseRef.current = labPhase;
@@ -1188,8 +1192,19 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                       Matahari membuat plastik rapuh, lalu ombak memecahnya jadi serpihan sangat kecil. Serpihan ini tetap ada di laut, lho!
                     </p>
 
+                    <button
+                      onClick={() => {
+                        stopVoice();
+                        setShowAr(true);
+                      }}
+                      className="mt-3 md:mt-5 w-full min-h-12 py-2 px-3 rounded-xl bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] font-extrabold text-sm sm:text-base transition-all flex items-center justify-center gap-2 shadow-xl active:scale-95"
+                    >
+                      <span className="material-symbols-outlined text-xl">view_in_ar</span>
+                      <span>Lihat mikroplastik di AR</span>
+                    </button>
+
                     {/* Dua Pilihan Interaksi: Coba Uji Lagi ATAU Lanjut ke Halaman Evaluasi */}
-                    <div className="flex flex-row items-stretch gap-2 md:gap-3 mt-3 md:mt-6 w-full">
+                    <div className="flex flex-row items-stretch gap-2 md:gap-3 mt-2 md:mt-3 w-full">
                       <button
                         onClick={handleResetCurrent}
                         className="flex-1 min-h-12 py-2 px-2 md:px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs sm:text-sm border border-white/30 transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
@@ -1222,8 +1237,10 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
                     onBurst={markBurst}
                     onDone={finishBreak}
                     onUnavailable={markFallback}
+                    paused={showAr}
                   />
                 )}
+                {showAr && <MicroplasticAR onClose={() => setShowAr(false)} />}
                 <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
               </div>
 
