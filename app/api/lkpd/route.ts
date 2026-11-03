@@ -30,6 +30,11 @@ export async function POST(req: NextRequest) {
       ...(body.quizWrong !== undefined && { quizWrong: Number(body.quizWrong) }),
       ...(body.preTestScore !== undefined && { preTestScore: Number(body.preTestScore) }),
       ...(body.postTestScore !== undefined && { postTestScore: Number(body.postTestScore) }),
+      ...(body.driveLink !== undefined && { driveLink: body.driveLink }),
+      ...(body.sosmedLink !== undefined && { sosmedLink: body.sosmedLink }),
+      ...(body.actionNote !== undefined && { actionNote: body.actionNote }),
+      ...(body.rating !== undefined && { rating: Number(body.rating) }),
+      ...(body.feedback !== undefined && { feedback: body.feedback }),
     };
 
     const submission = await LkpdSubmission.findOneAndUpdate(

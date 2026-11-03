@@ -12,7 +12,7 @@ export const PRETEST_QUESTIONS: TestQuestion[] = [
     options: [
       'Berukuran antara 1 cm hingga 5 cm',
       'Berukuran kurang dari 5 mm',
-      'Berukuran tepat di bawah 1 m (mikrometer)',
+      'Berukuran tepat di bawah 1 µm (mikrometer)',
       'Berukuran antara 5 mm hingga 10 mm'
     ],
     correctAnswer: 1 // Index 1: Berukuran kurang dari 5 mm

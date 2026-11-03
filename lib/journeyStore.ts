@@ -87,11 +87,12 @@ export const useJourneyStore = create<JourneyState>()(
 
       setPlasticDisposal: (record) => set({ plasticDisposal: record }),
 
-      setStudent: (name, cls) => set({
+      // Sesi siswa yang sama dipertahankan, supaya jawabannya tetap satu baris di rapor guru
+      setStudent: (name, cls) => set(s => ({
         studentName: name,
         studentClass: cls,
-        sessionId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      }),
+        sessionId: s.studentName === name && s.sessionId ? s.sessionId : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      })),
 
       completeStage: (id) => {
         set(s => ({

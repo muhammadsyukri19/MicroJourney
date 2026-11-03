@@ -5,18 +5,12 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { FOODS } from '@/lib/foods';
+import { LKPD2_CORRECT, LKPD2_OPTIONS } from '@/lib/lkpdAnswers';
 import Stage3MaterialIntro from '@/components/stages/Stage3MaterialIntro';
 import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 
 type Phase = 'materi' | 'select' | 'reveal' | 'summary';
-
-const LKPD2_OPTIONS = [
-  { id: 'a', text: 'Melalui bioakumulasi hewan filter-feeder dan peluruhan polimer dari wadah kemasan' },
-  { id: 'b', text: 'Hanya melalui sayuran yang ditanam di tanah tercemar' },
-  { id: 'c', text: 'Melalui proses memasak menggunakan kompor gas' },
-];
-const LKPD2_CORRECT = 'a';
 
 // Accent per food
 const FOOD_ACCENT: Record<string, string> = {
@@ -178,7 +172,7 @@ let lastScan: { total: number; breakdown: { id: string; name: string; particles:
 
 export default function Tahap3() {
   const router = useRouter();
-  const { addFood, totalParticles, setTotalParticles, selectedFoods, completeStage, setLkpdAnswer, lkpdAnswers } = useJourneyStore();
+  const { totalParticles, selectedFoods, completeStage, setLkpdAnswer, lkpdAnswers } = useJourneyStore();
 
   const returned = useReturnedToStage(3);
   const [restored] = useState(() => {
@@ -219,13 +213,8 @@ export default function Tahap3() {
     });
     const total = breakdown.reduce((s, x) => s + x.particles, 0);
 
-    // Commit to store — dedupe
-    breakdown.forEach(b => {
-      if (!selectedFoods.find(sf => sf.id === b.id)) {
-        addFood({ id: b.id, name: b.name, particles: b.particles });
-      }
-    });
-    setTotalParticles(total);
+    // Pilihan terbaru menggantikan yang lama, jadi makanan yang dibatalkan tidak ikut terkirim ke guru
+    useJourneyStore.setState({ selectedFoods: breakdown, totalParticles: total });
 
     // Store locally for RevealScreen (avoid timing issues with store)
     setConfirmedTotal(total);

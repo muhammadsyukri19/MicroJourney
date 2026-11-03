@@ -1,6 +1,7 @@
 'use client';
 import { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { lkpd2Text, organFromAnswer } from '@/lib/lkpdAnswers';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
 import MikaMascot from '@/components/MikaMascot';
@@ -74,27 +75,41 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
 
   // Layout refs to calculate precise laser line SVG paths
   const containerRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
   const roleRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const taskRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const [laserLines, setLaserLines] = useState<{ id: string; x1: number; y1: number; x2: number; y2: number }[]>([]);
 
   useEffect(() => {
+    // Server yang lambat tidak boleh membuat papan kosong: setelah sebentar, pasangan bawaan langsung dipakai
+    let shown = false;
+    const showDefault = () => {
+      if (shown) return;
+      shown = true;
+      initBoard(DEFAULT_MATCH_PAIRS);
+    };
+    const timer = window.setTimeout(showDefault, 1500);
     async function loadPairs() {
       try {
         const res = await fetch('/api/stakeholders');
         const json = await res.json();
         if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
-          setPairsData(json.data);
-          initBoard(json.data);
+          // Permainan yang sudah dimulai tidak diacak ulang
+          if (!startedRef.current) {
+            shown = true;
+            setPairsData(json.data);
+            initBoard(json.data);
+          }
           return;
         }
       } catch {
         // Fallback to default
       }
-      initBoard(DEFAULT_MATCH_PAIRS);
+      showDefault();
     }
     loadPairs();
+    return () => window.clearTimeout(timer);
   }, []);
 
   function initBoard(data: StakeholderPair[]) {
@@ -164,6 +179,7 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
   };
 
   const handleRoleTap = (id: string) => {
+    startedRef.current = true;
     if (connectedIds.includes(id)) return;
     if (selectedRoleId === id) {
       setSelectedRoleId(null);
@@ -177,6 +193,7 @@ function StakeholderNetworkGraph({ onComplete }: { onComplete: () => void }) {
   };
 
   const handleTaskTap = (id: string) => {
+    startedRef.current = true;
     if (connectedIds.includes(id)) return;
     if (selectedTaskId === id) {
       setSelectedTaskId(null);
@@ -496,7 +513,7 @@ export default function Tahap6() {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(201, 230, 255);
       doc.text('Rapor Jurnal Investigasi Mikroplastik — IPA Kelas VIII / Kurikulum Merdeka', 15, 28);
-      doc.text(`Nama: ${studentName || '-'}    Kelas: ${studentClass || '-'}    Tanggal: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, 15, 36);
+      doc.text(`Nama: ${studentName || currentUser?.name || '-'}    Kelas: ${studentClass || currentUser?.className || '-'}    Tanggal: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, 15, 36);
 
       doc.setTextColor(0, 0, 0);
 
@@ -510,9 +527,9 @@ export default function Tahap6() {
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0);
-      doc.text(`Total mikroplastik tertelan hari ini: ${totalParticles.toLocaleString('id-ID')} partikel`, 15, y);
+      doc.text(`Simulasi dari makanan pilihan: ${totalParticles.toLocaleString('id-ID')} partikel (hitungan ilustrasi)`, 15, y);
       y += 6;
-      doc.text(`Organ paling terdampak (menurut siswa): ${mostDangerousOrgan || 'Usus Halus'}`, 15, y);
+      doc.text(`Organ pilihan siswa: ${organFromAnswer(mostDangerousOrgan) || '-'}`, 15, y);
       y += 6;
       doc.text(`Makanan yang dianalisis: ${selectedFoods.map((f) => f.name).join(', ') || '-'}`, 15, y);
       y += 12;
@@ -520,7 +537,7 @@ export default function Tahap6() {
       const sections = [
         { label: 'LKPD Tahap 1 — Analisis AR Scanner', text: answers.lkpdStep1 },
         { label: 'LKPD Tahap 2 — Observasi Proses Pelapukan', text: answers.lkpdStep2 },
-        { label: 'LKPD Tahap 3 — Kontaminasi Pangan (Makanan Dipilih)', text: answers.lkpd2 },
+        { label: 'LKPD Tahap 3 — Jalur Kontaminasi Pangan', text: lkpd2Text(answers.lkpd2) },
         { label: 'LKPD Tahap 4 — Mengapa HCl Lambung Gagal', text: answers.lkpd3q1 },
         { label: 'LKPD Tahap 4 — Organ Paling Terdampak', text: answers.lkpd3q2 },
         { label: 'LKPD Tahap 5 — Sintesis Jaring Kasus (HOTS)', text: answers.lkpd4 },

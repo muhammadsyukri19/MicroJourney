@@ -339,13 +339,17 @@ export default function TeacherDashboardTemplate() {
   });
   const topOrgan = Object.entries(organCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
 
-  const totalQuizQuestions = filteredSubmissions.length * 5;
-  const totalCorrectQuiz = filteredSubmissions.reduce((s, d) => s + (d.quizCorrect || 0), 0);
-  const quizAccuracyPct = totalQuizQuestions > 0 ? Math.round((totalCorrectQuiz / totalQuizQuestions) * 100) : 0;
+  // Alur utama tidak mengisi nilai kuis, jadi ketuntasan kelas memakai nilai tes akhir
+  const postTestScores = filteredSubmissions
+    .map(d => d.postTestScore)
+    .filter((score): score is number => typeof score === 'number');
+  const avgPostTest = postTestScores.length
+    ? Math.round(postTestScores.reduce((sum, score) => sum + score, 0) / postTestScores.length)
+    : null;
 
   function handleExportSubmissionsCsv() {
     if (filteredSubmissions.length === 0) return;
-    const headers = ['Nama Siswa', 'Kelas', 'Total Partikel', 'Organ Kritis', 'Kuis Benar', 'Kuis Salah', 'Link PR Drive', 'Link Sosmed', 'Rating Siswa', 'Catatan Aksi', 'Waktu Submit', 'Sumpah Komitmen', 'Nilai Pretest', 'Nilai Posttest'];
+    const headers = ['Nama Siswa', 'Kelas', 'Total Partikel', 'Organ Pilihan', 'Kuis Benar', 'Kuis Salah', 'Link PR Drive', 'Link Sosmed', 'Rating Siswa', 'Catatan Aksi', 'Waktu Submit', 'Sumpah Komitmen', 'Nilai Pretest', 'Nilai Posttest'];
     const rows = filteredSubmissions.map(d => [
       `"${(d.studentName || '').replace(/"/g, '""')}"`,
       `"${d.studentClass || ''}"`,
@@ -824,24 +828,24 @@ export default function TeacherDashboardTemplate() {
                 <StatCard
                   title="Rata-rata Partikel"
                   value={avgParticles.toLocaleString('id-ID')}
-                  subtitle="Tingkat kontaminasi sampel"
+                  subtitle="Simulasi dari makanan pilihan siswa"
                   icon="warning"
                   accentColor="#ba1a1a"
                   badgeText="Partikel/Siswa"
                 />
 
                 <StatCard
-                  title="Organ Kritis Terbanyak"
+                  title="Organ Paling Banyak Dipilih"
                   value={topOrgan}
-                  subtitle={topOrgan !== '-' ? `${organCounts[topOrgan]} siswa paling terdampak` : 'Belum ada data'}
+                  subtitle={topOrgan !== '-' ? `${organCounts[topOrgan]} siswa memilih organ ini` : 'Belum ada data'}
                   icon="coronavirus"
                   accentColor="#d27b22"
                 />
 
                 <StatCard
-                  title="Akurasi Kuis Kelas"
-                  value={`${quizAccuracyPct}%`}
-                  subtitle={`Jawaban benar dari total ${totalQuizQuestions} soal`}
+                  title="Rata-rata Tes Akhir"
+                  value={avgPostTest === null ? '-' : String(avgPostTest)}
+                  subtitle={`Dari ${postTestScores.length} siswa yang sudah tes akhir`}
                   icon="fact_check"
                   accentColor="#006e2f"
                   badgeText="Ketuntasan"
@@ -869,7 +873,7 @@ export default function TeacherDashboardTemplate() {
                             <th className="px-5 py-3.5">Nama Siswa</th>
                             <th className="px-5 py-3.5">Kelas</th>
                             <th className="px-5 py-3.5">Total Partikel</th>
-                            <th className="px-5 py-3.5">Organ Kritis</th>
+                            <th className="px-5 py-3.5">Organ Pilihan</th>
                             <th className="px-5 py-3.5">Pre-test</th>
                             <th className="px-5 py-3.5">Post-test</th>
                             <th className="px-5 py-3.5">Waktu Submit</th>

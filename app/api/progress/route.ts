@@ -9,12 +9,9 @@ export async function GET(request: NextRequest) {
     await connectDB();
     const studentId = request.nextUrl.searchParams.get('studentId') || DEFAULT_STUDENT_ID;
 
-    let progress = await Progress.findOne({ studentId });
-    if (!progress) {
-      progress = await Progress.create({ studentId });
-    }
-
-    return NextResponse.json(progress);
+    // Membaca progres tidak boleh membuat data baru; data dibuat saat tahap pertama selesai
+    const progress = await Progress.findOne({ studentId });
+    return NextResponse.json(progress ?? { studentId, completedStages: [], currentStage: 1, xp: 0 });
   } catch (error) {
     console.error('GET /api/progress error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

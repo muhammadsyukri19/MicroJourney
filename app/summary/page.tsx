@@ -13,26 +13,8 @@ import DriveInputCard from '@/components/molecules/DriveInputCard';
 import FeedbackFormCard from '@/components/molecules/FeedbackFormCard';
 import PageContainer from '@/components/atoms/PageContainer';
 import MikaMascot from '@/components/MikaMascot';
+import { lkpd2Text, organFromAnswer } from '@/lib/lkpdAnswers';
 import UserProfileWidget from '@/components/auth/UserProfileWidget';
-
-const ORGAN_LABEL_MAP: Record<string, string> = {
-  mouth: 'Mulut',
-  stomach: 'Lambung',
-  smallIntestine: 'Usus Halus',
-  largeIntestine: 'Usus Besar',
-  blood: 'Darah',
-};
-
-function parseOrganLabel(raw: string): string {
-  if (!raw) return 'Usus Halus';
-  const r = raw.toLowerCase();
-  if (r.includes('usus halus') || r.includes('small') || r.includes('intestinum')) return 'Usus Halus';
-  if (r.includes('usus besar') || r.includes('large') || r.includes('kolon')) return 'Usus Besar';
-  if (r.includes('lambung') || r.includes('stomach') || r.includes('gaster')) return 'Lambung';
-  if (r.includes('darah') || r.includes('blood') || r.includes('sirkulasi')) return 'Darah';
-  if (r.includes('mulut') || r.includes('mouth')) return 'Mulut';
-  return ORGAN_LABEL_MAP[raw] ?? (raw.length > 20 ? raw.slice(0, 18) + '…' : raw);
-}
 
 const JOURNEY_STORY_STEPS = [
   {
@@ -89,17 +71,22 @@ export default function StandaloneSummaryPage() {
   const router = useRouter();
   const { currentUser } = useAuthStore();
   const {
-    studentName,
-    studentClass,
+    studentName: savedName,
+    studentClass: savedClass,
     sessionId,
     totalParticles,
     mostDangerousOrgan,
     selectedFoods,
     quizCorrect,
     quizWrong,
+    preTestScore,
+    postTestScore,
     lkpdAnswers,
     setLkpdAnswer,
   } = useJourneyStore();
+  const studentName = savedName || currentUser?.name || '';
+  const studentClass = savedClass || currentUser?.className || '';
+  const organLabel = organFromAnswer(mostDangerousOrgan);
 
   const [activeTab, setActiveTab] = useState<'overview' | 'story' | 'assignment' | 'feedback'>('overview');
   const [selectedStoryStep, setSelectedStoryStep] = useState<number>(1);
@@ -112,9 +99,8 @@ export default function StandaloneSummaryPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitFailed, setSubmitFailed] = useState(false);
   const [certGenerated, setCertGenerated] = useState(false);
-
-  const totalQuiz = (quizCorrect || 0) + (quizWrong || 0);
 
   // Generate Sertifikat Digital PDF
   async function generateCertificatePDF() {
@@ -175,20 +161,20 @@ export default function StandaloneSummaryPage() {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(186, 26, 26);
-    doc.text(`Partikel Dideteksi: ${totalParticles.toLocaleString('id-ID')} Partikel`, 60, 142);
+    doc.text(`Simulasi Makanan: ${totalParticles.toLocaleString('id-ID')} Partikel`, 80, 142, { align: 'center' });
 
     doc.setTextColor(0, 101, 145);
-    doc.text(`Organ Kritis: ${parseOrganLabel(mostDangerousOrgan)}`, 148.5, 142, { align: 'center' });
+    doc.text(`Organ Pilihan: ${organLabel || '-'}`, 148.5, 142, { align: 'center' });
 
     doc.setTextColor(0, 110, 47);
-    doc.text(`Akurasi Kuis: ${quizCorrect} / ${totalQuiz || 5} Benar`, 220, 142);
+    doc.text(`Nilai Tes Akhir: ${postTestScore ?? '-'}`, 217, 142, { align: 'center' });
 
     // Footer Signatures
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 110, 120);
     doc.text(`Diterbitkan pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`, 45, 180);
-    doc.text(`Kode Verifikasi: MJ-AR-${(sessionId || 'DEV').slice(0, 8).toUpperCase()}`, 45, 186);
+    doc.text(`Kode Verifikasi: MJ-AR-${(sessionId || 'DEV').slice(-8).toUpperCase()}`, 45, 186);
 
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(8, 59, 84);
@@ -218,6 +204,7 @@ export default function StandaloneSummaryPage() {
   // Submit Final LKPD + PR Drive + Feedback to MongoDB API
   async function handleSubmitAll() {
     setSubmitting(true);
+    setSubmitFailed(false);
     setLkpdAnswer('driveLink', driveLink);
     setLkpdAnswer('sosmedLink', sosmedLink);
     setLkpdAnswer('actionNote', actionNote);
@@ -229,6 +216,7 @@ export default function StandaloneSummaryPage() {
         studentName: studentName || 'Anonim',
         studentClass: studentClass || '-',
         sessionId: sessionId || `session-${Date.now()}`,
+        studentAccountEmail: currentUser?.email || '',
         lkpd1: lkpdAnswers.lkpd1 || '',
         lkpd2: lkpdAnswers.lkpd2 || '',
         lkpd3q1: lkpdAnswers.lkpd3q1 || '',
@@ -248,18 +236,19 @@ export default function StandaloneSummaryPage() {
         feedback: feedback.trim(),
       };
 
-      await fetch('/api/lkpd', {
+      const response = await fetch('/api/lkpd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
-      setSubmitting(false);
+      if (!response.ok) throw new Error(`Server menjawab ${response.status}`);
       setSubmitted(true);
     } catch (err) {
+      // Pesan berhasil hanya tampil bila server benar-benar menyimpan datanya
       console.error('Submit error:', err);
+      setSubmitFailed(true);
+    } finally {
       setSubmitting(false);
-      setSubmitted(true);
     }
   }
 
@@ -574,29 +563,28 @@ export default function StandaloneSummaryPage() {
                 {/* KPI Cards Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <SummaryKpiCard
-                    label="Partikel Dideteksi"
+                    label="Simulasi Makananmu"
                     value={totalParticles.toLocaleString('id-ID')}
-                    subtitle="Tingkat kontaminasi sampel"
+                    subtitle="Hitungan ilustrasi, bukan hasil ukur"
                     icon="warning"
                     accentColor="#ba1a1a"
                     badge="Partikel"
                   />
 
                   <SummaryKpiCard
-                    label="Organ Paling Kritis"
-                    value={parseOrganLabel(mostDangerousOrgan)}
-                    subtitle="Hasil analisis anatomi"
+                    label="Organ Pilihanmu"
+                    value={organLabel || '-'}
+                    subtitle="Dari jawabanmu di Tahap 4"
                     icon="coronavirus"
                     accentColor="#d27b22"
                   />
 
                   <SummaryKpiCard
-                    label="Akurasi Kuis"
-                    value={`${quizCorrect} / ${totalQuiz || 5}`}
-                    subtitle="Jawaban pilihan ganda benar"
+                    label="Nilai Tes Akhir"
+                    value={postTestScore === null ? '-' : String(postTestScore)}
+                    subtitle={postTestScore === null ? 'Belum dikerjakan' : `Tes awal: ${preTestScore ?? '-'}`}
                     icon="fact_check"
                     accentColor="#006e2f"
-                    badge="Benar"
                   />
 
                   <SummaryKpiCard
@@ -629,7 +617,7 @@ export default function StandaloneSummaryPage() {
                         <span className="font-extrabold text-[#006591] text-sm">LKPD 1 — Pelapukan Plastik</span>
                         <span className="text-[10px] bg-[#006591]/10 text-[#006591] font-bold px-2 py-0.5 rounded">Tahap 2</span>
                       </div>
-                      <p className="text-[#3e4850] italic leading-relaxed">{lkpdAnswers.lkpd1 || '(Belum diisi)'}</p>
+                      <p className="text-[#3e4850] italic leading-relaxed">{lkpdAnswers.lkpdStep2 || '(Belum diisi)'}</p>
                     </div>
 
                     <div className="p-4 rounded-2xl bg-[#f0f8ff] border border-[#006591]/20 space-y-1.5">
@@ -637,7 +625,7 @@ export default function StandaloneSummaryPage() {
                         <span className="font-extrabold text-[#006591] text-sm">LKPD 2 — Kontaminasi Pangan</span>
                         <span className="text-[10px] bg-[#006591]/10 text-[#006591] font-bold px-2 py-0.5 rounded">Tahap 3</span>
                       </div>
-                      <p className="text-[#3e4850] italic leading-relaxed">{lkpdAnswers.lkpd2 || '(Belum diisi)'}</p>
+                      <p className="text-[#3e4850] italic leading-relaxed">{lkpd2Text(lkpdAnswers.lkpd2) || '(Belum diisi)'}</p>
                     </div>
 
                     <div className="p-4 rounded-2xl bg-[#f0f8ff] border border-[#006591]/20 space-y-1.5">
@@ -741,6 +729,12 @@ export default function StandaloneSummaryPage() {
                 </div>
               </motion.div>
             ) : (
+              <>
+              {submitFailed && (
+                <p role="alert" className="mb-3 rounded-2xl border border-[#ff8c8c]/50 bg-[#ba1a1a]/40 p-3 text-center text-sm font-bold text-white">
+                  Belum terkirim. Periksa internet, lalu tekan kirim lagi. Jawabanmu masih aman di HP ini.
+                </p>
+              )}
               <motion.button
                 type="button"
                 onClick={handleSubmitAll}
@@ -766,6 +760,7 @@ export default function StandaloneSummaryPage() {
                   </>
                 )}
               </motion.button>
+              </>
             )}
           </div>
         </PageContainer>

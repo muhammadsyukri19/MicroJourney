@@ -57,15 +57,30 @@ const PACKAGING_PLASTIC_INFO: PlasticInfo = {
   description: 'Plastik tidak benar-benar hilang. Ia pecah menjadi serpihan kecil yang disebut mikroplastik.',
 };
 
-type ObjectKind = keyof typeof OBJECT_PLASTIC_INFO;
+type ObjectKind = keyof typeof OBJECT_PLASTIC_INFO | 'unknown';
 
 /** COCO sering menamai botol plastik "vase" atau "cup"; bentuknya yang memanjang membedakannya dari gelas */
 function objectKind(cocoClass: string, [, , w, h]: Box): ObjectKind {
   if (cocoClass === 'bottle' || cocoClass === 'bowl') return cocoClass;
   const elongation = Math.max(w, h) / Math.max(1, Math.min(w, h));
   if ((cocoClass === 'vase' || cocoClass === 'wine glass') && elongation >= BOTTLE_MIN_ELONGATION) return 'bottle';
-  if (cocoClass === 'cup' && elongation >= CUP_AS_BOTTLE_ELONGATION) return 'bottle';
-  return 'cup';
+  if (cocoClass === 'cup') return elongation >= CUP_AS_BOTTLE_ELONGATION ? 'bottle' : 'cup';
+  if (cocoClass === 'vase' || cocoClass === 'wine glass') return 'cup';
+  return elongation >= UNLABELED_BOTTLE_ELONGATION ? 'bottle' : 'unknown';
+}
+
+/**
+ * Botol yang memenuhi layar sering mendapat label acak seperti snowboard atau kucing. Benda besar di tengah
+ * tetap diperiksa walau labelnya aneh, tetapi model plastik harus jauh lebih yakin (UNLABELED_REJECT_THRESHOLD).
+ */
+function isUnlabeledObject(p: { class: string; score: number; bbox: Box }, region: VisibleRegion) {
+  if ((CONTAINER_COCO_CLASSES as readonly string[]).includes(p.class)) return false;
+  if ((NOT_PLASTIC_OBJECT_CLASSES as readonly string[]).includes(p.class) || p.score < UNLABELED_MIN_SCORE) return false;
+  const [x, y, w, h] = p.bbox;
+  const nearCenter =
+    Math.abs(x + w / 2 - (region.x + region.w / 2)) < region.w * UNLABELED_CENTER_MARGIN &&
+    Math.abs(y + h / 2 - (region.y + region.h / 2)) < region.h * UNLABELED_CENTER_MARGIN;
+  return nearCenter && w * h >= region.w * region.h * UNLABELED_MIN_AREA;
 }
 
 /** Botol lebih dulu: skornya sering rendah, terutama yang bening atau penyok, tetapi model plastik tetap memeriksanya */
@@ -80,6 +95,10 @@ const CONTAINER_COCO_CLASSES = ['bottle', 'cup', 'bowl', 'vase', 'wine glass'] a
 // Benda yang jelas bukan sampah. Daftar ini sengaja pendek: COCO sering salah menamai kemasan
 // (gelas busa terbaca "toilet", botol terbaca "vase"), dan siswa memang diminta memotret plastik.
 const NON_WASTE_COCO_CLASSES = ['person', 'cell phone', 'laptop', 'keyboard', 'mouse', 'tv'] as const;
+const NOT_PLASTIC_OBJECT_CLASSES = [
+  ...NON_WASTE_COCO_CLASSES,
+  'book', 'bench', 'bed', 'dining table', 'chair', 'couch', 'car', 'toilet', 'sink', 'refrigerator', 'oven', 'microwave',
+] as const;
 const NON_WASTE_LABELS: Record<string, string> = {
   person: 'orang',
   'cell phone': 'HP',
@@ -100,6 +119,10 @@ const REACQUIRE_SCORE = 0.5;
 const BOTTLE_COCO_CLASSES = ['bottle', 'vase', 'wine glass'] as const;
 const BOTTLE_MIN_ELONGATION = 1.6;
 const CUP_AS_BOTTLE_ELONGATION = 1.8;
+const UNLABELED_BOTTLE_ELONGATION = 1.5;
+const UNLABELED_MIN_SCORE = 0.2;
+const UNLABELED_MIN_AREA = 0.12;
+const UNLABELED_CENTER_MARGIN = 0.3;
 // Bingkai bergantian: utuh, diputar untuk botol yang tergeletak, dan potongan tengah yang tidak terpencet
 const DETECT_VIEWS: DetectView[] = ['full', 'rotated', 'full', 'center'];
 // Bukti dikumpulkan dari skor tiap bingkai, jadi benda berskor rendah hanya perlu ditahan sedikit lebih lama.
@@ -123,6 +146,7 @@ const NON_WASTE_COCO_THRESHOLD = 0.5;
 // Foto hanya ditolak bila model cukup yakin non-plastik (dipilih dari validation exp03, dipakai lagi di exp04).
 // Di bawah ini skor resin dinormalkan ulang agar plastik tidak mudah tertolak.
 const NON_PLASTIC_REJECT_THRESHOLD = 0.6;
+const UNLABELED_REJECT_THRESHOLD = 0.15;
 // Kotak selebar ini (mis. "tv" sepenuh layar) biasanya salah baca COCO, kecuali orang
 const NON_PLASTIC_MAX_AREA_RATIO = 0.6;
 // Margin konteks di sekitar kotak kandidat wadah saat foto diklasifikasi
@@ -323,7 +347,7 @@ const INITIAL_SCAN_CARD: ScanFeedbackState = {
 };
 
 function newLockState() {
-  return { hits: 0, evidence: 0, streakBox: null as Box | null, kinds: [] as ObjectKind[], probs: [] as number[][], cooldown: 0, misses: 0, errors: 0 };
+  return { hits: 0, evidence: 0, labeled: false, streakBox: null as Box | null, kinds: [] as ObjectKind[], probs: [] as number[][], cooldown: 0, misses: 0, errors: 0 };
 }
 
 let stopAiTimer = 0;
@@ -651,11 +675,11 @@ export default function Tahap1() {
     const lock = lockStateRef.current;
     lock.errors = 0;
 
-    const judgeProbs = (probs: number[]) => {
+    const judgeProbs = (probs: number[], rejectAt = NON_PLASTIC_REJECT_THRESHOLD) => {
       const nonPlasticProb = probs[NON_PLASTIC_INDEX];
       return {
         topScore: Math.max(...probs.slice(0, NON_PLASTIC_INDEX)) / Math.max(1e-6, 1 - nonPlasticProb),
-        looksNonPlastic: nonPlasticProb >= NON_PLASTIC_REJECT_THRESHOLD,
+        looksNonPlastic: nonPlasticProb >= rejectAt,
       };
     };
 
@@ -706,8 +730,12 @@ export default function Tahap1() {
     if (phaseRef.current === 'identified') {
       if (overlayTargetRef.current.isCenterFallback) return;
       const current = trackedBoxRef.current;
-      const candidates = preds.filter(
+      const containers = preds.filter(
         p => (CONTAINER_COCO_CLASSES as readonly string[]).includes(p.class) && p.score >= TRACK_SCORE
+      );
+      // Label bisa berganti antar bingkai, jadi benda yang sudah terkunci diikuti dari posisinya
+      const candidates = preds.filter(
+        p => !(NOT_PLASTIC_OBJECT_CLASSES as readonly string[]).includes(p.class) && p.score >= TRACK_SCORE
       );
       const nearest = current
         ? candidates
@@ -719,7 +747,7 @@ export default function Tahap1() {
       const next =
         nearest ??
         (lock.misses >= 2 || !current
-          ? candidates.filter(p => p.score >= REACQUIRE_SCORE).sort((a, b) => b.score - a.score)[0]
+          ? containers.filter(p => p.score >= REACQUIRE_SCORE).sort((a, b) => b.score - a.score)[0]
           : undefined);
       if (next) {
         lock.misses = 0;
@@ -758,7 +786,9 @@ export default function Tahap1() {
       return;
     }
 
-    const lockable = preds.filter(isLockable).sort((a, b) => b.score - a.score);
+    const lockable = preds
+      .filter(p => isLockable(p) || isUnlabeledObject(p, region))
+      .sort((a, b) => Number(isLockable(b)) - Number(isLockable(a)) || b.score - a.score);
     const streakBox = lock.streakBox;
     // Benda yang sedang dikumpulkan buktinya diutamakan, supaya tidak berpindah ke benda lain di bingkai yang sama
     const candidate = streakBox
@@ -771,7 +801,7 @@ export default function Tahap1() {
     if (!candidate) {
       lock.evidence -= MISS_PENALTY;
       if (streakBox && lock.evidence > 0) return;
-      Object.assign(lock, { hits: 0, evidence: 0, streakBox: null, kinds: [], probs: [] });
+      Object.assign(lock, { hits: 0, evidence: 0, labeled: false, streakBox: null, kinds: [], probs: [] });
       overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
 
       // Benda bukan sampah (orang, laptop, dll.) yang menutupi titik tengah bingkai
@@ -802,6 +832,7 @@ export default function Tahap1() {
     // Bukti dikumpulkan selama benda bertahan di tempat yang sama
     lock.hits += 1;
     lock.evidence += candidate.score;
+    lock.labeled = lock.labeled || isLockable(candidate);
     lock.kinds = [...lock.kinds, objectKind(candidate.class, candidate.bbox)];
     lock.streakBox = candidate.bbox;
     overlayTargetRef.current = { box: candidate.bbox, kind: 'uncertain', label: 'Tahan sebentar…', isCenterFallback: false };
@@ -812,12 +843,15 @@ export default function Tahap1() {
     if (probs) lock.probs = [...lock.probs, probs];
     // Penilaian benda yang sama dirata-ratakan, jadi satu bingkai buruk tidak menentukan hasil
     const result = lock.probs.length
-      ? judgeProbs(lock.probs[0].map((_, i) => lock.probs.reduce((sum, item) => sum + item[i], 0) / lock.probs.length))
+      ? judgeProbs(
+          lock.probs[0].map((_, i) => lock.probs.reduce((sum, item) => sum + item[i], 0) / lock.probs.length),
+          lock.labeled ? NON_PLASTIC_REJECT_THRESHOLD : UNLABELED_REJECT_THRESHOLD
+        )
       : null;
     if (result && !result.looksNonPlastic && result.topScore >= RESIN_THRESHOLD) {
-      const kinds = lock.kinds;
-      Object.assign(lock, { hits: 0, evidence: 0, streakBox: null, kinds: [], probs: [] });
-      acceptPlastic(OBJECT_PLASTIC_INFO[mostCommon(kinds)], candidate.bbox, false);
+      const kind = mostCommon(lock.kinds);
+      Object.assign(lock, { hits: 0, evidence: 0, labeled: false, streakBox: null, kinds: [], probs: [] });
+      acceptPlastic(kind === 'unknown' ? PACKAGING_PLASTIC_INFO : OBJECT_PLASTIC_INFO[kind], candidate.bbox, false);
       return;
     }
     // Pesannya sengaja lunak: model kadang keliru menolak plastik sungguhan. Benda yang sama diperiksa lagi sebentar kemudian

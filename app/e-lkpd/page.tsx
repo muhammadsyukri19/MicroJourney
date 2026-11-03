@@ -113,7 +113,7 @@ const LKPD_DEFS: LkpdDef[] = [
 ];
 
 export default function ELKPDPage() {
-  const { lkpdAnswers, setLkpdAnswer, completeStage, studentName, studentClass, totalParticles, selectedFoods, mostDangerousOrgan } = useJourneyStore();
+  const { lkpdAnswers, setLkpdAnswer, studentName, studentClass, totalParticles, selectedFoods, mostDangerousOrgan } = useJourneyStore();
   const { currentUser } = useAuthStore();
   const [expanded, setExpanded] = useState<string | null>('lkpd1');
   const [practiceAnswer, setPracticeAnswer] = useState<Record<string, string>>({});
@@ -130,10 +130,10 @@ export default function ELKPDPage() {
   const answeredCount = Object.values(answered).filter((v) => v && v.length > 0).length;
   const progressPct = Math.round((answeredCount / LKPD_DEFS.length) * 100);
 
-  function handleSavePractice(lkpdId: string, val: string, tahapNum: number) {
+  // Mode latihan tidak menandai tahap selesai, supaya tahap tidak bisa terlewati dari sini
+  function handleSavePractice(lkpdId: string, val: string) {
     setLkpdAnswer(lkpdId as any, val);
     setPracticeAnswer((prev) => ({ ...prev, [lkpdId]: val }));
-    completeStage(tahapNum);
   }
 
   async function downloadLogbookPDF() {
@@ -410,7 +410,7 @@ export default function ELKPDPage() {
                             {lkpd.options.map((opt) => (
                               <button
                                 key={opt.id}
-                                onClick={() => handleSavePractice(lkpd.id, opt.id, lkpd.tahapNum)}
+                                onClick={() => handleSavePractice(lkpd.id, opt.id)}
                                 className="w-full text-left p-3 rounded-xl border border-white/20 bg-white/5 hover:bg-[#006591] hover:border-[#6bff8f] text-xs sm:text-sm text-white transition-all flex items-center gap-3"
                               >
                                 <span className="w-6 h-6 rounded-full bg-white/10 border border-white/30 flex items-center justify-center font-bold text-xs uppercase flex-shrink-0">
@@ -433,7 +433,7 @@ export default function ELKPDPage() {
                               onClick={() => {
                                 const val = practiceAnswer[lkpd.id] || '';
                                 if (val.trim().length >= 3) {
-                                  handleSavePractice(lkpd.id, val, lkpd.tahapNum);
+                                  handleSavePractice(lkpd.id, val);
                                 }
                               }}
                               disabled={!(practiceAnswer[lkpd.id] || '').trim()}

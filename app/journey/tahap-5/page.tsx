@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/authStore';
 import { useJourneyStore } from '@/lib/journeyStore';
 import EvidenceBoard from '@/components/stages/EvidenceBoard';
+import { organFromAnswer } from '@/lib/lkpdAnswers';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { useReturnedToStage, useStageBack } from '@/lib/stageBack';
 
@@ -28,7 +29,6 @@ export default function Tahap5() {
   const [submitted, setSubmitted] = useState(returned && Boolean(lkpdAnswers.lkpd4));
   const [boardUnlocked, setBoardUnlocked] = useState(returned && Boolean(lkpdAnswers.lkpd4));
   const [boardRound, setBoardRound] = useState(0);
-  const [error, setError] = useState('');
   const [showCompletionModal, setShowCompletionModal] = useState(false);
 
   // Hasil -> LKPD 4 -> papan bukti -> Tahap 4
@@ -63,7 +63,6 @@ export default function Tahap5() {
       return;
     }
     setSubmitting(true);
-    setError('');
     setLkpdAnswer('lkpd4', lkpd4);
 
     try {
@@ -71,9 +70,13 @@ export default function Tahap5() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentName, studentClass, sessionId,
+          studentName: studentName || currentUser.name,
+          studentClass: studentClass || currentUser.className || '-',
+          sessionId,
           studentAccountEmail: currentUser.email,
           assessmentEligible: true,
+          lkpdStep1: lkpdAnswers.lkpdStep1,
+          lkpdStep2: lkpdAnswers.lkpdStep2,
           lkpd1: lkpdAnswers.lkpd1,
           lkpd2: lkpdAnswers.lkpd2,
           lkpd3q1: lkpdAnswers.lkpd3q1,
@@ -87,14 +90,14 @@ export default function Tahap5() {
           selectedFoods: selectedFoods.map(f => f.name),
         }),
       });
-      setSubmitted(true);
-      completeStage(5);
-      setShowCompletionModal(true);
     } catch {
-      setError('Gagal mengirim. Periksa koneksi internet.');
-    } finally {
-      setSubmitting(false);
+      // Jawaban tetap tersimpan di HP dan ikut terkirim lagi di Tahap 6, jadi siswa tidak perlu tertahan di sini
+      console.warn('Laporan Tahap 5 belum terkirim');
     }
+    setSubmitting(false);
+    setSubmitted(true);
+    completeStage(5);
+    setShowCompletionModal(true);
   }
 
   const PREV_LKPDS = [
@@ -140,9 +143,9 @@ export default function Tahap5() {
               <span className="material-symbols-outlined text-2xl">warning</span>
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-extrabold text-white/60 font-[family-name:var(--font-mono)] uppercase tracking-wider">Organ Target</p>
+              <p className="text-[10px] font-extrabold text-white/60 font-[family-name:var(--font-mono)] uppercase tracking-wider">Organ Pilihanmu</p>
               <p className="font-[family-name:var(--font-outfit)] font-extrabold text-sm text-[#ff8c8c] leading-tight line-clamp-2">
-                {mostDangerousOrgan || 'Usus Halus'}
+                {organFromAnswer(mostDangerousOrgan) || 'Lihat jawabanmu di Tahap 4'}
               </p>
             </div>
           </div>
@@ -267,7 +270,6 @@ export default function Tahap5() {
               </div>
             </div>
 
-            {error && <p className="text-[#ff8c8c] text-sm bg-[#ba1a1a]/40 border border-[#ff8c8c]/40 p-3 rounded-xl text-center">{error}</p>}
 
             {/* Wooden 3D Submit Button */}
             <button

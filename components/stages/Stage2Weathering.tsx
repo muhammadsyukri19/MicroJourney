@@ -499,6 +499,7 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
   const [hasBurst, setHasBurst] = useState(false);
   const [showAr, setShowAr] = useState(false);
   const animRef = useRef<number>(0);
+  const focusTimerRef = useRef<number>(0);
   const phaseRef = useRef(labPhase);
   phaseRef.current = labPhase;
 
@@ -885,7 +886,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       setSummaryMissing(false);
       setFocusQuestion(firstProblem.id);
       document.getElementById(`soal-${firstProblem.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      window.setTimeout(() => setFocusQuestion(null), 1800);
+      window.clearTimeout(focusTimerRef.current);
+      focusTimerRef.current = window.setTimeout(() => setFocusQuestion(null), 1800);
       return;
     }
     if (!lkpdAnswers.lkpdStep2.trim()) {
@@ -895,6 +897,8 @@ export default function Stage2Weathering({ onComplete, videoUrl = 'https://www.y
       field?.focus({ preventScroll: true });
       return;
     }
+    // Soal pertama sama dengan LKPD 1 di Jurnal Misi, jadi jawabannya ikut terisi
+    setLkpdAnswer('lkpd1', 'a');
     onComplete();
   };
 

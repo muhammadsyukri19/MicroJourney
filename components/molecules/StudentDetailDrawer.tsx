@@ -2,6 +2,7 @@
 // Slide-over drawer untuk menampilkan detail hasil laboratorium, PR Google Drive, & E-LKPD 6 Tahap siswa.
 'use client';
 
+import { lkpd2Text } from '@/lib/lkpdAnswers';
 import React from 'react';
 import { cn } from '@/libs/utils';
 import ClassBadge from '@/components/atoms/ClassBadge';
@@ -14,6 +15,8 @@ export interface Submission {
   studentClass: string;
   totalParticles: number;
   mostDangerousOrgan: string;
+  lkpdStep1?: string;
+  lkpdStep2?: string;
   lkpd1: string;
   lkpd2: string;
   lkpd3q1: string;
@@ -93,7 +96,7 @@ export default function StudentDetailDrawer({
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
             <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 mb-0.5">
-              Organ Paling Kritis
+              Organ Pilihan Siswa
             </p>
             <p
               className="text-sm font-extrabold text-amber-800 truncate"
@@ -101,19 +104,6 @@ export default function StudentDetailDrawer({
             >
               {parseOrganLabel(submission.mostDangerousOrgan)}
             </p>
-          </div>
-        </div>
-
-        {/* Skor Kuis */}
-        <div className="bg-[#006591]/5 border border-[#006591]/20 rounded-xl p-3.5 flex justify-between items-center">
-          <p className="font-bold text-[#006591]">Hasil Kuis Pilihan Ganda</p>
-          <div className="flex gap-2">
-            <span className="text-emerald-700 font-extrabold bg-emerald-100 px-2.5 py-0.5 rounded-md">
-              {submission.quizCorrect || 0} Benar
-            </span>
-            <span className="text-red-600 font-extrabold bg-red-100 px-2.5 py-0.5 rounded-md">
-              {submission.quizWrong || 0} Salah
-            </span>
           </div>
         </div>
 
@@ -226,11 +216,12 @@ export default function StudentDetailDrawer({
           </p>
 
           {[
-            { l: 'Tahap 1: Identifikasi AR Scanner Plastik', t: submission.lkpd1 },
-            { l: 'Tahap 2: Simulasi Pelapukan UV & Ombak', t: submission.lkpd2 },
-            { l: 'Tahap 3: Bioakumulasi Rantai Makanan Laut', t: submission.lkpd3q1 },
-            { l: 'Tahap 4: Refleksi Pola Konsumsi Harian', t: submission.lkpd3q2 },
-            { l: 'Tahap 5: Sintesis Analisis Anatomi HOTS', t: submission.lkpd4 },
+            { l: 'Tahap 1: Tebakan Setelah Scan Plastik', t: submission.lkpdStep1 },
+            { l: 'Tahap 2: Kesimpulan Pelapukan Plastik', t: submission.lkpdStep2 },
+            { l: 'Tahap 3: Jalur Kontaminasi Pangan', t: lkpd2Text(submission.lkpd2) },
+            { l: 'Tahap 4: Mengapa Asam Lambung Gagal', t: submission.lkpd3q1 },
+            { l: 'Tahap 4: Organ yang Dipilih dan Alasannya', t: submission.lkpd3q2 },
+            { l: 'Tahap 5: Pelaku Sekaligus Korban', t: submission.lkpd4 },
             { l: 'Tahap 6: Deklarasi Sumpah Komitmen', t: submission.commitment },
           ].map((item, i) => (
             <div key={i} className="space-y-1">
