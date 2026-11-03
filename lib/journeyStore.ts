@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export interface PlasticDisposal {
+  plasticName: string;
+  resinClass: string | null;
+  disposedAt: string;
+  /** true bila tempat sampah terlihat oleh AI; false bila siswa memakai tombol konfirmasi cadangan */
+  binDetected: boolean;
+}
+
 export interface LkpdAnswers {
   lkpdStep1: string; // Tahap 1: Scanner
   lkpdStep2: string; // Tahap 2: Pelapukan
@@ -37,7 +45,9 @@ interface JourneyState {
   quizWrong: number;
   preTestScore: number | null;
   postTestScore: number | null;
+  plasticDisposal: PlasticDisposal | null;
 
+  setPlasticDisposal: (record: PlasticDisposal) => void;
   setStudent: (name: string, cls: string) => void;
   completeStage: (stageId: number) => void;
   fetchProgress: (studentId: string) => Promise<void>;
@@ -75,6 +85,9 @@ export const useJourneyStore = create<JourneyState>()(
       quizWrong: 0,
       preTestScore: null,
       postTestScore: null,
+      plasticDisposal: null,
+
+      setPlasticDisposal: (record) => set({ plasticDisposal: record }),
 
       setStudent: (name, cls) => set({
         studentName: name,
@@ -159,7 +172,7 @@ export const useJourneyStore = create<JourneyState>()(
         studentName: '', studentClass: '', sessionId: '',
         completedStages: [], selectedFoods: [], totalParticles: 0,
         lkpdAnswers: INITIAL_LKPD, mostDangerousOrgan: '', organInteractions: [],
-        quizCorrect: 0, quizWrong: 0, preTestScore: null, postTestScore: null,
+        quizCorrect: 0, quizWrong: 0, preTestScore: null, postTestScore: null, plasticDisposal: null,
       }),
     }),
     { name: 'microjourney-state' }

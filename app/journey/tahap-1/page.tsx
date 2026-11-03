@@ -1,193 +1,75 @@
 'use client';
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useJourneyStore } from '@/lib/journeyStore';
+import dynamic from 'next/dynamic';
 import StageIntro from '@/components/stages/StageIntro';
 import { useStageBack } from '@/lib/stageBack';
 import {
   classifyCrop,
+  detectBin,
   detectObjects,
   releaseFrame,
+  startBinDetector,
   startScannerAI,
   stopScannerAI,
 } from '@/lib/plasticScannerClient';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
-type Phase = 'init' | 'scanning' | 'detected' | 'pemantik';
+type Phase = 'init' | 'scanning' | 'identified' | 'findBin' | 'disposed' | 'pemantik';
 
-export interface PlasticInfo {
+interface PlasticInfo {
   name: string;
   polymer: string;
-  code: string;
   decompositionTime: string;
-  example: string;
   description: string;
   resinClass?: string;
-  isMinorityValidationNeeded?: boolean;
 }
 
-export const PLASTIC_DATA: Record<string, PlasticInfo> = {
-  bottle: {
-    name: 'Botol Plastik',
-    polymer: 'Polietilena Tereftalat (PET / PETE)',
-    code: 'KODE 1 · PET',
-    decompositionTime: '450 Tahun',
-    example: 'Botol air mineral, botol minuman kemasan, botol minyak',
-    description:
-      'Kalau sering kena sinar matahari, plastik ini makin rapuh dan melepas serpihan sangat kecil yang disebut mikroplastik.',
-    resinClass: '1-PET',
-    isMinorityValidationNeeded: false,
-  },
-  cup: {
-    name: 'Gelas / Cup Plastik',
-    polymer: 'Polipropilena (PP) / Polistirena (PS)',
-    code: 'KODE 5 (PP) / KODE 6 (PS)',
-    decompositionTime: '20 – 450 Tahun',
-    example: 'Cup minuman boba/kopi, gelas air mineral sekali pakai',
-    description:
-      'Plastiknya tipis dan cepat rapuh saat terjemur, lalu mudah pecah menjadi serpihan sangat kecil.',
-    resinClass: '5-PP',
-    isMinorityValidationNeeded: false,
-  },
-  bowl: {
-    name: 'Mangkuk / Wadah Plastik',
-    polymer: 'Polipropilena (PP) / HDPE',
-    code: 'KODE 5 (PP) / KODE 2 (HDPE)',
-    decompositionTime: '100 – 450 Tahun',
-    example: 'Mangkuk mie instan, wadah thinwall takeaway, kotak bekal',
-    description:
-      'Sering kena panas dan minyak. Lama-lama plastiknya rusak dan zat kimia di dalamnya bisa ikut terlepas.',
-    resinClass: '5-PP',
-    isMinorityValidationNeeded: false,
-  },
-  'wine glass': {
-    name: 'Gelas Mika / Wadah Bening',
-    polymer: 'Polikarbonat (PC) / Akrilik (PMMA)',
-    code: 'KODE 7 · LAINNYA (OTHER)',
-    decompositionTime: '400 – 500 Tahun',
-    example: 'Gelas mika bening, botol tumbler keras, toples tebal',
-    description:
-      'Plastik keras ini sangat lama terurai dan bisa melepaskan zat kimia bernama bisfenol ke dalam air.',
-    resinClass: '7-OTHER',
-    isMinorityValidationNeeded: true,
-  },
-  vase: {
-    name: 'Wadah / Botol Plastik Keras',
-    polymer: 'Polivinil Klorida (PVC) / Polietilena',
-    code: 'KODE 3 (PVC) / KODE 7',
-    decompositionTime: '500 Tahun',
-    example: 'Wadah silinder tebal, botol bahan kimia, vas sintetis',
-    description:
-      'Mengandung klorin dan zat pelentur yang sulit hilang di alam dan beracun bagi makhluk hidup di air.',
-    resinClass: '3-PVC',
-    isMinorityValidationNeeded: true,
-  },
+// Angka lama terurai mengikuti proposal (hal. 15). Belum ada angka baku karena hasilnya bergantung pada bentuk
+// plastik dan lingkungannya, jadi di layar selalu ditulis sebagai perkiraan.
+const PET_FACTS = {
+  polymer: 'Umumnya PET (kode 1)',
+  decompositionTime: 'Sekitar 450 tahun',
+  description:
+    'Kalau sering terjemur atau dipakai berulang, plastik ini melepas serpihan sangat kecil yang disebut mikroplastik.',
+  resinClass: '1-PET',
+};
+const PP_FACTS = {
+  polymer: 'Umumnya PP (kode 5)',
+  decompositionTime: 'Sekitar 200 tahun',
+  description:
+    'Makin rapuh kalau terus kena sinar matahari, dan bisa melepas mikroplastik saat tergesek atau kena air panas.',
+  resinClass: '5-PP',
 };
 
-export const RESIN_PLASTIC_DATA: Record<string, PlasticInfo> = {
-  '1-PET': {
-    name: 'Kemasan Plastik PET',
-    polymer: 'Polietilena Tereftalat (PET / PETE)',
-    code: 'KODE 1 · PET / PETE',
-    decompositionTime: '450 Tahun',
-    example: 'Botol air mineral bening, botol minuman ringan, kemasan minyak goreng',
-    description:
-      'Kalau sering terjemur atau dipakai berulang, plastik ini melepas serpihan sangat kecil yang disebut mikroplastik.',
-    resinClass: '1-PET',
-    isMinorityValidationNeeded: false,
-  },
-  '2-HDPE': {
-    name: 'Wadah Plastik HDPE',
-    polymer: 'Polietilena Densitas Tinggi (HDPE)',
-    code: 'KODE 2 · HDPE',
-    decompositionTime: '100 – 500 Tahun',
-    example: 'Botol susu buram, botol sampo/deterjen, jeriken plastik tebal',
-    description:
-      'Lebih tahan panas daripada PET, tapi kalau terus tergesek dan lapuk tetap pecah menjadi mikroplastik di perairan.',
-    resinClass: '2-HDPE',
-    isMinorityValidationNeeded: false,
-  },
-  '3-PVC': {
-    name: 'Material Plastik PVC',
-    polymer: 'Polivinil Klorida (PVC / V)',
-    code: 'KODE 3 · PVC / V',
-    decompositionTime: '500+ Tahun',
-    example: 'Pipa plastik, blister kemasan obat kaku, lapisan pembungkus tertentu',
-    description:
-      'Mengandung klorin dan zat pelentur yang bisa terlepas dan berbahaya bagi makhluk hidup.',
-    resinClass: '3-PVC',
-    isMinorityValidationNeeded: true,
-  },
-  '4-LDPE': {
-    name: 'Plastik Fleksibel LDPE',
-    polymer: 'Polietilena Densitas Rendah (LDPE)',
-    code: 'KODE 4 · LDPE',
-    decompositionTime: '500 – 1000 Tahun',
-    example: 'Kantong kresek fleksibel, plastik pembungkus, botol pencet fleksibel',
-    description:
-      'Tipis dan lentur, jadi mudah robek menjadi lembaran sangat kecil yang disebut mikroplastik.',
-    resinClass: '4-LDPE',
-    isMinorityValidationNeeded: false,
-  },
-  '5-PP': {
-    name: 'Kemasan Plastik PP',
-    polymer: 'Polipropilena (PP)',
-    code: 'KODE 5 · PP',
-    decompositionTime: '20 – 300 Tahun',
-    example: 'Gelas cup minuman, bungkus makanan ringan/keripik, kotak makan thinwall',
-    description:
-      'Makin rapuh kalau terus kena sinar matahari, dan bisa melepas mikroplastik saat tergesek atau kena air panas.',
-    resinClass: '5-PP',
-    isMinorityValidationNeeded: false,
-  },
-  '6-PS': {
-    name: 'Kemasan Polistirena (PS)',
-    polymer: 'Polistirena (Styrofoam / PS Kaku)',
-    code: 'KODE 6 · PS',
-    decompositionTime: '500+ Tahun',
-    example: 'Wadah busa styrofoam, gelas kopi busa, sendok garpu plastik getas',
-    description:
-      'Sangat mudah hancur menjadi ribuan butiran kecil yang mengapung dan bisa termakan hewan laut.',
-    resinClass: '6-PS',
-    isMinorityValidationNeeded: true,
-  },
-  '7-OTHER': {
-    name: 'Plastik Multilayer / Lainnya',
-    polymer: 'Polimer Lainnya (Polikarbonat / Multilayer)',
-    code: 'KODE 7 · OTHER',
-    decompositionTime: '400 – 500 Tahun',
-    example: 'Botol minum keras polikarbonat, galon tertentu, kemasan sachet berlapis',
-    description:
-      'Sulit didaur ulang, dan beberapa jenisnya bisa melepaskan zat kimia bernama bisfenol saat mulai rusak.',
-    resinClass: '7-OTHER',
-    isMinorityValidationNeeded: true,
-  },
+// Bahan plastik tidak bisa dipastikan dari tampilannya, jadi polimer diambil dari jenis benda yang dikenali kamera
+const OBJECT_PLASTIC_INFO = {
+  bottle: { name: 'Botol plastik', ...PET_FACTS },
+  cup: { name: 'Gelas plastik', ...PP_FACTS },
+  bowl: { name: 'Wadah plastik', ...PP_FACTS },
 };
 
-export function getPlasticInfo(className: string): PlasticInfo {
-  const trimmed = className.trim();
-  if (RESIN_PLASTIC_DATA[trimmed.toUpperCase()]) {
-    return RESIN_PLASTIC_DATA[trimmed.toUpperCase()];
-  }
-  const key = trimmed.toLowerCase();
-  if (PLASTIC_DATA[key]) {
-    return PLASTIC_DATA[key];
-  }
-  return {
-    name: 'Sampah Plastik Kemasan',
-    polymer: 'Polimer Campuran Sintetis (Multilayer)',
-    code: 'KODE 7 · CAMPURAN',
-    decompositionTime: '200 – 450 Tahun',
-    example: 'Kemasan sachet makanan ringan, kemasan plastik berlapis',
-    description:
-      'Terdiri dari beberapa lapisan plastik, jadi sulit didaur ulang dan mudah hancur menjadi mikroplastik di alam.',
-    resinClass: '7-OTHER',
-    isMinorityValidationNeeded: true,
-  };
+// Kemasan yang tidak dikenali kamera, seperti kresek atau styrofoam: tebakan jenis dari model terlalu sering keliru
+const PACKAGING_PLASTIC_INFO: PlasticInfo = {
+  name: 'Kemasan plastik',
+  polymer: 'Cek kode segitiga, bila ada',
+  decompositionTime: 'Puluhan sampai ratusan tahun',
+  description: 'Plastik tidak benar-benar hilang. Ia pecah menjadi serpihan kecil yang disebut mikroplastik.',
+};
+
+type ObjectKind = keyof typeof OBJECT_PLASTIC_INFO;
+
+/** COCO sering menamai botol plastik "vase"; bentuknya yang memanjang membedakannya dari gelas */
+function objectKind(cocoClass: string, [, , w, h]: Box): ObjectKind {
+  if (cocoClass === 'bottle' || cocoClass === 'bowl') return cocoClass;
+  if (cocoClass === 'vase' && Math.max(w, h) / Math.max(1, Math.min(w, h)) >= BOTTLE_MIN_ELONGATION) return 'bottle';
+  return 'cup';
 }
 
-// Kandidat wadah target COCO-SSD
-const AUTO_COCO_CLASSES = ['bottle', 'cup', 'bowl'] as const;
+// Kandidat wadah target COCO-SSD. COCO sering menamai botol plastik "vase" atau "wine glass", kadang bergantian
+// antar frame, jadi plastik atau bukan diputuskan model plastik.
+const CONTAINER_COCO_CLASSES = ['bottle', 'cup', 'bowl', 'vase', 'wine glass'] as const;
 // Benda yang jelas bukan sampah. Daftar ini sengaja pendek: COCO sering salah menamai kemasan
 // (gelas busa terbaca "toilet", botol terbaca "vase"), dan siswa memang diminta memotret plastik.
 const NON_WASTE_COCO_CLASSES = ['person', 'cell phone', 'laptop', 'keyboard', 'mouse', 'tv'] as const;
@@ -202,20 +84,29 @@ const NON_WASTE_LABELS: Record<string, string> = {
 
 // 7 kelas resin MobileNetV2 (alpha=0.50, exp04_glass); keluaran ke-8 = non-plastik
 const NON_PLASTIC_INDEX = 7;
-const RESIN_CLASSES = [
-  '1-PET',
-  '2-HDPE',
-  '3-PVC',
-  '4-LDPE',
-  '5-PP',
-  '6-PS',
-  '7-OTHER',
-] as const;
 
-const MINORITY_CLASSES = ['3-PVC', '6-PS', '7-OTHER'] as const;
+// Deteksi langsung: objek dikunci setelah stabil beberapa frame, lalu diperiksa model plastik sekali
+const LOCK_SCORE = 0.6;
+const TRACK_SCORE = 0.35;
+const REACQUIRE_SCORE = 0.5;
+const STABLE_FRAMES = 8;
+const BOTTLE_MIN_ELONGATION = 1.6;
+// Satu-dua frame kosong wajar pada kamera HP yang bergetar, jadi hitungan kunci tidak langsung diulang
+const STREAK_GAP_FRAMES = 2;
+const LOST_FRAMES = 6;
+const RECHECK_AFTER_FRAMES = 10;
+const DETECT_INTERVAL_MS = 150;
+const FRAME_LONG_SIDE = 640;
+const MANUAL_SCAN_DELAY_MS = 5000;
 
-// Ambang batas deteksi & klasifikasi
-const COCO_THRESHOLD = 0.4;
+// Deteksi tempat sampah: ambang dipilih dari validation detektor (lihat experiments/bin_dataset)
+const BIN_SCORE = 0.4;
+const BIN_STABLE_FRAMES = 3;
+const BIN_LOST_FRAMES = 6;
+const BIN_INTERVAL_MS = 200;
+const BIN_FALLBACK_MS = 12000;
+
+// Ambang batas klasifikasi
 // Dipilih dari validation exp04. Penolakan non-plastik kini ditangani NON_PLASTIC_REJECT_THRESHOLD,
 // jadi ambang ini hanya menyaring foto yang jenis resinnya sangat tidak jelas.
 const RESIN_THRESHOLD = 0.4;
@@ -240,7 +131,6 @@ const COLOR_LOCK = '#6bff8f';
 const COLOR_WARN = '#f0a345';
 
 type Box = [number, number, number, number];
-type CaptureMode = 'live' | 'analyzing' | 'result';
 
 interface OverlayTarget {
   box: Box | null; // koordinat ruang video
@@ -278,6 +168,13 @@ function getCenterRoi(region: VisibleRegion): Box {
   return [x, y, side, side];
 }
 
+/** Benda yang sebagian besar berada di luar area layar yang terlihat diabaikan */
+function isMostlyVisible([bx, by, bw, bh]: Box, region: VisibleRegion) {
+  const ix = Math.max(0, Math.min(bx + bw, region.x + region.w) - Math.max(bx, region.x));
+  const iy = Math.max(0, Math.min(by + bh, region.y + region.h) - Math.max(by, region.y));
+  return (ix * iy) / Math.max(1, bw * bh) >= 0.5;
+}
+
 /** ctx.roundRect dengan fallback untuk WebView/Safari lama */
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
@@ -306,6 +203,32 @@ function cropToDataUrl(source: HTMLCanvasElement, box: Box): string | null {
   if (!ctx) return null;
   ctx.drawImage(source, sx, sy, side, side, 0, 0, 320, 320);
   return out.toDataURL('image/jpeg', 0.85);
+}
+
+function mostCommon<T>(items: T[]): T {
+  const count = (item: T) => items.filter(other => other === item).length;
+  return items.reduce((best, item) => (count(item) > count(best) ? item : best));
+}
+
+function boxOverlap(a: Box, b: Box) {
+  const ix = Math.max(0, Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]));
+  const iy = Math.max(0, Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]));
+  const shared = ix * iy;
+  return shared / Math.max(1, a[2] * a[3] + b[2] * b[3] - shared);
+}
+
+function cameraErrorMessage(err: unknown) {
+  const name = err instanceof Error ? err.name : '';
+  if (name === 'NotAllowedError' || name === 'SecurityError') {
+    return 'Izin kamera ditolak. Izinkan kamera di pengaturan browser, lalu coba lagi.';
+  }
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+    return 'Kamera tidak ditemukan di perangkat ini.';
+  }
+  if (name === 'NotReadableError') {
+    return 'Kamera sedang dipakai aplikasi lain. Tutup aplikasi itu, lalu coba lagi.';
+  }
+  return 'AI scanner belum bisa dibuka. Periksa koneksi internet, lalu coba lagi.';
 }
 
 function lerpBox(from: Box, to: Box, t: number): Box {
@@ -383,37 +306,34 @@ function drawTag(
 
 interface ScanFeedbackState {
   status: 'scanning' | 'detected' | 'non_plastic' | 'uncertain';
-  cocoLabel: string;
-  resinClass: string | null;
-  confidence: number | null;
-  isMinority: boolean;
   message: string;
 }
 
 const INITIAL_SCAN_CARD: ScanFeedbackState = {
   status: 'scanning',
-  cocoLabel: 'Mencari objek...',
-  resinClass: null,
-  confidence: null,
-  isMinority: false,
-  message: 'Arahkan kamera ke sampah plastik sampai masuk bingkai, lalu tekan Scan.',
+  message: 'Arahkan kamera ke sampah plastik, lalu tahan sebentar.',
 };
 
 let stopAiTimer = 0;
+const BIN_LABEL_DETAILS = ['Sudah masuk? Tekan tombol di bawah.'];
+
+const AnchoredLabelAR = dynamic(() => import('@/components/stages/tahap1/AnchoredLabelAR'), { ssr: false });
 
 export default function Tahap1() {
-  const { completeStage, lkpdAnswers, setLkpdAnswer } = useJourneyStore();
+  const { completeStage, lkpdAnswers, setLkpdAnswer, setPlasticDisposal } = useJourneyStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
   const procCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const staticOverlayKeyRef = useRef<string | null>(null);
+  const trackedBoxRef = useRef<Box | null>(null);
+  const manualScanRef = useRef(false);
+  const lockStateRef = useRef({ streak: 0, streakBox: null as Box | null, kinds: [] as ObjectKind[], cooldown: 0, misses: 0, errors: 0 });
 
   const streamRef = useRef<MediaStream | null>(null);
   const renderRafRef = useRef<number>(0);
   const activeRef = useRef(false);
   const sessionRef = useRef(0);
   const lockTimeoutRef = useRef<number | null>(null);
-  const captureModeRef = useRef<CaptureMode>('live');
   const phaseRef = useRef<Phase>('init');
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -432,20 +352,20 @@ export default function Tahap1() {
     phaseRef.current = p;
     setPhaseState(p);
   }, []);
-  const [detectedPlasticInfo, setDetectedPlasticInfo] = useState<PlasticInfo>(
-    RESIN_PLASTIC_DATA['1-PET']
-  );
+  const [detectedPlasticInfo, setDetectedPlasticInfo] = useState<PlasticInfo>(OBJECT_PLASTIC_INFO.bottle);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [modelLoading, setModelLoading] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [showAnswerHint, setShowAnswerHint] = useState(false);
   const answerRef = useRef<HTMLTextAreaElement>(null);
-  const [captureMode, setCaptureModeState] = useState<CaptureMode>('live');
-  const setCaptureMode = useCallback((mode: CaptureMode) => {
-    captureModeRef.current = mode;
-    setCaptureModeState(mode);
-  }, []);
+  const [showManualScan, setShowManualScan] = useState(false);
+  const [manualChecking, setManualChecking] = useState(false);
+  const [binSeen, setBinSeen] = useState(false);
+  const [binVisible, setBinVisible] = useState(false);
+  const [binFallback, setBinFallback] = useState(false);
+  const [arUnavailable, setArUnavailable] = useState(false);
+  const markArUnavailable = useCallback(() => setArUnavailable(true), []);
 
   // Kartu hasil scan
   const [scanCard, setScanCard] = useState<ScanFeedbackState>(INITIAL_SCAN_CARD);
@@ -546,9 +466,18 @@ export default function Tahap1() {
     if (canvas.width !== vw) canvas.width = vw;
     if (canvas.height !== vh) canvas.height = vh;
 
-    // Saat menunggu Scan bingkai tidak berubah, jadi cukup digambar sekali
+    if (phaseRef.current === 'findBin' || phaseRef.current === 'disposed') {
+      staticOverlayKeyRef.current = null;
+      ctx.clearRect(0, 0, vw, vh);
+      return;
+    }
+
+    // Saat belum ada objek bingkai tidak berubah, jadi cukup digambar sekali
     const staticKey =
-      captureModeRef.current === 'live' && boxAlphaRef.current === 0 && phaseRef.current === 'scanning'
+      !manualScanRef.current &&
+      overlayTargetRef.current.kind === 'none' &&
+      boxAlphaRef.current === 0 &&
+      phaseRef.current === 'scanning'
         ? `${vw}x${vh}x${video.clientWidth}x${video.clientHeight}`
         : null;
     if (staticKey && staticOverlayKeyRef.current === staticKey) return;
@@ -561,7 +490,7 @@ export default function Tahap1() {
     const roi = getCenterRoi(region);
     const now = performance.now();
     const target = overlayTargetRef.current;
-    const isLockedPhase = phaseRef.current === 'detected';
+    const isLockedPhase = phaseRef.current === 'identified';
 
     const hasObjectBox = Boolean(target.box && !target.isCenterFallback && target.kind !== 'none');
     const roiActive = target.isCenterFallback && target.kind !== 'none';
@@ -580,7 +509,7 @@ export default function Tahap1() {
       drawCorners(ctx, rx, ry, rw, rh, Math.min(rw, rh) * 0.14, 14 * s);
 
       // Sapuan laser naik-turun di dalam bingkai bidik
-      if (!hasObjectBox && !isLockedPhase && captureModeRef.current === 'analyzing') {
+      if (!hasObjectBox && !isLockedPhase && manualScanRef.current) {
         const t = (Math.sin(now / 700) + 1) / 2;
         const ly = ry + 10 * s + t * (rh - 20 * s);
         const grad = ctx.createLinearGradient(rx, 0, rx + rw, 0);
@@ -662,225 +591,340 @@ export default function Tahap1() {
     }
   }, []);
 
-  /** Memotret frame kamera saat tombol Scan ditekan, lalu: COCO-SSD -> crop -> klasifikasi resin */
-  const analyzeCapture = useCallback(async () => {
+  /** Satu putaran: COCO-SSD mencari posisi benda, model plastik memeriksa benda yang sudah stabil */
+  const scanFrame = useCallback(async (session: number) => {
     const video = videoRef.current;
     if (!video || video.readyState < 2) return;
-    if (phaseRef.current !== 'scanning' || captureModeRef.current !== 'live') return;
-    const session = sessionRef.current;
 
     const vw = video.videoWidth || 640;
     const vh = video.videoHeight || 480;
-
+    const frameScale = Math.min(1, FRAME_LONG_SIDE / Math.max(vw, vh));
     if (!procCanvasRef.current) procCanvasRef.current = document.createElement('canvas');
     const procCanvas = procCanvasRef.current;
-    if (procCanvas.width !== vw) procCanvas.width = vw;
-    if (procCanvas.height !== vh) procCanvas.height = vh;
+    const frameW = Math.round(vw * frameScale);
+    const frameH = Math.round(vh * frameScale);
+    if (procCanvas.width !== frameW) procCanvas.width = frameW;
+    if (procCanvas.height !== frameH) procCanvas.height = frameH;
     const procCtx = procCanvas.getContext('2d');
     if (!procCtx) return;
+    procCtx.drawImage(video, 0, 0, frameW, frameH);
 
-    // Bekukan tampilan pada frame yang dipotret
-    video.pause();
-    procCtx.drawImage(video, 0, 0, vw, vh);
-    setCaptureMode('analyzing');
-    playScanPing('beep');
+    const detected = await detectObjects(await createImageBitmap(procCanvas));
+    if (session !== sessionRef.current) return;
 
-    const showResult = (card: ScanFeedbackState, target: OverlayTarget) => {
-      overlayTargetRef.current = target;
-      setScanCard(card);
-      setCaptureMode('result');
+    const region = getVisibleRegion(video);
+    const roi = getCenterRoi(region);
+    const preds = detected
+      .map(p => ({
+        ...p,
+        class: p.class.toLowerCase(),
+        bbox: p.bbox.map(v => v / frameScale) as Box,
+      }))
+      .filter(p => isMostlyVisible(p.bbox, region));
+
+    const lock = lockStateRef.current;
+    lock.errors = 0;
+
+    /** Model plastik menilai satu kotak, dirata-ratakan dari beberapa margin crop */
+    const classifyBox = async ([bx, by, bw, bh]: Box, padRatios: number[]) => {
+      const allProbs: number[][] = [];
+      for (const padRatio of padRatios) {
+        const padX = bw * padRatio;
+        const padY = bh * padRatio;
+        const cx1 = Math.max(0, bx - padX);
+        const cy1 = Math.max(0, by - padY);
+        const cx2 = Math.min(vw, bx + bw + padX);
+        const cy2 = Math.min(vh, by + bh + padY);
+        const probs = await classifyCrop([
+          cx1 * frameScale,
+          cy1 * frameScale,
+          (cx2 - cx1) * frameScale,
+          (cy2 - cy1) * frameScale,
+        ]);
+        if (probs) allProbs.push(probs);
+      }
+      if (allProbs.length === 0) return null;
+      const meanProbs = allProbs[0].map(
+        (_, i) => allProbs.reduce((sum, probs) => sum + probs[i], 0) / allProbs.length
+      );
+      const nonPlasticProb = meanProbs[NON_PLASTIC_INDEX];
+      return {
+        topScore: Math.max(...meanProbs.slice(0, NON_PLASTIC_INDEX)) / Math.max(1e-6, 1 - nonPlasticProb),
+        looksNonPlastic: nonPlasticProb >= NON_PLASTIC_REJECT_THRESHOLD,
+      };
     };
 
-    try {
-      const region = getVisibleRegion(video);
-      const roi = getCenterRoi(region);
+    const acceptPlastic = (info: PlasticInfo, box: Box, isCenterFallback: boolean) => {
+      setDetectedPlasticInfo(info);
+      setCapturedPhoto(
+        cropToDataUrl(procCanvas, box.map(v => v * frameScale) as Box)
+      );
+      trackedBoxRef.current = box;
+      overlayTargetRef.current = { box, kind: 'locking', label: '', isCenterFallback };
+      setScanCard({ status: 'detected', message: 'Buang sampah ini ke tempat sampah!' });
+      playScanPing('lock');
+      setPhase('identified');
+    };
 
-      const preds = await detectObjects(await createImageBitmap(procCanvas));
+    const showDoubt = (message: string, box: Box | null, isCenterFallback: boolean) => {
+      overlayTargetRef.current = box
+        ? { box, kind: 'uncertain', label: 'Belum yakin', isCenterFallback }
+        : { box: null, kind: 'none', label: '', isCenterFallback: false };
+      setScanCard({ ...INITIAL_SCAN_CARD, status: 'uncertain', message });
+    };
+
+    // Sudah terkunci: cukup ikuti posisinya, tanpa memeriksa ulang jenis plastiknya
+    if (phaseRef.current === 'identified') {
+      if (overlayTargetRef.current.isCenterFallback) return;
+      const current = trackedBoxRef.current;
+      const candidates = preds.filter(
+        p => (CONTAINER_COCO_CLASSES as readonly string[]).includes(p.class) && p.score >= TRACK_SCORE
+      );
+      const nearest = current
+        ? candidates
+            .map(p => ({ p, overlap: boxOverlap(p.bbox, current) }))
+            .filter(item => item.overlap > 0.05)
+            .sort((a, b) => b.overlap - a.overlap)[0]?.p
+        : undefined;
+      // Benda bisa melompat jauh saat HP lambat atau kamera digerakkan cepat
+      const next =
+        nearest ??
+        (lock.misses >= 2 || !current
+          ? candidates.filter(p => p.score >= REACQUIRE_SCORE).sort((a, b) => b.score - a.score)[0]
+          : undefined);
+      if (next) {
+        lock.misses = 0;
+        trackedBoxRef.current = next.bbox;
+        overlayTargetRef.current = { box: next.bbox, kind: 'locking', label: '', isCenterFallback: false };
+      } else if (++lock.misses >= LOST_FRAMES) {
+        trackedBoxRef.current = null;
+        overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
+      }
+      return;
+    }
+
+    // Permintaan siswa untuk kemasan yang tidak dikenali COCO (sachet, bungkus)
+    if (manualScanRef.current) {
+      manualScanRef.current = false;
+      const result = await classifyBox(roi, [0]);
+      setManualChecking(false);
       if (session !== sessionRef.current) return;
+      if (result && !result.looksNonPlastic && result.topScore >= RESIN_THRESHOLD) {
+        acceptPlastic(PACKAGING_PLASTIC_INFO, roi, true);
+      } else {
+        showDoubt(
+          result?.looksNonPlastic
+            ? 'Belum terlihat seperti plastik. Pastikan seluruh benda masuk bingkai, lalu coba lagi.'
+            : 'AI belum yakin. Pastikan seluruh benda masuk bingkai dan cahaya cukup, lalu coba lagi.',
+          null,
+          false
+        );
+      }
+      return;
+    }
 
-      // Abaikan deteksi yang sebagian besar berada di luar area layar yang terlihat
-      const visiblePreds = preds.filter(p => {
-        const [bx, by, bw, bh] = p.bbox;
-        const ix = Math.max(0, Math.min(bx + bw, region.x + region.w) - Math.max(bx, region.x));
-        const iy = Math.max(0, Math.min(by + bh, region.y + region.h) - Math.max(by, region.y));
-        return (ix * iy) / Math.max(1, bw * bh) >= 0.5;
-      });
+    if (lock.cooldown > 0) {
+      lock.cooldown--;
+      return;
+    }
 
-      // Cari kandidat wadah plastik COCO-SSD
-      const plasticCandidate = visiblePreds
-        .filter(
-          p =>
-            (AUTO_COCO_CLASSES as readonly string[]).includes(p.class.toLowerCase()) &&
-            p.score >= COCO_THRESHOLD
-        )
-        .sort((a, b) => b.score - a.score)[0];
+    const candidate = preds
+      .filter(p => (CONTAINER_COCO_CLASSES as readonly string[]).includes(p.class) && p.score >= LOCK_SCORE)
+      .sort((a, b) => b.score - a.score)[0];
+
+    if (!candidate) {
+      if (lock.streakBox && ++lock.misses <= STREAK_GAP_FRAMES) return;
+      lock.misses = 0;
+      lock.streak = 0;
+      lock.streakBox = null;
+      overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
 
       // Benda bukan sampah (orang, laptop, dll.) yang menutupi titik tengah bingkai
       const roiCenterX = roi[0] + roi[2] / 2;
       const roiCenterY = roi[1] + roi[3] / 2;
-      const centralNonPlastic = visiblePreds
-        .filter(
-          p =>
-            (NON_WASTE_COCO_CLASSES as readonly string[]).includes(p.class.toLowerCase()) &&
-            p.score >= NON_WASTE_COCO_THRESHOLD &&
-            (p.class.toLowerCase() === 'person' ||
-              p.bbox[2] * p.bbox[3] <= region.w * region.h * NON_PLASTIC_MAX_AREA_RATIO) &&
-            roiCenterX >= p.bbox[0] &&
-            roiCenterX <= p.bbox[0] + p.bbox[2] &&
-            roiCenterY >= p.bbox[1] &&
-            roiCenterY <= p.bbox[1] + p.bbox[3]
-        )
-        .sort((a, b) => b.score - a.score)[0];
-
-      if (!plasticCandidate && centralNonPlastic) {
-        showResult(
-          {
-            status: 'non_plastic',
-            cocoLabel: centralNonPlastic.class,
-            resinClass: null,
-            confidence: Math.round(centralNonPlastic.score * 100),
-            isMinority: false,
-            message: `Itu terlihat seperti ${NON_WASTE_LABELS[centralNonPlastic.class.toLowerCase()]}. Arahkan kamera ke sampah plastik, ya.`,
-          },
-          { box: null, kind: 'none', label: '', isCenterFallback: false }
-        );
-        return;
-      }
-
-      // Tanpa kandidat wadah (mis. sachet/bungkus), nilai area bingkai bidik tengah
-      const isCenterFallback = !plasticCandidate;
-      const evaluatedBox: Box = plasticCandidate ? plasticCandidate.bbox : roi;
-      const evalLabel = plasticCandidate ? plasticCandidate.class : 'Kemasan Plastik';
-
-      const [bx, by, bw, bh] = evaluatedBox;
-      const x1 = Math.max(0, Math.floor(bx));
-      const y1 = Math.max(0, Math.floor(by));
-      const x2 = Math.min(vw, Math.ceil(bx + bw));
-      const y2 = Math.min(vh, Math.ceil(by + bh));
-      const rawW = x2 - x1;
-      const rawH = y2 - y1;
-      const displayBox: Box = [x1, y1, rawW, rawH];
-
-      // Rata-ratakan beberapa margin crop; satu foto tidak punya frame lain sebagai pembanding
-      const padRatios = isCenterFallback ? [0] : CANDIDATE_PAD_RATIOS;
-      const allProbs: number[][] = [];
-      for (const padRatio of padRatios) {
-        const padX = Math.round(rawW * padRatio);
-        const padY = Math.round(rawH * padRatio);
-        const cx1 = Math.max(0, x1 - padX);
-        const cy1 = Math.max(0, y1 - padY);
-        const cx2 = Math.min(vw, x2 + padX);
-        const cy2 = Math.min(vh, y2 + padY);
-        const probs = await classifyCrop([
-          cx1,
-          cy1,
-          Math.max(1, cx2 - cx1),
-          Math.max(1, cy2 - cy1),
-        ]);
-        if (probs) allProbs.push(probs);
-      }
-      if (session !== sessionRef.current) return;
-      releaseFrame().catch(() => {});
-
-      let topClass: string | null = null;
-      let topScore: number | null = null;
-      let looksNonPlastic = false;
-      if (allProbs.length > 0) {
-        const meanProbs = allProbs[0].map(
-          (_, i) => allProbs.reduce((sum, probs) => sum + probs[i], 0) / allProbs.length
-        );
-        const nonPlasticProb = meanProbs[NON_PLASTIC_INDEX];
-        looksNonPlastic = nonPlasticProb >= NON_PLASTIC_REJECT_THRESHOLD;
-        let maxIdx = 0;
-        for (let i = 1; i < RESIN_CLASSES.length; i++) {
-          if (meanProbs[i] > meanProbs[maxIdx]) maxIdx = i;
+      const blocker = preds.find(
+        p =>
+          (NON_WASTE_COCO_CLASSES as readonly string[]).includes(p.class) &&
+          p.score >= NON_WASTE_COCO_THRESHOLD &&
+          (p.class === 'person' || p.bbox[2] * p.bbox[3] <= region.w * region.h * NON_PLASTIC_MAX_AREA_RATIO) &&
+          roiCenterX >= p.bbox[0] &&
+          roiCenterX <= p.bbox[0] + p.bbox[2] &&
+          roiCenterY >= p.bbox[1] &&
+          roiCenterY <= p.bbox[1] + p.bbox[3]
+      );
+      setScanCard(previous => {
+        if (blocker) {
+          const message = `Itu terlihat seperti ${NON_WASTE_LABELS[blocker.class]}. Arahkan kamera ke sampah plastik, ya.`;
+          return previous.message === message
+            ? previous
+            : { ...INITIAL_SCAN_CARD, status: 'non_plastic', message };
         }
-        topClass = RESIN_CLASSES[maxIdx];
-        topScore = meanProbs[maxIdx] / Math.max(1e-6, 1 - nonPlasticProb);
-      }
-
-      // Pesannya sengaja lunak: model kadang keliru menolak plastik sungguhan
-      if (looksNonPlastic) {
-        showResult(
-          {
-            status: 'uncertain',
-            cocoLabel: evalLabel,
-            resinClass: null,
-            confidence: null,
-            isMinority: false,
-            message: 'Belum terlihat seperti plastik. Pastikan seluruh benda masuk bingkai, lalu foto ulang.',
-          },
-          { box: displayBox, kind: 'uncertain', label: 'Belum yakin', isCenterFallback }
-        );
-        return;
-      }
-
-      if (topClass && topScore !== null && topScore >= RESIN_THRESHOLD) {
-        const info = getPlasticInfo(topClass);
-        const conf = Math.round(topScore * 100);
-        setDetectedPlasticInfo(prev => (prev === info ? prev : info));
-        setCapturedPhoto(cropToDataUrl(procCanvas, displayBox));
-        overlayTargetRef.current = {
-          box: displayBox,
-          kind: 'locking',
-          label: info.name,
-          isCenterFallback,
-        };
-        setScanCard({
-          status: 'detected',
-          cocoLabel: evalLabel,
-          resinClass: topClass,
-          confidence: conf,
-          isMinority: (MINORITY_CLASSES as readonly string[]).includes(topClass),
-          message: 'Plastik ditemukan!',
-        });
-        setCaptureMode('result');
-        playScanPing('lock');
-        setPhase('detected');
-        lockTimeoutRef.current = window.setTimeout(() => {
-          stopCamera();
-          setPhase('pemantik');
-        }, 1500);
-        return;
-      }
-
-      showResult(
-        {
-          status: 'uncertain',
-          cocoLabel: evalLabel,
-          resinClass: topClass,
-          confidence: topScore !== null ? Math.round(topScore * 100) : null,
-          isMinority: false,
-          message: isCenterFallback
-            ? 'AI belum yakin. Pastikan seluruh benda masuk bingkai dan cahaya cukup, lalu foto ulang.'
-            : REJECTED_MATERIAL_STATUS,
-        },
-        { box: displayBox, kind: 'uncertain', label: 'Belum yakin', isCenterFallback }
-      );
-    } catch (err) {
-      console.warn('Analisis foto gagal:', err);
-      if (session !== sessionRef.current) return;
-      showResult(
-        {
-          status: 'uncertain',
-          cocoLabel: '',
-          resinClass: null,
-          confidence: null,
-          isMinority: false,
-          message: 'Foto gagal dianalisis. Silakan foto ulang.',
-        },
-        { box: null, kind: 'none', label: '', isCenterFallback: false }
-      );
+        return previous.status === 'non_plastic' ? INITIAL_SCAN_CARD : previous;
+      });
+      return;
     }
-  }, [playScanPing, setCaptureMode, setPhase, stopCamera]);
 
-  function retakePhoto() {
+    // Objek harus bertahan di tempat yang sama selama beberapa frame berturut-turut
+    lock.misses = 0;
+    const kind = objectKind(candidate.class, candidate.bbox);
+    const sameObject = lock.streakBox && boxOverlap(lock.streakBox, candidate.bbox) > 0.2;
+    lock.streak = sameObject ? lock.streak + 1 : 1;
+    lock.kinds = sameObject ? [...lock.kinds, kind] : [kind];
+    lock.streakBox = candidate.bbox;
+    overlayTargetRef.current = { box: candidate.bbox, kind: 'uncertain', label: 'Tahan sebentar…', isCenterFallback: false };
+    if (lock.streak < STABLE_FRAMES) return;
+
+    lock.streak = 0;
+    lock.streakBox = null;
+    const result = await classifyBox(candidate.bbox, CANDIDATE_PAD_RATIOS);
+    if (session !== sessionRef.current) return;
+    if (result && !result.looksNonPlastic && result.topScore >= RESIN_THRESHOLD) {
+      acceptPlastic(OBJECT_PLASTIC_INFO[mostCommon(lock.kinds)], candidate.bbox, false);
+      return;
+    }
+    // Pesannya sengaja lunak: model kadang keliru menolak plastik sungguhan
+    lock.cooldown = RECHECK_AFTER_FRAMES;
+    showDoubt(
+      result?.looksNonPlastic
+        ? 'Belum terlihat seperti plastik. Coba dari sisi lain, dengan cahaya lebih terang.'
+        : REJECTED_MATERIAL_STATUS,
+      candidate.bbox,
+      false
+    );
+  }, [playScanPing, setPhase]);
+
+  /** Loop deteksi di latar belakang; berhenti saat siswa pindah ke langkah membuang sampah */
+  const runLiveScan = useCallback(async (session: number) => {
+    while (
+      activeRef.current &&
+      session === sessionRef.current &&
+      (phaseRef.current === 'scanning' || phaseRef.current === 'identified')
+    ) {
+      const started = performance.now();
+      if (!document.hidden) {
+        try {
+          await scanFrame(session);
+        } catch (err) {
+          console.warn('Deteksi gagal pada frame ini:', err);
+          if (++lockStateRef.current.errors >= 3 && session === sessionRef.current) {
+            stopCamera();
+            setCameraError('AI scanner berhenti bekerja. Silakan coba lagi.');
+            setPhase('init');
+            return;
+          }
+        }
+      }
+      const wait = Math.max(0, DETECT_INTERVAL_MS - (performance.now() - started));
+      await new Promise(resolve => setTimeout(resolve, wait));
+    }
+    releaseFrame().catch(() => {});
+  }, [scanFrame, setPhase, stopCamera]);
+
+  // Tombol pindai manual muncul bila benda belum juga dikenali
+  useEffect(() => {
+    if (phase !== 'scanning' || modelLoading) return;
+    const timer = window.setTimeout(() => setShowManualScan(true), MANUAL_SCAN_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase, modelLoading]);
+
+  function requestManualScan() {
+    manualScanRef.current = true;
+    setManualChecking(true);
+  }
+
+  /** Mencari tempat sampah selama siswa berjalan; kotak hanya ditampilkan bila posisinya stabil */
+  const runBinScan = useCallback(async (session: number) => {
+    let hits = 0;
+    let misses = 0;
+    let errors = 0;
+    let lastBox: Box | null = null;
+    while (activeRef.current && session === sessionRef.current && phaseRef.current === 'findBin') {
+      const started = performance.now();
+      const video = videoRef.current;
+      if (!document.hidden && video && video.readyState >= 2) {
+        try {
+          const vw = video.videoWidth || 640;
+          const vh = video.videoHeight || 480;
+          const frameScale = Math.min(1, FRAME_LONG_SIDE / Math.max(vw, vh));
+          if (!procCanvasRef.current) procCanvasRef.current = document.createElement('canvas');
+          const frame = procCanvasRef.current;
+          const frameW = Math.round(vw * frameScale);
+          const frameH = Math.round(vh * frameScale);
+          if (frame.width !== frameW) frame.width = frameW;
+          if (frame.height !== frameH) frame.height = frameH;
+          frame.getContext('2d')?.drawImage(video, 0, 0, frameW, frameH);
+
+          const result = await detectBin(await createImageBitmap(frame));
+          if (session !== sessionRef.current || phaseRef.current !== 'findBin') return;
+          errors = 0;
+
+          const found = result && result.score >= BIN_SCORE ? (result.bbox.map(v => v / frameScale) as Box) : null;
+          const box = found && isMostlyVisible(found, getVisibleRegion(video)) ? found : null;
+          if (box) {
+            hits = lastBox && boxOverlap(lastBox, box) > 0.1 ? hits + 1 : 1;
+            misses = 0;
+            lastBox = box;
+            if (hits >= BIN_STABLE_FRAMES) {
+              trackedBoxRef.current = box;
+              setBinVisible(true);
+              setBinSeen(true);
+            }
+          } else if (++misses >= BIN_LOST_FRAMES) {
+            hits = 0;
+            lastBox = null;
+            trackedBoxRef.current = null;
+            setBinVisible(false);
+          }
+        } catch (err) {
+          console.warn('Deteksi tempat sampah gagal pada frame ini:', err);
+          if (++errors >= 3) {
+            setBinFallback(true);
+            return;
+          }
+        }
+      }
+      const wait = Math.max(0, BIN_INTERVAL_MS - (performance.now() - started));
+      await new Promise(resolve => setTimeout(resolve, wait));
+    }
+  }, []);
+
+  function goFindBin() {
+    const session = sessionRef.current;
+    trackedBoxRef.current = null;
     overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
-    displayBoxRef.current = null;
-    boxAlphaRef.current = 0;
-    setScanCard(INITIAL_SCAN_CARD);
-    setCaptureMode('live');
-    videoRef.current?.play().catch(() => {});
+    setBinSeen(false);
+    setBinVisible(false);
+    setBinFallback(false);
+    setPhase('findBin');
+    startBinDetector()
+      .then(() => runBinScan(session))
+      .catch(err => {
+        // Tanpa detektor siswa tetap bisa lanjut lewat tombol konfirmasi
+        console.warn('Detektor tempat sampah gagal dimuat:', err);
+        if (session === sessionRef.current) setBinFallback(true);
+      });
+  }
+
+  // Tombol cadangan muncul bila tempat sampah tidak terdeteksi cukup lama
+  useEffect(() => {
+    if (phase !== 'findBin' || binSeen) return;
+    const timer = window.setTimeout(() => setBinFallback(true), BIN_FALLBACK_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase, binSeen]);
+
+  function confirmDisposed() {
+    setPlasticDisposal({
+      plasticName: detectedPlasticInfo.name,
+      resinClass: detectedPlasticInfo.resinClass ?? null,
+      disposedAt: new Date().toISOString(),
+      binDetected: binSeen,
+    });
+    playScanPing('lock');
+    setPhase('disposed');
+    lockTimeoutRef.current = window.setTimeout(() => {
+      stopCamera();
+      setPhase('pemantik');
+    }, 2600);
   }
 
   async function startCamera() {
@@ -889,7 +933,15 @@ export default function Tahap1() {
     setCameraError(null);
     setPhase('scanning');
     setModelLoading(true);
-    setCaptureMode('live');
+    manualScanRef.current = false;
+    setManualChecking(false);
+    setShowManualScan(false);
+    setBinSeen(false);
+    setBinVisible(false);
+    setBinFallback(false);
+    trackedBoxRef.current = null;
+    lockStateRef.current = { streak: 0, streakBox: null, kinds: [], cooldown: 0, misses: 0, errors: 0 };
+    staticOverlayKeyRef.current = null;
     overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
     displayBoxRef.current = null;
     boxAlphaRef.current = 0;
@@ -898,9 +950,9 @@ export default function Tahap1() {
 
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error(
-          'Browser tidak mendukung akses kamera. Pastikan menggunakan HTTPS atau Chrome/Edge terbaru.'
-        );
+        const unsupported = new Error('Kamera tidak tersedia');
+        unsupported.name = 'NotFoundError';
+        throw unsupported;
       }
 
       // Kamera & model dimuat paralel; video ditampilkan secepatnya selagi model masih dimuat
@@ -932,21 +984,22 @@ export default function Tahap1() {
       await modelsPromise;
       if (session !== sessionRef.current) return;
       setModelLoading(false);
+      runLiveScan(session);
     } catch (err: unknown) {
       if (session !== sessionRef.current) return;
       stopCamera();
-      setCameraError(err instanceof Error ? err.message : 'Kamera atau AI belum bisa dibuka.');
+      setCameraError(cameraErrorMessage(err));
       setModelLoading(false);
     }
   }
 
-  // Hasil -> kamera -> layar pembuka -> peta
+  // Hasil -> scan ulang -> layar pembuka -> peta
   useStageBack(() => {
-    if (phase === 'pemantik') {
+    if (phase === 'pemantik' || phase === 'identified' || phase === 'findBin' || phase === 'disposed') {
       startCamera();
       return true;
     }
-    if (phase === 'scanning' || phase === 'detected' || cameraError) {
+    if (phase === 'scanning' || cameraError) {
       stopCamera();
       setCameraError(null);
       setModelLoading(false);
@@ -969,15 +1022,19 @@ export default function Tahap1() {
     setPhase('pemantik');
   }
 
-  // Info polimer yang ditampilkan di kartu HUD hanya bila AI benar-benar memiliki kandidat resin
-  const hudInfo =
-    scanCard.status === 'detected' && scanCard.resinClass
-      ? getPlasticInfo(scanCard.resinClass)
-      : null;
+  const labelDetails = useMemo(
+    () => [
+      detectedPlasticInfo.polymer,
+      `Terurai ${detectedPlasticInfo.decompositionTime.toLowerCase()} (perkiraan)`,
+    ],
+    [detectedPlasticInfo]
+  );
 
   const statusTone =
-    phase === 'detected' || scanCard.status === 'detected'
+    phase === 'identified' || phase === 'disposed' || (phase === 'findBin' && binVisible)
       ? 'lock'
+      : phase === 'findBin'
+      ? 'idle'
       : scanCard.status === 'uncertain'
       ? 'warn'
       : scanCard.status === 'non_plastic'
@@ -985,17 +1042,23 @@ export default function Tahap1() {
       : 'idle';
 
   const statusLabel =
-    phase === 'detected'
-      ? 'Plastik terdeteksi'
+    phase === 'identified'
+      ? 'Terlihat seperti plastik'
+      : phase === 'findBin'
+      ? binVisible
+        ? 'Tempat sampah ditemukan'
+        : 'Cari tempat sampah'
+      : phase === 'disposed'
+      ? 'Terima kasih!'
       : modelLoading
       ? 'Menyiapkan AI'
-      : captureMode === 'analyzing'
-      ? 'Menganalisis foto'
+      : manualChecking
+      ? 'Memeriksa kemasan'
       : scanCard.status === 'non_plastic'
       ? 'Bukan sampah plastik'
       : scanCard.status === 'uncertain'
       ? 'AI belum yakin'
-      : 'Siap memotret';
+      : 'Mencari sampah plastik';
 
   return (
     <div className="relative w-full overflow-hidden h-[100dvh] bg-[#06293b]">
@@ -1015,7 +1078,7 @@ export default function Tahap1() {
         {phase === 'init' && !cameraError && (
           <StageIntro
             title="Tahap 1: Scanner Plastik"
-            description="Cari sampah plastik di sekitarmu, seperti botol, gelas, atau bungkus jajan. Arahkan kamera, lalu tekan Scan. AI akan menebak jenis plastiknya."
+            description="Cari sampah plastik di sekitarmu, seperti botol atau gelas. Arahkan kamera, kenali jenis plastiknya, lalu buang ke tempat sampah."
             icon="qr_code_scanner"
             layout="centered"
             actionText="Buka Kamera"
@@ -1039,7 +1102,7 @@ export default function Tahap1() {
               Coba Lagi
             </button>
             <button
-              onClick={() => selectSimulatedSample(PLASTIC_DATA.bottle)}
+              onClick={() => selectSimulatedSample(OBJECT_PLASTIC_INFO.bottle)}
               className="bg-[#f0a345] text-[#3b2313] font-bold px-6 py-3 rounded-xl shadow-md"
             >
               Lanjut Simulasi
@@ -1048,8 +1111,35 @@ export default function Tahap1() {
         </div>
       )}
 
+      {/* Label dan instruksi 3D yang menempel pada sampah plastik */}
+      {phase === 'identified' && (
+        <AnchoredLabelAR
+          key="plastic"
+          videoRef={videoRef}
+          boxRef={trackedBoxRef}
+          title={detectedPlasticInfo.name}
+          details={labelDetails}
+          instruction="Buang sampah ini ke tempat sampah!"
+          onUnavailable={markArUnavailable}
+        />
+      )}
+
+      {/* Cincin dan petunjuk 3D yang menempel pada tempat sampah, lalu konfeti perayaan */}
+      {((phase === 'findBin' && binSeen) || phase === 'disposed') && (
+        <AnchoredLabelAR
+          key="bin"
+          videoRef={videoRef}
+          boxRef={trackedBoxRef}
+          title="Tempat sampah ditemukan!"
+          details={BIN_LABEL_DETAILS}
+          instruction="Masukkan sampahmu di sini"
+          celebrate={phase === 'disposed'}
+          onUnavailable={markArUnavailable}
+        />
+      )}
+
       {/* Real-time Scanning HUD */}
-      {(phase === 'scanning' || phase === 'detected') && (
+      {(phase === 'scanning' || phase === 'identified' || phase === 'findBin' || phase === 'disposed') && (
         <div className="absolute inset-0 pointer-events-none z-20">
           {/* Vignette halus agar HUD & bingkai lebih terbaca di atas video */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(6,41,59,0.55)_100%)]" />
@@ -1079,9 +1169,9 @@ export default function Tahap1() {
             )}
           </AnimatePresence>
 
-          {/* Tanda sukses saat plastik terdeteksi */}
+          {/* Tanda sukses setelah siswa membuang sampah */}
           <AnimatePresence>
-            {phase === 'detected' && (
+            {phase === 'disposed' && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1139,18 +1229,24 @@ export default function Tahap1() {
                       : 'text-white'
                   }`}
                 >
-                  {modelLoading
+                  {phase === 'findBin'
+                    ? binVisible
+                      ? 'Masukkan sampahmu ke tempat sampah, lalu tekan tombol di bawah.'
+                      : 'Bawa sampahmu ke tempat sampah terdekat, lalu arahkan kamera ke sana. Perhatikan jalanmu, ya!'
+                    : phase === 'disposed'
+                    ? 'Terima kasih sudah membuang sampah pada tempatnya!'
+                    : modelLoading
                     ? 'Kamera aktif. Model AI sedang dimuat…'
-                    : captureMode === 'analyzing'
-                    ? 'AI sedang memeriksa foto…'
+                    : manualChecking
+                    ? 'AI sedang memeriksa kemasan…'
                     : scanCard.message}
                 </p>
               </div>
 
               <AnimatePresence mode="wait" initial={false}>
-                {hudInfo ? (
+                {phase === 'identified' ? (
                   <motion.div
-                    key={`info-${scanCard.resinClass}`}
+                    key={`info-${detectedPlasticInfo.name}`}
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -6 }}
@@ -1158,9 +1254,11 @@ export default function Tahap1() {
                     className="flex items-start gap-3 mt-2.5 pt-2.5 border-t border-white/10"
                   >
                     <div className="w-11 h-11 rounded-xl bg-[#006591]/60 border border-[#6bff8f]/30 flex flex-col items-center justify-center shrink-0 shadow-inner">
-                      <span className="text-[10px] font-black font-[family-name:var(--font-mono)] text-[#6bff8f] leading-none">
-                        {hudInfo.resinClass?.split('-')[0] || '7'}
-                      </span>
+                      {detectedPlasticInfo.resinClass && (
+                        <span className="text-[10px] font-black font-[family-name:var(--font-mono)] text-[#6bff8f] leading-none">
+                          {detectedPlasticInfo.resinClass.split('-')[0]}
+                        </span>
+                      )}
                       <span className="material-symbols-outlined text-lg text-[#6bff8f] leading-none">
                         recycling
                       </span>
@@ -1168,10 +1266,16 @@ export default function Tahap1() {
                     <div className="min-w-0 flex-1">
                       <div>
                         <p className="font-[family-name:var(--font-outfit)] font-bold text-[15px] leading-snug">
-                          {hudInfo.name}
+                          {detectedPlasticInfo.name}
                         </p>
-                        <p className="text-[13px] font-semibold text-[#f0a345] mt-0.5">
-                          Terurai dalam {hudInfo.decompositionTime.toLowerCase()}
+                        <p className="text-[13px] font-semibold text-[#6bff8f] mt-0.5">
+                          {detectedPlasticInfo.polymer}
+                        </p>
+                        <p className="text-[13px] font-semibold text-[#f0a345]">
+                          Terurai {detectedPlasticInfo.decompositionTime.toLowerCase()} (perkiraan)
+                        </p>
+                        <p className="text-xs text-white/70 mt-0.5 [@media(max-height:700px)]:hidden">
+                          Pastikan lewat kode segitiga di kemasan.
                         </p>
                       </div>
                     </div>
@@ -1179,37 +1283,59 @@ export default function Tahap1() {
                 ) : null}
               </AnimatePresence>
 
-              {/* Peringatan kelas minoritas */}
-              {scanCard.isMinority && scanCard.status === 'detected' && (
-                <p className="mt-2 text-xs text-amber-200 bg-amber-950/60 border border-amber-400/40 rounded-lg px-2.5 py-1.5">
-                  AI masih jarang melihat plastik jenis ini. Cek kode segitiga di kemasan, ya.
+              {arUnavailable && (phase === 'identified' || phase === 'findBin') && (
+                <p className="mt-2 text-xs text-white/70">
+                  Tampilan 3D belum didukung di HP ini, tapi kamu tetap bisa lanjut.
                 </p>
               )}
 
             </div>
 
-            {/* Tombol potret: foto dianalisis hanya setelah ditekan siswa */}
-            {phase === 'scanning' && !modelLoading && (
+            {/* Pindai manual untuk kemasan yang tidak dikenali otomatis */}
+            {phase === 'scanning' && !modelLoading && showManualScan && (
               <button
-                onClick={captureMode === 'result' ? retakePhoto : analyzeCapture}
-                disabled={captureMode === 'analyzing'}
-                className="mt-3 w-[min(100%,440px)] min-h-14 flex items-center justify-center gap-2 bg-[#6bff8f] hover:bg-[#4ee876] disabled:opacity-60 text-[#06293b] text-lg font-extrabold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
+                onClick={requestManualScan}
+                disabled={manualChecking}
+                className="mt-3 w-[min(100%,440px)] min-h-12 flex items-center justify-center gap-2 bg-white/95 disabled:opacity-60 text-[#083b54] text-[15px] font-bold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
               >
-                <span className="material-symbols-outlined text-2xl">
-                  {captureMode === 'result' ? 'refresh' : 'photo_camera'}
-                </span>
-                {captureMode === 'analyzing'
-                  ? 'Menganalisis…'
-                  : captureMode === 'result'
-                  ? 'Foto Ulang'
-                  : 'Scan'}
+                <span className="material-symbols-outlined text-xl">center_focus_strong</span>
+                {manualChecking ? 'Memeriksa…' : 'Belum terdeteksi? Periksa benda di tengah'}
+              </button>
+            )}
+
+            {phase === 'identified' && (
+              <button
+                onClick={goFindBin}
+                className="mt-3 w-[min(100%,440px)] min-h-14 flex items-center justify-center gap-2 bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] text-lg font-extrabold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
+              >
+                <span className="material-symbols-outlined text-2xl">delete</span>
+                Saya akan membuangnya
+              </button>
+            )}
+
+            {phase === 'findBin' && !binSeen && binFallback && (
+              <button
+                onClick={confirmDisposed}
+                className="mt-3 w-[min(100%,440px)] min-h-12 flex items-center justify-center gap-2 bg-white/95 text-[#083b54] text-[15px] font-bold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
+              >
+                Tidak terdeteksi? Saya sudah membuangnya
+              </button>
+            )}
+
+            {phase === 'findBin' && binSeen && (
+              <button
+                onClick={confirmDisposed}
+                className="mt-3 w-[min(100%,440px)] min-h-14 flex items-center justify-center gap-2 bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] text-lg font-extrabold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
+              >
+                <span className="material-symbols-outlined text-2xl">check_circle</span>
+                Sudah dibuang
               </button>
             )}
 
             {/* Tautan simulasi untuk demo tanpa sampel plastik fisik */}
             {phase === 'scanning' && (
               <button
-                onClick={() => selectSimulatedSample(PLASTIC_DATA.bottle)}
+                onClick={() => selectSimulatedSample(OBJECT_PLASTIC_INFO.bottle)}
                 className="mt-1 min-h-11 px-3 text-white/80 hover:text-white text-[13px] underline font-medium transition-colors"
               >
                 Tidak ada sampah plastik? Pakai contoh botol
@@ -1241,7 +1367,7 @@ export default function Tahap1() {
                 )}
                 <div className="min-w-0">
                   <h2 className="font-[family-name:var(--font-outfit)] text-xl [@media(min-height:720px)]:text-2xl font-bold leading-tight text-[#083b54]">
-                    Kamu menemukan plastik!
+                    {capturedPhoto ? 'Sampahmu sudah dibuang!' : 'Kamu menemukan plastik!'}
                   </h2>
                   <p className="mt-0.5 text-sm font-semibold leading-snug text-[#006e2f]">
                     {detectedPlasticInfo.name}
@@ -1252,14 +1378,14 @@ export default function Tahap1() {
               {/* Dua fakta utama */}
               <div className="grid grid-cols-2 gap-2 mt-2.5 [@media(min-height:720px)]:mt-4 shrink-0">
                 <div className="bg-[#f2f8fa] rounded-xl px-2 py-1.5 [@media(min-height:720px)]:py-3 text-center">
-                  <p className="text-xs text-[#4b5563]">Kode daur ulang</p>
-                  <p className="text-sm font-bold text-[#006591] leading-snug font-[family-name:var(--font-outfit)]">
-                    {detectedPlasticInfo.code.replace(/^KODE /, '')}
+                  <p className="text-xs text-[#4b5563]">Jenis polimer</p>
+                  <p className="text-sm font-bold text-[#006591] leading-snug text-balance font-[family-name:var(--font-outfit)]">
+                    {detectedPlasticInfo.polymer}
                   </p>
                 </div>
                 <div className="bg-[#fdf1ef] rounded-xl px-2 py-1.5 [@media(min-height:720px)]:py-3 text-center">
-                  <p className="text-xs text-[#4b5563]">Lama terurai</p>
-                  <p className="text-sm font-bold text-[#ba1a1a] leading-snug font-[family-name:var(--font-outfit)]">
+                  <p className="text-xs text-[#4b5563]">Perkiraan lama terurai</p>
+                  <p className="text-sm font-bold text-[#ba1a1a] leading-snug text-balance font-[family-name:var(--font-outfit)]">
                     {detectedPlasticInfo.decompositionTime}
                   </p>
                 </div>
@@ -1269,7 +1395,7 @@ export default function Tahap1() {
                 {detectedPlasticInfo.description}
               </p>
               <p className="mt-1 text-xs text-[#6e7881] leading-snug shrink-0">
-                Ini tebakan AI. Untuk memastikan, cari kode segitiga di kemasan.
+                Angka perkiraan. Untuk memastikan jenisnya, cari kode segitiga di kemasan.
               </p>
 
               {/* Pertanyaan */}
@@ -1312,7 +1438,7 @@ export default function Tahap1() {
                 }}
                 className="min-h-12 px-3 bg-slate-100 text-[#006591] font-semibold rounded-xl text-sm flex items-center justify-center gap-1 shrink-0 font-[family-name:var(--font-outfit)]"
               >
-                <span className="material-symbols-outlined text-lg">refresh</span> Foto ulang
+                <span className="material-symbols-outlined text-lg">refresh</span> Scan ulang
               </button>
               <button
                 onClick={() => {

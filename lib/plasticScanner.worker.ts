@@ -8,7 +8,9 @@ type Request =
   | { id: number; type: 'init'; origin: string }
   | { id: number; type: 'detect'; frame: ImageBitmap }
   | { id: number; type: 'classify'; box: Box }
-  | { id: number; type: 'release' };
+  | { id: number; type: 'release' }
+  | { id: number; type: 'initBin'; origin: string }
+  | { id: number; type: 'detectBin'; frame: ImageBitmap };
 
 const scope = self as unknown as {
   onmessage: ((event: MessageEvent<Request>) => void) | null;
@@ -19,6 +21,12 @@ let coco: cocoSsd.ObjectDetection | null = null;
 let resin: tf.GraphModel | null = null;
 let frame: ImageBitmap | null = null;
 let cropCanvas: OffscreenCanvas | null = null;
+let binModel: tf.GraphModel | null = null;
+let binCanvas: OffscreenCanvas | null = null;
+
+// Detektor tempat sampah: masukan persegi 224 dengan letterbox, keluaran grid 7x7 [skor, l, t, r, b]
+const BIN_INPUT = 224;
+const BIN_GRID = 7;
 
 async function init(origin: string) {
   await tf.ready();
@@ -100,12 +108,78 @@ function classify([x, y, w, h]: Box): number[] | null {
   });
 }
 
+// Baru dimuat saat siswa mencari tempat sampah, agar unduhan awal Tahap 1 tidak bertambah
+async function initBin(origin: string) {
+  if (binModel) return;
+  const model = await tf.loadGraphModel(`${origin}/models/bin/model.json`);
+  const warmInput = tf.zeros([1, BIN_INPUT, BIN_INPUT, 3], 'float32');
+  const warmOutput = model.predict(warmInput) as tf.Tensor;
+  await warmOutput.data();
+  warmInput.dispose();
+  warmOutput.dispose();
+  binModel = model;
+}
+
+function detectBin(next: ImageBitmap) {
+  if (!binModel) {
+    next.close();
+    throw new Error('Detektor tempat sampah belum siap');
+  }
+  if (!binCanvas) binCanvas = new OffscreenCanvas(BIN_INPUT, BIN_INPUT);
+  const ctx = binCanvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) {
+    next.close();
+    return null;
+  }
+  // Letterbox: sama seperti saat model dilatih
+  const scale = BIN_INPUT / Math.max(next.width, next.height);
+  const drawW = Math.max(1, Math.round(next.width * scale));
+  const drawH = Math.max(1, Math.round(next.height * scale));
+  const offsetX = Math.floor((BIN_INPUT - drawW) / 2);
+  const offsetY = Math.floor((BIN_INPUT - drawH) / 2);
+  ctx.fillStyle = 'rgb(128,128,128)';
+  ctx.fillRect(0, 0, BIN_INPUT, BIN_INPUT);
+  ctx.drawImage(next, offsetX, offsetY, drawW, drawH);
+  next.close();
+
+  const model = binModel;
+  const canvas = binCanvas;
+  const grid = tf.tidy(() => {
+    const input = tf.browser.fromPixels(canvas as unknown as HTMLCanvasElement).toFloat().expandDims(0);
+    return (model.predict(input) as tf.Tensor).dataSync();
+  });
+
+  let best = 0;
+  for (let i = 1; i < BIN_GRID * BIN_GRID; i++) {
+    if (grid[i * 5] > grid[best * 5]) best = i;
+  }
+  const row = Math.floor(best / BIN_GRID);
+  const col = best % BIN_GRID;
+  const centerX = ((col + 0.5) / BIN_GRID) * BIN_INPUT;
+  const centerY = ((row + 0.5) / BIN_GRID) * BIN_INPUT;
+  const left = centerX - grid[best * 5 + 1] * BIN_INPUT;
+  const top = centerY - grid[best * 5 + 2] * BIN_INPUT;
+  const right = centerX + grid[best * 5 + 3] * BIN_INPUT;
+  const bottom = centerY + grid[best * 5 + 4] * BIN_INPUT;
+  return {
+    score: grid[best * 5],
+    bbox: [
+      (left - offsetX) / scale,
+      (top - offsetY) / scale,
+      (right - left) / scale,
+      (bottom - top) / scale,
+    ] as Box,
+  };
+}
+
 scope.onmessage = async ({ data }) => {
   try {
     let result: unknown = null;
     if (data.type === 'init') result = await init(data.origin);
     else if (data.type === 'detect') result = await detect(data.frame);
     else if (data.type === 'classify') result = classify(data.box);
+    else if (data.type === 'initBin') await initBin(data.origin);
+    else if (data.type === 'detectBin') result = detectBin(data.frame);
     else releaseFrame();
     scope.postMessage({ id: data.id, ok: true, result });
   } catch (err) {
