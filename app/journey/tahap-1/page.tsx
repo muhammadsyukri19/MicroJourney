@@ -15,11 +15,13 @@ import {
 } from '@/lib/plasticScannerClient';
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { AnimatePresence, motion } from 'framer-motion';
+import type { ARItemKind } from '@/components/stages/tahap1/AnchoredLabelAR';
 
 type Phase = 'init' | 'scanning' | 'identified' | 'findBin' | 'disposed' | 'pemantik';
 
 interface PlasticInfo {
   name: string;
+  kind: ARItemKind;
   polymer: string;
   decompositionTime: string;
   description: string;
@@ -44,15 +46,16 @@ const PP_FACTS = {
 };
 
 // Bahan plastik tidak bisa dipastikan dari tampilannya, jadi polimer diambil dari jenis benda yang dikenali kamera
-const OBJECT_PLASTIC_INFO = {
-  bottle: { name: 'Botol plastik', ...PET_FACTS },
-  cup: { name: 'Gelas plastik', ...PP_FACTS },
-  bowl: { name: 'Wadah plastik', ...PP_FACTS },
+const OBJECT_PLASTIC_INFO: Record<'bottle' | 'cup' | 'bowl', PlasticInfo> = {
+  bottle: { name: 'Botol plastik', kind: 'bottle', ...PET_FACTS },
+  cup: { name: 'Gelas plastik', kind: 'cup', ...PP_FACTS },
+  bowl: { name: 'Wadah plastik', kind: 'bowl', ...PP_FACTS },
 };
 
 // Kemasan yang tidak dikenali kamera, seperti kresek atau styrofoam: tebakan jenis dari model terlalu sering keliru
 const PACKAGING_PLASTIC_INFO: PlasticInfo = {
   name: 'Kemasan plastik',
+  kind: 'packaging',
   polymer: 'Cek kode segitiga, bila ada',
   decompositionTime: 'Puluhan sampai ratusan tahun',
   description: 'Plastik tidak benar-benar hilang. Ia pecah menjadi serpihan kecil yang disebut mikroplastik.',
@@ -102,7 +105,7 @@ const MANUAL_SCAN_DELAY_MS = 5000;
 // Deteksi tempat sampah: ambang dipilih dari validation detektor (lihat experiments/bin_dataset)
 const BIN_SCORE = 0.4;
 const BIN_STABLE_FRAMES = 3;
-const BIN_LOST_FRAMES = 6;
+const BIN_LOST_FRAMES = 4;
 const BIN_INTERVAL_MS = 200;
 const BIN_FALLBACK_MS = 12000;
 
@@ -365,7 +368,12 @@ export default function Tahap1() {
   const [binVisible, setBinVisible] = useState(false);
   const [binFallback, setBinFallback] = useState(false);
   const [arUnavailable, setArUnavailable] = useState(false);
-  const markArUnavailable = useCallback(() => setArUnavailable(true), []);
+  const arUnavailableRef = useRef(false);
+  const markArUnavailable = useCallback(() => {
+    arUnavailableRef.current = true;
+    setArUnavailable(true);
+  }, []);
+  const [binDebug, setBinDebug] = useState<string | null>(null);
 
   // Kartu hasil scan
   const [scanCard, setScanCard] = useState<ScanFeedbackState>(INITIAL_SCAN_CARD);
@@ -466,7 +474,12 @@ export default function Tahap1() {
     if (canvas.width !== vw) canvas.width = vw;
     if (canvas.height !== vh) canvas.height = vh;
 
-    if (phaseRef.current === 'findBin' || phaseRef.current === 'disposed') {
+    // Saat konten 3D tampil, bingkai 2D disembunyikan supaya tidak terlihat seperti kotak deteksi biasa
+    if (
+      phaseRef.current === 'findBin' ||
+      phaseRef.current === 'disposed' ||
+      (phaseRef.current === 'identified' && !arUnavailableRef.current)
+    ) {
       staticOverlayKeyRef.current = null;
       ctx.clearRect(0, 0, vw, vh);
       return;
@@ -838,6 +851,8 @@ export default function Tahap1() {
     let misses = 0;
     let errors = 0;
     let lastBox: Box | null = null;
+    // Buka dengan ?debug=1 untuk melihat skor detektor langsung di HP
+    const debug = new URLSearchParams(window.location.search).has('debug');
     while (activeRef.current && session === sessionRef.current && phaseRef.current === 'findBin') {
       const started = performance.now();
       const video = videoRef.current;
@@ -857,6 +872,10 @@ export default function Tahap1() {
           const result = await detectBin(await createImageBitmap(frame));
           if (session !== sessionRef.current || phaseRef.current !== 'findBin') return;
           errors = 0;
+          if (debug && result) {
+            const area = ((result.bbox[2] * result.bbox[3]) / (frameW * frameH)) * 100;
+            setBinDebug(`skor ${result.score.toFixed(2)} (ambang ${BIN_SCORE}) · luas ${area.toFixed(0)}% · ${Math.round(performance.now() - started)} ms`);
+          }
 
           const found = result && result.score >= BIN_SCORE ? (result.bbox.map(v => v / frameScale) as Box) : null;
           const box = found && isMostlyVisible(found, getVisibleRegion(video)) ? found : null;
@@ -869,11 +888,17 @@ export default function Tahap1() {
               setBinVisible(true);
               setBinSeen(true);
             }
-          } else if (++misses >= BIN_LOST_FRAMES) {
-            hits = 0;
-            lastBox = null;
-            trackedBoxRef.current = null;
-            setBinVisible(false);
+          } else {
+            misses++;
+            // Sebelum tampil harus terdeteksi berturut-turut, supaya salah baca sesaat tidak memunculkan cincin
+            if (!trackedBoxRef.current || misses >= BIN_LOST_FRAMES) {
+              hits = 0;
+              lastBox = null;
+            }
+            if (misses >= BIN_LOST_FRAMES) {
+              trackedBoxRef.current = null;
+              setBinVisible(false);
+            }
           }
         } catch (err) {
           console.warn('Deteksi tempat sampah gagal pada frame ini:', err);
@@ -1030,6 +1055,9 @@ export default function Tahap1() {
     [detectedPlasticInfo]
   );
 
+  // Konten 3D sudah membawa info dan instruksinya, jadi kartu layar hanya dipakai bila 3D tidak tampil
+  const arShowing = !arUnavailable && (phase === 'identified' || (phase === 'findBin' && binVisible));
+
   const statusTone =
     phase === 'identified' || phase === 'disposed' || (phase === 'findBin' && binVisible)
       ? 'lock'
@@ -1111,15 +1139,17 @@ export default function Tahap1() {
         </div>
       )}
 
-      {/* Label dan instruksi 3D yang menempel pada sampah plastik */}
+      {/* Papan info, lencana kode, dan instruksi 3D yang menempel pada sampah plastik */}
       {phase === 'identified' && (
         <AnchoredLabelAR
           key="plastic"
+          variant="plastic"
           videoRef={videoRef}
           boxRef={trackedBoxRef}
           title={detectedPlasticInfo.name}
           details={labelDetails}
-          instruction="Buang sampah ini ke tempat sampah!"
+          instruction="Buang ke tempat sampah!"
+          recycleCode={detectedPlasticInfo.resinClass?.split('-')[0]}
           onUnavailable={markArUnavailable}
         />
       )}
@@ -1128,11 +1158,13 @@ export default function Tahap1() {
       {((phase === 'findBin' && binSeen) || phase === 'disposed') && (
         <AnchoredLabelAR
           key="bin"
+          variant="bin"
           videoRef={videoRef}
           boxRef={trackedBoxRef}
           title="Tempat sampah ditemukan!"
           details={BIN_LABEL_DETAILS}
-          instruction="Masukkan sampahmu di sini"
+          instruction="Masukkan sampah di sini"
+          itemKind={detectedPlasticInfo.kind}
           celebrate={phase === 'disposed'}
           onUnavailable={markArUnavailable}
         />
@@ -1141,9 +1173,19 @@ export default function Tahap1() {
       {/* Real-time Scanning HUD */}
       {(phase === 'scanning' || phase === 'identified' || phase === 'findBin' || phase === 'disposed') && (
         <div className="absolute inset-0 pointer-events-none z-20">
-          {/* Vignette halus agar HUD & bingkai lebih terbaca di atas video */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(6,41,59,0.55)_100%)]" />
-          <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[#06293b]/80 to-transparent" />
+          {/* Vignette halus agar HUD & bingkai lebih terbaca; dilepas saat konten 3D tampil agar kamera terlihat apa adanya */}
+          {!arShowing && (
+            <>
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(6,41,59,0.55)_100%)]" />
+              <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[#06293b]/80 to-transparent" />
+            </>
+          )}
+
+          {binDebug && (
+            <div className="absolute top-[10rem] inset-x-0 flex justify-center px-4">
+              <p className="px-2 py-1 rounded bg-black/70 text-[11px] font-[family-name:var(--font-mono)] text-[#6bff8f]">{binDebug}</p>
+            </div>
+          )}
 
           {/* Overlay memuat model AI (kamera sudah tampil di belakangnya) */}
           <AnimatePresence>
@@ -1217,6 +1259,7 @@ export default function Tahap1() {
 
           {/* Kartu informasi bawah */}
           <div className="absolute inset-x-0 bottom-0 flex flex-col items-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pointer-events-auto">
+            {!arShowing && (
             <div className="w-[min(100%,440px)] bg-[#083b54]/95 md:backdrop-blur-md border border-white/15 rounded-2xl p-3.5 shadow-2xl text-white">
               {/* Pesan panduan utama */}
               <div className="flex items-center justify-between gap-2">
@@ -1232,7 +1275,7 @@ export default function Tahap1() {
                   {phase === 'findBin'
                     ? binVisible
                       ? 'Masukkan sampahmu ke tempat sampah, lalu tekan tombol di bawah.'
-                      : 'Bawa sampahmu ke tempat sampah terdekat, lalu arahkan kamera ke sana. Perhatikan jalanmu, ya!'
+                      : 'Dekati tempat sampah sampai terlihat besar di layar. Perhatikan jalanmu, ya!'
                     : phase === 'disposed'
                     ? 'Terima kasih sudah membuang sampah pada tempatnya!'
                     : modelLoading
@@ -1290,6 +1333,7 @@ export default function Tahap1() {
               )}
 
             </div>
+            )}
 
             {/* Pindai manual untuk kemasan yang tidak dikenali otomatis */}
             {phase === 'scanning' && !modelLoading && showManualScan && (
