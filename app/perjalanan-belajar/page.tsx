@@ -4,6 +4,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { stages } from "@/lib/stagesData";
 import { useJourneyStore } from "@/lib/journeyStore";
+import { OPEN_ACCESS } from "@/lib/exhibition";
 
 const STAGE_ICONS: Record<number, string> = {
   1: "qr_code_scanner",
@@ -51,7 +52,7 @@ export default function PerjalananBelajarPage() {
   function getStatus(stageId: number) {
     if (completedStages.includes(stageId)) return "completed";
     if (stageId === nextStageId) return "current";
-    return "locked";
+    return OPEN_ACCESS ? "open" : "locked";
   }
 
   const mikaMessage =
@@ -98,7 +99,7 @@ export default function PerjalananBelajarPage() {
               const clickable = status !== "locked";
               const pos = LABEL_POS[idx];
               const labelWrap = pos === "above" ? "absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 flex flex-col items-center" : "absolute top-full left-1/2 -translate-x-1/2 mt-2.5 flex flex-col items-center";
-              const circleColor = status === "completed" ? "bg-[#006e2f] border-white text-white" : isCurrent ? "bg-[#006591] border-white text-white ring-pulse" : "bg-white/75 border-white/80 text-[#7c93a0] backdrop-blur-sm";
+              const circleColor = status === "completed" ? "bg-[#006e2f] border-white text-white" : isCurrent ? "bg-[#006591] border-white text-white ring-pulse" : status === "open" ? "bg-white border-white text-[#006591]" : "bg-white/75 border-white/80 text-[#7c93a0] backdrop-blur-sm";
 
               const Marker = (
                 <div className="absolute z-20" style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%, -50%)" }}>
@@ -128,9 +129,9 @@ export default function PerjalananBelajarPage() {
                           </Link>
                         </div>
                       ) : (
-                        <div className={`rounded-xl shadow-md border px-3 py-1.5 w-36 text-center ${status === "completed" ? "bg-white/90 backdrop-blur-sm border-white/70" : "bg-white/60 backdrop-blur-sm border-white/50"}`}>
+                        <div className={`rounded-xl shadow-md border px-3 py-1.5 w-36 text-center ${status !== "locked" ? "bg-white/90 backdrop-blur-sm border-white/70" : "bg-white/60 backdrop-blur-sm border-white/50"}`}>
                           <p className={`text-[8px] font-bold uppercase tracking-wider ${status === "completed" ? "text-[#006e2f]/70" : "text-[#7c93a0]"}`}>{stage.subtitle}</p>
-                          <p className={`text-[12px] font-bold leading-tight ${status === "completed" ? "text-[#191c1e]" : "text-[#5a6b75]"}`}>{stage.title}</p>
+                          <p className={`text-[12px] font-bold leading-tight ${status !== "locked" ? "text-[#191c1e]" : "text-[#5a6b75]"}`}>{stage.title}</p>
                         </div>
                       )}
                     </div>
@@ -199,7 +200,7 @@ export default function PerjalananBelajarPage() {
               const clickable = status !== "locked";
               const side = LABEL_SIDE_M[idx];
               const labelWrap = side === "left" ? "absolute right-full top-1/2 -translate-y-1/2 mr-2 flex justify-end" : "absolute left-full top-1/2 -translate-y-1/2 ml-2 flex justify-start";
-              const circleColor = status === "completed" ? "bg-[#006e2f] border-white text-white" : isCurrent ? "bg-[#006591] border-white text-white ring-pulse" : "bg-white/75 border-white/80 text-[#7c93a0] backdrop-blur-sm";
+              const circleColor = status === "completed" ? "bg-[#006e2f] border-white text-white" : isCurrent ? "bg-[#006591] border-white text-white ring-pulse" : status === "open" ? "bg-white border-white text-[#006591]" : "bg-white/75 border-white/80 text-[#7c93a0] backdrop-blur-sm";
 
               const Marker = (
                 <div className="absolute z-20" style={{ left: `${p.x}%`, top: `${p.y}%`, transform: "translate(-50%, -50%)" }}>
@@ -230,10 +231,10 @@ export default function PerjalananBelajarPage() {
                         </div>
                       ) : (
                         <div
-                          className={`rounded-lg shadow-md border px-2.5 py-1 w-28 ${side === "left" ? "text-right" : ""} ${status === "completed" ? "bg-white/90 backdrop-blur-sm border-white/70" : "bg-white/60 backdrop-blur-sm border-white/50"
+                          className={`rounded-lg shadow-md border px-2.5 py-1 w-28 ${side === "left" ? "text-right" : ""} ${status !== "locked" ? "bg-white/90 backdrop-blur-sm border-white/70" : "bg-white/60 backdrop-blur-sm border-white/50"
                             }`}
                         >
-                          <p className={`text-[11px] font-bold leading-tight ${status === "completed" ? "text-[#191c1e]" : "text-[#5a6b75]"}`}>{stage.title}</p>
+                          <p className={`text-[11px] font-bold leading-tight ${status !== "locked" ? "text-[#191c1e]" : "text-[#5a6b75]"}`}>{stage.title}</p>
                         </div>
                       )}
                     </div>
