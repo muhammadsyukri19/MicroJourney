@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
       // Model AI scanner disimpan browser, jadi kunjungan berikutnya tidak mengunduh atau mengecek ulang.
       // Bila isinya berubah, pakai folder versi baru.
       {
+        source: '/models/tfjs-wasm-4.22.0/:file*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
         source: '/models/coco-ssd/v2/:file*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },

@@ -1,5 +1,6 @@
 // Seluruh AI scanner berjalan di sini agar tampilan tidak macet saat model dimuat atau dijalankan
 import * as tf from '@tensorflow/tfjs';
+import { setWasmPaths } from '@tensorflow/tfjs-backend-wasm';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
 
 type Box = [number, number, number, number];
@@ -22,6 +23,9 @@ let frame: ImageBitmap | null = null;
 let cropCanvas: OffscreenCanvas | null = null;
 
 async function init(origin: string) {
+  // WebAssembly siap jauh lebih cepat karena tidak perlu menyusun shader; WebGL hanya cadangan
+  setWasmPaths(`${origin}/models/tfjs-wasm-4.22.0/`);
+  if (!(await tf.setBackend('wasm'))) await tf.setBackend('webgl');
   await tf.ready();
   const cocoUrl = `${origin}/models/coco-ssd/v2/model.json`;
   const [loadedCoco, loadedResin] = await Promise.all([

@@ -54,6 +54,7 @@ export function startScannerAI() {
 export function prefetchScannerModels() {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
   if (connection?.saveData) return;
+  fetch('/models/tfjs-wasm-4.22.0/tfjs-backend-wasm-simd.wasm').then(res => res.blob()).catch(() => {});
   for (const base of ['/models/coco-ssd/v2', '/models/plastic']) {
     fetch(`${base}/model.json`)
       .then(res => res.json())
