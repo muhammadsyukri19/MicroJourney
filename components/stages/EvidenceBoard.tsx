@@ -6,14 +6,14 @@ const TOKENS = [
   { id: 't-manusia', label: 'Kelalaian Manusia / Pembuangan Plastik', icon: 'delete_forever', targetSlot: 's-akar' },
   { id: 't-alam', label: 'Fotodegradasi Lingkungan & Abrasi Fisik', icon: 'weather_mix', targetSlot: 's-proses' },
   { id: 't-distribusi', label: 'Kontaminasi Rantai Pangan (Biomagnifikasi)', icon: 'set_meal', targetSlot: 's-jalur' },
-  { id: 't-klinis', label: 'Penyumbatan Mekanis Usus Halus', icon: 'coronavirus', targetSlot: 's-efek' },
+  { id: 't-klinis', label: 'Potensi Gangguan Saluran Cerna (Masih Diteliti)', icon: 'coronavirus', targetSlot: 's-efek' },
 ];
 
 const SLOTS = [
   { id: 's-akar', title: '1. Akar Masalah', accepts: 't-manusia', num: '1' },
   { id: 's-proses', title: '2. Proses Alam', accepts: 't-alam', num: '2' },
   { id: 's-jalur', title: '3. Jalur Distribusi', accepts: 't-distribusi', num: '3' },
-  { id: 's-efek', title: '4. Efek Patologis', accepts: 't-klinis', num: '4' },
+  { id: 's-efek', title: '4. Dampak yang Masih Diteliti', accepts: 't-klinis', num: '4' },
 ];
 
 interface EvidenceBoardProps {

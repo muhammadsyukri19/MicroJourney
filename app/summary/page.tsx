@@ -211,6 +211,13 @@ export default function StandaloneSummaryPage() {
     setLkpdAnswer('rating', rating);
     setLkpdAnswer('feedback', feedback);
 
+    // Pengunjung tanpa akun: jawaban tetap di perangkat dan tidak masuk rapor guru
+    if (!currentUser) {
+      setSubmitted(true);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const payload = {
         studentName: studentName || 'Anonim',
@@ -713,10 +720,12 @@ export default function StandaloneSummaryPage() {
                   className="text-2xl font-extrabold text-[#006e2f]"
                   style={{ fontFamily: 'var(--font-outfit)' }}
                 >
-                  Seluruh Berkas Bukti Aksi & Data Terkirim!
+                  {currentUser ? 'Seluruh Berkas Bukti Aksi & Data Terkirim!' : 'Terima Kasih Sudah Mencoba!'}
                 </h3>
                 <p className="text-xs sm:text-sm text-[#083b54] max-w-lg mx-auto leading-relaxed">
-                  Jawaban LKPD, berkas dokumentasi aksi, tautan media sosial, serta umpan balikmu telah tersimpan dengan aman di server database guru.
+                  {currentUser
+                    ? 'Jawaban LKPD, berkas dokumentasi aksi, tautan media sosial, serta umpan balikmu telah tersimpan dengan aman di server database guru.'
+                    : 'Karena kamu mencoba tanpa akun, jawabanmu hanya disimpan di perangkat ini dan tidak dikirim ke guru.'}
                 </p>
                 <div className="pt-3 flex flex-wrap justify-center gap-4">
                   <button

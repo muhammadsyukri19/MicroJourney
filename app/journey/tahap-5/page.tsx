@@ -15,7 +15,7 @@ const SUGGESTED_CHIPS = [
   'Mikroplastik Ingestif',
   'Biomagnifikasi',
   'Asam Lambung (HCl) Gagal',
-  'Penumpukan di Usus Halus',
+  'Partikel di Saluran Cerna',
   'Pencemaran Lingkungan',
 ];
 

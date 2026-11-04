@@ -51,6 +51,7 @@ export default function PreTestPage() {
 
       const state = useJourneyStore.getState();
       const currentAuth = useAuthStore.getState().currentUser;
+      if (!currentAuth) return;
       const sId = state.sessionId || `session-${Date.now()}`;
       if (!state.sessionId) {
         useJourneyStore.setState({ sessionId: sId });

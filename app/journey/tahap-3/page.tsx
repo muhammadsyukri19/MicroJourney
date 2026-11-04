@@ -70,7 +70,7 @@ function RevealScreen({
   const isHighDanger = total > 200;
   const dangerColor = isHighDanger ? '#ba1a1a' : '#f0a345';
   const glowColor = isHighDanger ? 'rgba(186,26,26,0.6)' : 'rgba(240,163,69,0.5)';
-  const dangerText = isHighDanger ? 'BAHAYA! KONTAMINASI TINGGI' : 'WASPADA! ADA KONTAMINASI';
+  const dangerText = isHighDanger ? 'SIMULASI: PARTIKEL CUKUP BANYAK' : 'SIMULASI: ADA PARTIKEL';
 
   return (
     <div className="relative w-full max-w-full page-clip flex items-center justify-center min-h-[100dvh] py-8 px-4 pt-28 md:pt-32 pb-16 bg-[linear-gradient(160deg,#083b54_0%,#006591_45%,#004c6e_100%)]">
@@ -122,7 +122,7 @@ function RevealScreen({
         </motion.div>
 
         <p className="text-white text-base mb-4 font-[family-name:var(--font-inter)] leading-relaxed">
-          Sistem mendeteksi ada <span className="font-bold text-red-400">ancaman partikel</span> di makananmu hari ini sebanyak:
+          Simulasi memperkirakan makanan pilihanmu membawa <span className="font-bold text-red-400">partikel mikroplastik</span> sebanyak:
         </p>
 
         {/* Counter */}

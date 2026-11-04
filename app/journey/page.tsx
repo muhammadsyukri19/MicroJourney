@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
+import { OPEN_ACCESS } from '@/lib/exhibition';
 import GuestLimitModal from '@/components/auth/GuestLimitModal';
 
 const STAGES = [
@@ -17,7 +18,7 @@ const STAGES = [
 
 export default function JourneyDashboard() {
   const router = useRouter();
-  const { studentName, completedStages, preTestScore } = useJourneyStore();
+  const { studentName, completedStages, preTestScore, reset } = useJourneyStore();
   const currentUser = useAuthStore(state => state.currentUser);
   
   const [guestModalOpen, setGuestModalOpen] = useState(false);
@@ -29,7 +30,7 @@ export default function JourneyDashboard() {
 
   const isGuest = !currentUser;
   // Progres yang sudah ada dari akun tidak perlu mengulang pre-test
-  const needsPreTest = preTestScore === null && completedStages.length === 0;
+  const needsPreTest = !OPEN_ACCESS && preTestScore === null && completedStages.length === 0;
   const nextStage = STAGES.find(stage => !completedStages.includes(stage.id));
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function JourneyDashboard() {
   }
 
   const handleStageClick = (stage: typeof STAGES[number], isLocked: boolean) => {
-    if (isGuest && stage.id > 2) {
+    if (!OPEN_ACCESS && isGuest && stage.id > 2) {
       setTargetStageTitle(stage.title);
       setGuestModalOpen(true);
       return;
@@ -89,11 +90,22 @@ export default function JourneyDashboard() {
             <span className="material-symbols-outlined text-[#d27b22] text-2xl">account_circle</span>
             <div>
               <p className="text-xs font-bold text-[#8e4912] uppercase tracking-wider font-[family-name:var(--font-outfit)]">
-                Mode Tamu (Akses Terbatas 2 Tahap)
+                {OPEN_ACCESS ? 'Mode Pameran: Semua Tahap Terbuka' : 'Mode Tamu (Akses Terbatas 2 Tahap)'}
               </p>
               <p className="text-xs text-[#3b2313]">
-                Kamu belum masuk akun. Hanya Tahap 1 & 2 yang dapat dimainkan.
+                {OPEN_ACCESS
+                  ? 'Pilih tahap mana saja tanpa akun. Jawabanmu hanya disimpan di perangkat ini dan tidak masuk rapor guru.'
+                  : 'Kamu belum masuk akun. Hanya Tahap 1 & 2 yang dapat dimainkan.'}
               </p>
+              {OPEN_ACCESS && completedStages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => reset()}
+                  className="py-2 text-xs font-bold text-[#8e4912] underline cursor-pointer"
+                >
+                  Mulai ulang untuk pengunjung berikutnya
+                </button>
+              )}
             </div>
           </div>
           <button
@@ -168,9 +180,9 @@ export default function JourneyDashboard() {
         {STAGES.map((stage) => {
           const isCompleted = completedStages.includes(stage.id);
           const isNext = nextStage?.id === stage.id;
-          const isGuestBlocked = isGuest && stage.id > 2;
-          const isTeacherLocked = stageLocks[stage.id] === false;
-          const isLocked = needsPreTest || (!isCompleted && !isNext && stage.id !== 1) || isGuestBlocked || isTeacherLocked;
+          const isGuestBlocked = !OPEN_ACCESS && isGuest && stage.id > 2;
+          const isTeacherLocked = !OPEN_ACCESS && stageLocks[stage.id] === false;
+          const isLocked = needsPreTest || (!OPEN_ACCESS && !isCompleted && !isNext && stage.id !== 1) || isGuestBlocked || isTeacherLocked;
 
           return (
             <div

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { stages, getStageById, type Stage } from '@/lib/stagesData';
 import { useJourneyStore } from '@/lib/journeyStore';
+import { useAuthStore } from '@/lib/authStore';
 
 // Per-stage: background environment, centered AR object, extra left/right panel content
 const stageConfig: Record<number, {
@@ -93,7 +94,7 @@ export default function TahapPage() {
         setQuizVisible(false);
         setCompleted(true);
         setXpEarned(stage!.xpReward);
-        fetch('/api/progress', {
+        if (useAuthStore.getState().currentUser) fetch('/api/progress', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ studentId: 'student_001', completedStage: stageId, xpEarned: stage!.xpReward }),

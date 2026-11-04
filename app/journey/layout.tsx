@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
 import { goBackStep } from '@/lib/stageBack';
+import { OPEN_ACCESS } from '@/lib/exhibition';
 import GuestLimitModal from '@/components/auth/GuestLimitModal';
 import BottomNav from '@/components/BottomNav';
 import UserProfileWidget from '@/components/auth/UserProfileWidget';
@@ -49,7 +50,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
   // Tes akhir berada setelah Tahap 6
   const backStage = pathname.startsWith('/journey/post-test') ? STAGES.length + 1 : currentId;
   const isGuest = !currentUser;
-  const isGuestBlockedPath = isGuest && currentId > 2;
+  const isGuestBlockedPath = !OPEN_ACCESS && isGuest && currentId > 2;
 
   return (
     <div className="min-h-[100dvh] bg-[#f7f9fb] flex flex-col font-[family-name:var(--font-inter)] relative">
@@ -118,7 +119,7 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                 const done = completedStages.includes(s.id) || (currentId > 0 && s.id < currentId);
                 const active = s.id === currentId;
                 const isHovered = hoveredStage === s.id;
-                const isLockedForGuest = isGuest && s.id > 2;
+                const isLockedForGuest = !OPEN_ACCESS && isGuest && s.id > 2;
 
                 // Memberikan variasi vertikal agar jejak tidak lurus membosankan
                 const offsetY = index % 2 === 0 ? -5 : 5;
@@ -134,12 +135,12 @@ export default function JourneyLayout({ children }: { children: React.ReactNode 
                     {/* Level Node (Bentuk Organik / Pulau) */}
                     <motion.div
                       onClick={() => {
-                        if (!isLockedForGuest && (done || active)) router.push(s.path);
+                        if (!isLockedForGuest && (OPEN_ACCESS || done || active)) router.push(s.path);
                       }}
                       className={`relative flex items-center justify-center z-10 transition-colors shadow-sm cursor-pointer ${isLockedForGuest ? 'w-7 h-7 sm:w-10 sm:h-10 bg-[#f0a345]/30 text-[#f0a345] border-2 border-[#f0a345] cursor-pointer' :
                           active ? 'w-9 h-9 sm:w-14 sm:h-14 bg-[#6bff8f] text-[#083b54] shadow-[0_0_15px_#6bff8f]' :
                             done ? 'w-7.5 h-7.5 sm:w-12 sm:h-12 bg-[#006e2f] text-white shadow-md' :
-                              'w-7 h-7 sm:w-10 sm:h-10 bg-[#083b54]/80 text-[#6bff8f]/50 border-2 border-[#006591] cursor-not-allowed backdrop-blur-sm'
+                              `w-7 h-7 sm:w-10 sm:h-10 bg-[#083b54]/80 text-[#6bff8f]/50 border-2 border-[#006591] ${OPEN_ACCESS ? '' : 'cursor-not-allowed '}backdrop-blur-sm`
                         }`}
                       style={{
                         borderRadius: active

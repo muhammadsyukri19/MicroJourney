@@ -107,6 +107,7 @@ export const useJourneyStore = create<JourneyState>()(
             const authRaw = localStorage.getItem('microjourney-auth');
             const authObj = authRaw ? JSON.parse(authRaw) : null;
             const user = authObj?.state?.currentUser;
+            if (!user) return;
             const studentId = user?.email || user?.id || get().sessionId || 'guest_student';
 
             fetch('/api/progress', {

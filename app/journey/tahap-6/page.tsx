@@ -21,13 +21,13 @@ const DEFAULT_MATCH_PAIRS: StakeholderPair[] = [
     id: 'siswa',
     role: 'Siswa / Pelajar',
     task: 'Membawa tumbler & menolak sedotan plastik di kantin',
-    impact: 'Duta lingkungan & menekan 80% botol sekali pakai di sekolah'
+    impact: 'Duta lingkungan & mengurangi botol sekali pakai di sekolah'
   },
   {
     id: 'pemerintah',
     role: 'Pemerintah & Regulator',
     task: 'Membuat kebijakan larangan penggunaan plastik sekali pakai & aturan daur ulang',
-    impact: 'Leverage point hulu terbesar untuk menekan 60% limbah plastik nasional'
+    impact: 'Mengurangi limbah plastik sejak dari hulu, sebelum menjadi sampah'
   },
   {
     id: 'pabrik',
@@ -468,7 +468,7 @@ export default function Tahap6() {
     // Sync final commitment to MongoDB
     try {
       const state = useJourneyStore.getState();
-      await fetch('/api/lkpd', {
+      if (currentUser) await fetch('/api/lkpd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

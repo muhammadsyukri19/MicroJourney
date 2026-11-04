@@ -51,6 +51,7 @@ export default function PostTestPage() {
 
       // Sync postTestScore to MongoDB (updating or creating the doc)
       const currentAuth = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('microjourney-auth') || '{}')?.state?.currentUser : null;
+      if (!currentAuth) return;
       fetch('/api/lkpd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

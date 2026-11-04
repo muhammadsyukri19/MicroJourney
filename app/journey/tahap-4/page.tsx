@@ -220,7 +220,7 @@ export default function Tahap4() {
                 <span className="text-white/90 text-[11px] font-[family-name:var(--font-mono)] uppercase tracking-wider font-semibold">Jembatan Eksperimen</span>
               </div>
               <h2 className="font-[family-name:var(--font-outfit)] text-2xl sm:text-3xl font-extrabold text-white leading-tight">
-                Ingat Eksperimen Tadi?
+                Coba Bayangkan Percobaan Ini
               </h2>
             </div>
 

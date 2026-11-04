@@ -20,7 +20,7 @@ let memoryStore: StakeholderPair[] = [
     id: 'pemerintah',
     role: 'Pemerintah & Regulator',
     task: 'Membuat kebijakan larangan kantong plastik & regulasi cukai limbah polimer',
-    impact: 'Leverage point hulu terbesar untuk menekan 60% limbah plastik skala nasional'
+    impact: 'Mengurangi limbah plastik sejak dari hulu, sebelum menjadi sampah'
   },
   {
     id: 'pabrik',

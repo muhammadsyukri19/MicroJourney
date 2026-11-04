@@ -1,4 +1,5 @@
 'use client';
+import { OPEN_ACCESS } from '@/lib/exhibition';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
@@ -34,7 +35,7 @@ export default function Tahap2() {
 
   function handleComplete() {
     completeStage(2);
-    if (!currentUser) {
+    if (!currentUser && !OPEN_ACCESS) {
       setGuestModalOpen(true);
     } else {
       setShowCompletionModal(true);
