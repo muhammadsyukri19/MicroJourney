@@ -50,6 +50,24 @@ export function startScannerAI() {
   return ready;
 }
 
+/** Mengunduh model lebih awal saat siswa di peta, supaya Tahap 1 tinggal memakainya dari cache */
+export function prefetchScannerModels() {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  if (connection?.saveData) return;
+  for (const base of ['/models/coco-ssd/v2', '/models/plastic']) {
+    fetch(`${base}/model.json`)
+      .then(res => res.json())
+      .then(model =>
+        Promise.all(
+          (model.weightsManifest as { paths: string[] }[])
+            .flatMap(group => group.paths)
+            .map(path => fetch(`${base}/${path}`).then(res => res.blob()))
+        )
+      )
+      .catch(() => {});
+  }
+}
+
 /** Melepas memori AI saat siswa keluar dari Tahap 1 */
 export function stopScannerAI() {
   failAll(new Error('AI scanner dihentikan'));

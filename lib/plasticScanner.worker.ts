@@ -23,7 +23,7 @@ let cropCanvas: OffscreenCanvas | null = null;
 
 async function init(origin: string) {
   await tf.ready();
-  const cocoUrl = `${origin}/models/coco-ssd/model.json`;
+  const cocoUrl = `${origin}/models/coco-ssd/v2/model.json`;
   const [loadedCoco, loadedResin] = await Promise.all([
     cocoSsd.load({ base: 'lite_mobilenet_v2', modelUrl: cocoUrl }),
     tf.loadGraphModel(`${origin}/models/plastic/model.json`),

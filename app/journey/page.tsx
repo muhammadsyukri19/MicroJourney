@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useJourneyStore } from '@/lib/journeyStore';
 import { useAuthStore } from '@/lib/authStore';
 import { OPEN_ACCESS } from '@/lib/exhibition';
+import { prefetchScannerModels } from '@/lib/plasticScannerClient';
 import GuestLimitModal from '@/components/auth/GuestLimitModal';
 
 const STAGES = [
@@ -34,6 +35,7 @@ export default function JourneyDashboard() {
   const nextStage = STAGES.find(stage => !completedStages.includes(stage.id));
 
   useEffect(() => {
+    prefetchScannerModels();
     fetchSettings();
     const interval = setInterval(fetchSettings, 8000);
     return () => clearInterval(interval);

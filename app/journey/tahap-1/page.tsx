@@ -15,7 +15,7 @@ import {
 import StageCompletionModal from '@/components/ui/StageCompletionModal';
 import { AnimatePresence, motion } from 'framer-motion';
 
-type Phase = 'init' | 'scanning' | 'identified' | 'disposed' | 'pemantik';
+type Phase = 'init' | 'scanning' | 'identified' | 'pemantik';
 
 interface PlasticInfo {
   name: string;
@@ -124,16 +124,18 @@ const UNLABELED_MIN_SCORE = 0.2;
 const UNLABELED_MIN_AREA = 0.12;
 const UNLABELED_CENTER_MARGIN = 0.3;
 // Bingkai bergantian: utuh, diputar untuk botol yang tergeletak, dan potongan tengah yang tidak terpencet
-const DETECT_VIEWS: DetectView[] = ['full', 'rotated', 'full', 'center'];
+const DETECT_VIEWS: DetectView[] = ['full', 'center', 'full', 'center', 'full', 'rotated'];
 // Bukti dikumpulkan dari skor tiap bingkai, jadi benda berskor rendah hanya perlu ditahan sedikit lebih lama.
 // Kamera HP yang bergetar atau pandangan yang gagal cukup mengurangi bukti, tidak mengulang dari nol.
-const LOCK_EVIDENCE = 1.6;
-const LOCK_MIN_HITS = 3;
+const LOCK_EVIDENCE = 1.0;
+const LOCK_MIN_HITS = 2;
 const MISS_PENALTY = 0.2;
 const SAME_OBJECT_OVERLAP = 0.15;
 const LOST_FRAMES = 6;
-const RECHECK_AFTER_FRAMES = 4;
-const DETECT_INTERVAL_MS = 150;
+const RECHECK_AFTER_FRAMES = 2;
+const DETECT_INTERVAL_MS = 80;
+// Papan info tampil sebentar, lalu kartu hasil muncul tanpa perlu menekan tombol
+const RESULT_DELAY_MS = 2500;
 const FRAME_LONG_SIDE = 640;
 const MANUAL_SCAN_DELAY_MS = 5000;
 
@@ -347,7 +349,7 @@ const INITIAL_SCAN_CARD: ScanFeedbackState = {
 };
 
 function newLockState() {
-  return { hits: 0, evidence: 0, labeled: false, streakBox: null as Box | null, kinds: [] as ObjectKind[], probs: [] as number[][], cooldown: 0, misses: 0, errors: 0 };
+  return { view: null as DetectView | null, hits: 0, evidence: 0, labeled: false, streakBox: null as Box | null, kinds: [] as ObjectKind[], probs: [] as number[][], cooldown: 0, misses: 0, errors: 0 };
 }
 
 let stopAiTimer = 0;
@@ -380,7 +382,6 @@ export default function Tahap1() {
   const renderRafRef = useRef<number>(0);
   const activeRef = useRef(false);
   const sessionRef = useRef(0);
-  const lockTimeoutRef = useRef<number | null>(null);
   const phaseRef = useRef<Phase>(restoredScan ? 'pemantik' : 'init');
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -466,10 +467,6 @@ export default function Tahap1() {
       cancelAnimationFrame(renderRafRef.current);
       renderRafRef.current = 0;
     }
-    if (lockTimeoutRef.current) {
-      window.clearTimeout(lockTimeoutRef.current);
-      lockTimeoutRef.current = null;
-    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -515,7 +512,7 @@ export default function Tahap1() {
     if (canvas.height !== vh) canvas.height = vh;
 
     // Saat konten 3D tampil, bingkai 2D disembunyikan supaya tidak terlihat seperti kotak deteksi biasa
-    if (phaseRef.current === 'disposed' || (phaseRef.current === 'identified' && !arUnavailableRef.current)) {
+    if (phaseRef.current === 'identified' && !arUnavailableRef.current) {
       staticOverlayKeyRef.current = null;
       ctx.clearRect(0, 0, vw, vh);
       return;
@@ -658,7 +655,9 @@ export default function Tahap1() {
     if (!procCtx) return;
     procCtx.drawImage(video, 0, 0, frameW, frameH);
 
-    const view = DETECT_VIEWS[viewIndexRef.current++ % DETECT_VIEWS.length];
+    // Pandangan yang menemukan benda dipakai terus, supaya bukti tidak terputus oleh pandangan lain
+    const lockedView = phaseRef.current === 'identified' ? 'full' : lockStateRef.current.view;
+    const view = lockedView ?? DETECT_VIEWS[viewIndexRef.current++ % DETECT_VIEWS.length];
     const detected = await detectObjects(await createImageBitmap(procCanvas), view);
     if (session !== sessionRef.current) return;
 
@@ -801,7 +800,7 @@ export default function Tahap1() {
     if (!candidate) {
       lock.evidence -= MISS_PENALTY;
       if (streakBox && lock.evidence > 0) return;
-      Object.assign(lock, { hits: 0, evidence: 0, labeled: false, streakBox: null, kinds: [], probs: [] });
+      lockStateRef.current = newLockState();
       overlayTargetRef.current = { box: null, kind: 'none', label: '', isCenterFallback: false };
 
       // Benda bukan sampah (orang, laptop, dll.) yang menutupi titik tengah bingkai
@@ -835,6 +834,7 @@ export default function Tahap1() {
     lock.labeled = lock.labeled || isLockable(candidate);
     lock.kinds = [...lock.kinds, objectKind(candidate.class, candidate.bbox)];
     lock.streakBox = candidate.bbox;
+    lock.view = view;
     overlayTargetRef.current = { box: candidate.bbox, kind: 'uncertain', label: 'Tahan sebentar…', isCenterFallback: false };
     if (lock.evidence < LOCK_EVIDENCE || lock.hits < LOCK_MIN_HITS) return;
 
@@ -850,7 +850,7 @@ export default function Tahap1() {
       : null;
     if (result && !result.looksNonPlastic && result.topScore >= RESIN_THRESHOLD) {
       const kind = mostCommon(lock.kinds);
-      Object.assign(lock, { hits: 0, evidence: 0, labeled: false, streakBox: null, kinds: [], probs: [] });
+      lockStateRef.current = newLockState();
       acceptPlastic(kind === 'unknown' ? PACKAGING_PLASTIC_INFO : OBJECT_PLASTIC_INFO[kind], candidate.bbox, false);
       return;
     }
@@ -866,7 +866,7 @@ export default function Tahap1() {
     );
   }, [playScanPing, setPhase]);
 
-  /** Loop deteksi di latar belakang; berhenti saat siswa pindah ke langkah membuang sampah */
+  /** Loop deteksi di latar belakang; berhenti saat kartu hasil tampil */
   const runLiveScan = useCallback(async (session: number) => {
     while (
       activeRef.current &&
@@ -900,23 +900,24 @@ export default function Tahap1() {
     return () => window.clearTimeout(timer);
   }, [phase, modelLoading]);
 
+  // Setelah jeda singkat, kartu hasil tampil dengan sendirinya
+  useEffect(() => {
+    if (phase !== 'identified') return;
+    const timer = window.setTimeout(() => {
+      setPlasticDisposal({
+        plasticName: detectedPlasticInfo.name,
+        resinClass: detectedPlasticInfo.resinClass ?? null,
+        disposedAt: new Date().toISOString(),
+      });
+      stopCamera();
+      setPhase('pemantik');
+    }, RESULT_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase, detectedPlasticInfo, setPlasticDisposal, stopCamera, setPhase]);
+
   function requestManualScan() {
     manualScanRef.current = true;
     setManualChecking(true);
-  }
-
-  function confirmDisposed() {
-    setPlasticDisposal({
-      plasticName: detectedPlasticInfo.name,
-      resinClass: detectedPlasticInfo.resinClass ?? null,
-      disposedAt: new Date().toISOString(),
-    });
-    playScanPing('lock');
-    setPhase('disposed');
-    lockTimeoutRef.current = window.setTimeout(() => {
-      stopCamera();
-      setPhase('pemantik');
-    }, 2600);
   }
 
   async function startCamera() {
@@ -987,7 +988,7 @@ export default function Tahap1() {
 
   // Hasil -> scan ulang -> layar pembuka -> peta
   useStageBack(() => {
-    if (phase === 'pemantik' || phase === 'identified' || phase === 'disposed') {
+    if (phase === 'pemantik' || phase === 'identified') {
       startCamera();
       return true;
     }
@@ -1027,7 +1028,7 @@ export default function Tahap1() {
   const arShowing = !arUnavailable && phase === 'identified';
 
   const statusTone =
-    phase === 'identified' || phase === 'disposed'
+    phase === 'identified'
       ? 'lock'
       : scanCard.status === 'uncertain'
       ? 'warn'
@@ -1038,8 +1039,6 @@ export default function Tahap1() {
   const statusLabel =
     phase === 'identified'
       ? 'Terlihat seperti plastik'
-      : phase === 'disposed'
-      ? 'Hore!'
       : modelLoading
       ? 'Menyiapkan AI'
       : manualChecking
@@ -1102,7 +1101,7 @@ export default function Tahap1() {
       )}
 
       {/* Papan info, lencana kode, dan instruksi 3D yang menempel pada sampah plastik, lalu konfeti perayaan */}
-      {(phase === 'identified' || phase === 'disposed') && (
+      {phase === 'identified' && (
         <AnchoredLabelAR
           videoRef={videoRef}
           boxRef={trackedBoxRef}
@@ -1110,13 +1109,12 @@ export default function Tahap1() {
           details={labelDetails}
           instruction="Buang ke tempat sampah!"
           recycleCode={detectedPlasticInfo.resinClass?.split('-')[0]}
-          celebrate={phase === 'disposed'}
           onUnavailable={markArUnavailable}
         />
       )}
 
       {/* Real-time Scanning HUD */}
-      {(phase === 'scanning' || phase === 'identified' || phase === 'disposed') && (
+      {(phase === 'scanning' || phase === 'identified') && (
         <div className="absolute inset-0 pointer-events-none z-20">
           {/* Vignette halus agar HUD & bingkai lebih terbaca; dilepas saat konten 3D tampil agar kamera terlihat apa adanya */}
           {!arShowing && (
@@ -1152,23 +1150,6 @@ export default function Tahap1() {
 
           {/* Tanda sukses setelah siswa membuang sampah */}
           <AnimatePresence>
-            {phase === 'disposed' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_center,rgba(107,255,143,0.28),transparent_65%)]"
-              >
-                <motion.div
-                  initial={{ scale: 0.4, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 320, damping: 18 }}
-                  className="w-20 h-20 rounded-full bg-[#006e2f]/90 border-2 border-[#6bff8f] shadow-[0_0_40px_rgba(107,255,143,0.6)] flex items-center justify-center"
-                >
-                  <span className="material-symbols-outlined text-[#6bff8f] text-5xl">check</span>
-                </motion.div>
-              </motion.div>
-            )}
           </AnimatePresence>
 
           {/* Pill status ringkas — diletakkan di bawah header kayu (h-28) */}
@@ -1211,9 +1192,7 @@ export default function Tahap1() {
                       : 'text-white'
                   }`}
                 >
-                  {phase === 'disposed'
-                    ? 'Hore! Terima kasih sudah mau membuang sampah pada tempatnya.'
-                    : modelLoading
+                  {modelLoading
                     ? 'Kamera aktif. Model AI sedang dimuat…'
                     : manualChecking
                     ? 'AI sedang memeriksa kemasan…'
@@ -1279,16 +1258,6 @@ export default function Tahap1() {
               >
                 <span className="material-symbols-outlined text-xl">center_focus_strong</span>
                 {manualChecking ? 'Memeriksa…' : 'Belum terdeteksi? Periksa benda di tengah'}
-              </button>
-            )}
-
-            {phase === 'identified' && (
-              <button
-                onClick={confirmDisposed}
-                className="mt-3 w-[min(100%,440px)] min-h-14 flex items-center justify-center gap-2 bg-[#6bff8f] hover:bg-[#4ee876] text-[#06293b] text-lg font-extrabold rounded-2xl shadow-lg transition-transform active:scale-95 font-[family-name:var(--font-outfit)]"
-              >
-                <span className="material-symbols-outlined text-2xl">delete</span>
-                Saya akan membuangnya
               </button>
             )}
 

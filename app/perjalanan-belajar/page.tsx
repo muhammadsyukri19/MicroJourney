@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { stages } from "@/lib/stagesData";
 import { useJourneyStore } from "@/lib/journeyStore";
 import { OPEN_ACCESS } from "@/lib/exhibition";
+import { prefetchScannerModels } from "@/lib/plasticScannerClient";
 
 const STAGE_ICONS: Record<number, string> = {
   1: "qr_code_scanner",
@@ -43,6 +45,10 @@ const PATH_D_M =
 
 export default function PerjalananBelajarPage() {
   const { completedStages } = useJourneyStore();
+
+  useEffect(() => {
+    prefetchScannerModels();
+  }, []);
 
   const completedCount = completedStages.length;
   const progressPercent = Math.round((completedCount / stages.length) * 100);
