@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/authStore";
 import { useJourneyStore } from "@/lib/journeyStore";
 import Navbar from "@/components/Navbar";
+import TestimoniSekolah from "@/components/organisms/TestimoniSekolah";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -254,6 +255,8 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <TestimoniSekolah />
       </main>
 
       {/* Footer */}
