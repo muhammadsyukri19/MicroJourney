@@ -121,3 +121,7 @@ Warna memakai keluarga biru muda dan cyan MicroJourney. Bahan tidak memakai `emi
 - Cahaya HDRI hanya berlaku di viewer. Di AR, cahaya mengikuti ruangan dan pengolah milik perangkat.
 - Film memakai bahan tembus cahaya. Tampilannya bisa sedikit berbeda antara model-viewer, Quick Look, dan Scene Viewer.
 - Lipatan yang saling menutupi pada film tidak diurutkan sempurna oleh penggambaran tembus cahaya.
+
+## Versi 3 (2026-11-15)
+
+Aset di `public/models/microplastic/v3/` dibuat oleh `scripts/build-microplastic-models-v3.py`. Bentuk dan rujukannya sama dengan v2. Bedanya: mesh dua kali lebih rapat, atlas tekstur 2048, serta tambahan retakan halus dan butir permukaan. Retakan dan butir itu bersifat ilustratif (pola buatan), bukan salinan dari foto rujukan. Aset v2 tetap disimpan sebagai cadangan.

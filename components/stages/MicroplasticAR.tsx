@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { MICROPLASTIC_TYPES, type MicroplasticType } from '@/lib/microplasticTypes';
 import { loadViewerScript } from '@/lib/modelViewer';
 
-const MODEL_BASE = '/models/microplastic/v2';
+const MODEL_BASE = '/models/microplastic/v3';
 const LOAD_PROBLEM = 'Model 3D belum bisa dimuat. Periksa koneksi internet, lalu coba lagi.';
 const NOAA_URL = 'https://oceanservice.noaa.gov/facts/microplastics.html';
 const LICENSE_URL = 'https://creativecommons.org/licenses/by/4.0/';
@@ -123,6 +123,8 @@ export default function MicroplasticAR({ onClose, organName }: { onClose: () => 
               ar-modes="webxr scene-viewer quick-look"
               ar-scale="auto"
               ar-placement="floor"
+              // Di AR Android (WebXR), cahaya model mengikuti cahaya ruangan sungguhan
+              xr-environment
               camera-controls
               camera-orbit={type.orbit}
               min-camera-orbit="auto auto 20%"
@@ -141,9 +143,6 @@ export default function MicroplasticAR({ onClose, organName }: { onClose: () => 
               <span slot="ar-button" hidden />
             </model-viewer>
           )}
-          <span className="absolute left-3 top-2 rounded-full bg-[#06293b]/80 border border-[#6bff8f]/40 px-2.5 py-1 text-[11px] font-semibold text-[#6bff8f] pointer-events-none">
-            Ilustrasi 3D, bukan hasil pindai
-          </span>
           {modelReady && !interacted && (
             <span className="absolute inset-x-0 bottom-2 text-center text-[12px] font-medium text-white/80 pointer-events-none">
               Geser untuk memutar, cubit untuk memperbesar

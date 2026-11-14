@@ -19,23 +19,23 @@ const nextConfig: NextConfig = {
         source: '/models/plastic/:file*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }],
       },
-      // Aset v2 boleh disimpan browser sehari; bila isinya berubah, pakai folder versi baru
+      // Aset v2 dan v3 boleh disimpan browser sehari; bila isinya berubah, pakai folder versi baru
       {
-        source: '/models/microplastic/v2/:file([a-z]+\.usdz)',
+        source: '/models/microplastic/:versi(v2|v3)/:file([a-z]+\.usdz)',
         headers: [
           { key: 'Content-Type', value: 'model/vnd.usdz+zip' },
           { key: 'Cache-Control', value: 'public, max-age=86400' },
         ],
       },
       {
-        source: '/models/microplastic/v2/:file([a-z]+\.glb)',
+        source: '/models/microplastic/:versi(v2|v3)/:file([a-z]+\.glb)',
         headers: [
           { key: 'Content-Type', value: 'model/gltf-binary' },
           { key: 'Cache-Control', value: 'public, max-age=86400' },
         ],
       },
       {
-        source: '/models/microplastic/v2/:file([a-z]+\.hdr)',
+        source: '/models/microplastic/:versi(v2|v3)/:file([a-z]+\.hdr)',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
       },
       {
