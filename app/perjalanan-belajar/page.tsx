@@ -90,7 +90,7 @@ export default function PerjalananBelajarPage() {
         ══════════════════════════════════════ */}
         <section className="hidden lg:block relative w-full overflow-hidden select-none h-[100vh] -mt-[112px] bg-[#bfe6f5]">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ aspectRatio: "1672 / 941", minWidth: "100%", minHeight: "100%" }}>
-            <img src="/map-bg.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+            <img src="/map-bg.webp" loading="lazy" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
 
             <svg viewBox="0 0 1672 941" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
               <path d={PATH_D} pathLength={1000} fill="none" stroke="#caffe1" strokeWidth={12} strokeLinecap="round" strokeLinejoin="round" opacity={0.4} />
@@ -191,7 +191,7 @@ export default function PerjalananBelajarPage() {
         ══════════════════════════════════════ */}
         <section className="lg:hidden relative w-full overflow-hidden select-none h-[100dvh] -mt-14 md:-mt-[112px] bg-[#bfe6f5]">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ aspectRatio: "941 / 1672", minWidth: "100%", minHeight: "100%" }}>
-            <img src="/map-bg-mobile.webp" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+            <img src="/map-bg-mobile.webp" loading="lazy" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
 
             <svg viewBox="0 0 941 1672" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
               <path d={PATH_D_M} pathLength={1000} fill="none" stroke="#caffe1" strokeWidth={16} strokeLinecap="round" strokeLinejoin="round" opacity={0.35} />

@@ -55,7 +55,7 @@ export default function Navbar() {
 
         {/* ── DESKTOP: papan kayu gantung (logo + menu + avatar di atas papan) ── */}
         <div className="hidden md:block absolute left-1/2 top-1/2 w-full max-w-[1280px] pointer-events-none" style={{ transform: "translate(-50%, -65%)" }}>
-          <img src="/navbar-board-v3.png" width={1500} height={325} alt="" className="block w-full h-auto select-none" draggable={false} style={{ filter: "drop-shadow(0 8px 9px rgba(70,40,10,0.22))" }} />
+          <img src="/navbar-board-v3.webp" width={1500} height={325} alt="" className="block w-full h-auto select-none" draggable={false} style={{ filter: "drop-shadow(0 8px 9px rgba(70,40,10,0.22))" }} />
 
           {/* Logo terukir di sisi kiri papan */}
           <Link

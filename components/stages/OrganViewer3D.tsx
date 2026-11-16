@@ -242,7 +242,7 @@ export default function OrganViewer3D({ view, paused }: { view: OrganViewId; pau
         {problem ? (
           <div className="absolute inset-0 flex flex-col">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/organ.png" alt="Gambar anatomi organ pencernaan" className="flex-1 min-h-0 w-full object-contain opacity-70" />
+            <img src="/organ.webp" alt="Gambar anatomi organ pencernaan" className="flex-1 min-h-0 w-full object-contain opacity-70" />
             <div className="shrink-0 p-3 text-center">
               <p className="text-[13px] font-semibold text-[#ffb4ab]">{problem}</p>
               <button onClick={retry} className="mt-1.5 min-h-11 px-4 rounded-xl border border-white/25 bg-white/15 text-sm font-bold active:scale-95">

@@ -96,7 +96,7 @@ export default function LandingPage() {
 
           {/* Signpost CTA — desktop (papan kayu tertancap di pasir) */}
           <div className="block absolute bottom-[5%] md:bottom-0 left-[32%] sm:left-[26%] md:left-[20%] -translate-x-1/2 -rotate-[5deg] z-20 w-[185px] sm:w-[235px] md:w-[280px] lg:w-[320px]" style={{ aspectRatio: "790 / 1092" }}>
-            <img src="/signpost.png" alt="" draggable={false} className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none" style={{ filter: "drop-shadow(0 12px 16px rgba(30,55,25,0.28))" }} />
+            <img src="/signpost.webp" alt="" draggable={false} className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none" style={{ filter: "drop-shadow(0 12px 16px rgba(30,55,25,0.28))" }} />
             {/* Keping atas — Lihat Peta (sekunder) */}
             <Link href="/perjalanan-belajar" aria-label="Lihat Peta" className="group absolute left-[13%] right-[13%] top-[16%] h-[15.5%] flex items-center justify-center pointer-events-auto cursor-pointer">
               {/* Glow panel saat hover/tap → terlihat sebagai tombol */}
@@ -193,7 +193,7 @@ export default function LandingPage() {
                   <div className="absolute -inset-6 bg-[#006591]/10 rounded-[48px] -rotate-3" />
                   <div className="absolute -inset-2 bg-[#006e2f]/10 rounded-[44px] rotate-2" />
                   <div className="relative z-10 w-[258px] rounded-[42px] border-[11px] border-[#16242b] bg-[#16242b] shadow-2xl overflow-hidden">
-                    <img src="/app-peta.png" alt="Tampilan aplikasi MicroJourney AR" className="w-full block" draggable={false} />
+                    <img src="/app-peta.webp" loading="lazy" alt="Tampilan aplikasi MicroJourney AR" className="w-full block" draggable={false} />
                   </div>
                 </div>
               </div>
